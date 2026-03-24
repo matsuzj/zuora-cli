@@ -6,6 +6,9 @@ func DefaultEnvironments() map[string]*Environment {
 		"sandbox": {
 			BaseURL: "https://rest.apisandbox.zuora.com",
 		},
+		"apac-sandbox": {
+			BaseURL: "https://rest.test.ap.zuora.com",
+		},
 		"us-production": {
 			BaseURL: "https://rest.na.zuora.com",
 		},

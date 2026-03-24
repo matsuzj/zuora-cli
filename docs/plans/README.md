@@ -154,6 +154,8 @@ zr auth login
 
 ### 設定ファイル (~/.config/zr/)
 
+> **注意**: `$XDG_CONFIG_HOME` が設定されている場合は `$XDG_CONFIG_HOME/zr/` を使用し、未設定時のみ `~/.config/zr/` にフォールバックする (XDG Base Directory 準拠)。
+
 ```yaml
 # config.yml
 active_environment: sandbox
@@ -488,7 +490,7 @@ Error: Could not connect to https://rest.apisandbox.zuora.com
 | Order | Revert | https://developer.zuora.com/v1-api-reference/api/operation/revertOrder/ |
 | Order | Trigger Dates | https://developer.zuora.com/v1-api-reference/api/operation/PUT_OrderTriggerDates/ |
 | Order Line Item | Bulk Update | https://developer.zuora.com/v1-api-reference/api/operation/Post_OrderLineItems/ |
-| Commerce | Product Get | https://developer.zuora.com/v1-api-reference/api/operation/GET_RetrieveProductByKey/ |
+| Commerce | Product Get | https://developer.zuora.com/v1-api-reference/api/operation/getProductByKey/ |
 | Commerce | Plan Query | https://developer.zuora.com/v1-api-reference/api/operation/queryCommerceProductRatePlans/ |
 | Commerce | Plan List | https://developer.zuora.com/v1-api-reference/api/operation/queryCommercePlansList/ |
 | Commerce | Charge Query | https://developer.zuora.com/v1-api-reference/api/operation/queryProductRatePlanChargeWithDynamicPricing/ |

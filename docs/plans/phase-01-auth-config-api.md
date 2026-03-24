@@ -49,6 +49,7 @@
 - [ ] `-H, --header` — 追加ヘッダ (複数可)
 - [ ] `--paginate` — 自動ページネーション
 - [ ] `--jq` — jq フィルタ
+- [ ] `--zuora-version` — Zuora-Version ヘッダの上書き
 
 ### Sandbox 検証
 

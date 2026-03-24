@@ -8,7 +8,7 @@
 
 - [ ] `zr account create` — `POST /v1/accounts`
 - [ ] `zr account update <key>` — `PUT /v1/accounts/{account-key}`
-- [ ] `zr account delete <key>` — `DELETE /v1/accounts/{account-key}` (async)
+- [ ] `zr account delete <key>` — `DELETE /v1/accounts/{account-key}` (async, --confirm 必須)
 - [ ] `zr account set-cascading <key>` — `PUT /v1/accounts/{account-key}/payment-methods/cascading`
 
 ### Subscription — Write 操作

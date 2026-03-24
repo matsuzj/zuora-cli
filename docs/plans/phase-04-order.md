@@ -10,7 +10,7 @@
 - [ ] `zr order get <num>` — `GET /v1/orders/{orderNumber}`
 - [ ] `zr order create` — `POST /v1/orders`
 - [ ] `zr order update <num>` — `PUT /v1/orders/{orderNumber}` (draft/scheduled。警告: full payload 必須。不足した order actions は削除される。--body で完全な JSON を渡すこと)
-- [ ] `zr order delete <num>` — `DELETE /v1/orders/{orderNumber}`
+- [ ] `zr order delete <num>` — `DELETE /v1/orders/{orderNumber}` (--confirm 必須)
 
 ### Order — ライフサイクル
 

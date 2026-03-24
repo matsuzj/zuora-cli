@@ -9,7 +9,7 @@
 - [ ] `zr invoice list --account <key>` — `GET /v1/transactions/invoices/accounts/{account-key}` (--account フラグ必須。注意: Older API。参照: https://developer.zuora.com/v1-api-reference/older-api/transactions/)
 - [ ] `zr invoice get <id>` — `GET /v1/invoices/{invoice-id}`
 - [ ] `zr invoice items <id>` — `GET /v1/invoices/{invoice-id}/items`
-- [ ] `zr invoice files <id>` — `GET /v1/invoices/{invoiceKey}/files` (ファイル一覧取得、--download で PDF ダウンロード、--output <path> で保存先指定)
+- [ ] `zr invoice files <id>` — `GET /v1/invoices/{invoice-id}/files` (ファイル一覧取得、--download で PDF ダウンロード、--output <path> で保存先指定)
 - [ ] `zr invoice email <id>` — `POST /v1/invoices/{invoice-id}/emails` (--body 必須、宛先メール等)
 - [ ] `zr invoice usage-rate-detail <item-id>` — `GET /v1/invoices/invoice-item/{invoice-item-id}/usage-rate-detail`
 

@@ -57,6 +57,7 @@ func runList(cmd *cobra.Command, opts *listOptions, subscriptionKey string) erro
 		reqOpts = append(reqOpts, api.WithQuery("pageSize", opts.PageSize))
 	}
 
+	reqOpts = append(reqOpts, api.WithCheckSuccess())
 	resp, err := client.Get(fmt.Sprintf("/v1/orders/subscription/%s", url.PathEscape(subscriptionKey)), reqOpts...)
 	if err != nil {
 		return err

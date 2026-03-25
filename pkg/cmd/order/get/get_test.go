@@ -31,11 +31,14 @@ func TestOrderGet_Success(t *testing.T) {
 		assert.Equal(t, "/v1/orders/O-00000001", r.URL.Path)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"orderNumber":           "O-00000001",
-			"status":                "Completed",
-			"orderDate":             "2026-01-01",
-			"existingAccountNumber": "A00000001",
-			"createdDate":           "2026-01-01T00:00:00Z",
+			"success": true,
+			"order": map[string]interface{}{
+				"orderNumber":           "O-00000001",
+				"status":                "Completed",
+				"orderDate":             "2026-01-01",
+				"existingAccountNumber": "A00000001",
+				"createdDate":           "2026-01-01T00:00:00Z",
+			},
 		})
 	}))
 	defer server.Close()

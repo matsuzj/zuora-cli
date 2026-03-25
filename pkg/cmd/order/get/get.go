@@ -47,16 +47,22 @@ func runGet(cmd *cobra.Command, f *factory.Factory, orderNumber string) error {
 		return fmt.Errorf("parsing response: %w", err)
 	}
 
+	// Zuora GET /v1/orders/{orderNumber} returns data nested under "order" key
+	order, _ := raw["order"].(map[string]interface{})
+	if order == nil {
+		order = raw
+	}
+
 	fields := []output.DetailField{
-		{Key: "Order Number", Value: getString(raw, "orderNumber")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Order Date", Value: getString(raw, "orderDate")},
-		{Key: "Account Number", Value: getString(raw, "existingAccountNumber")},
-		{Key: "Description", Value: getString(raw, "description")},
-		{Key: "Created Date", Value: getString(raw, "createdDate")},
-		{Key: "Created By", Value: getString(raw, "createdBy")},
-		{Key: "Updated Date", Value: getString(raw, "updatedDate")},
-		{Key: "Updated By", Value: getString(raw, "updatedBy")},
+		{Key: "Order Number", Value: getString(order, "orderNumber")},
+		{Key: "Status", Value: getString(order, "status")},
+		{Key: "Order Date", Value: getString(order, "orderDate")},
+		{Key: "Account Number", Value: getString(order, "existingAccountNumber")},
+		{Key: "Description", Value: getString(order, "description")},
+		{Key: "Created Date", Value: getString(order, "createdDate")},
+		{Key: "Created By", Value: getString(order, "createdBy")},
+		{Key: "Updated Date", Value: getString(order, "updatedDate")},
+		{Key: "Updated By", Value: getString(order, "updatedBy")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)

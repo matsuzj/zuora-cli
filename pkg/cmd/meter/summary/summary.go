@@ -69,6 +69,9 @@ func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error 
 		if err := dec.Decode(&bodyMap); err != nil {
 			return fmt.Errorf("parsing body: %w", err)
 		}
+		if bodyMap == nil {
+			bodyMap = make(map[string]interface{})
+		}
 	} else {
 		bodyMap = make(map[string]interface{})
 	}

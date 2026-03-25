@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -54,10 +55,11 @@ func runPost(cmd *cobra.Command, opts *postOptions) error {
 		return err
 	}
 
-	data, err := os.ReadFile(opts.File)
+	file, err := os.Open(opts.File)
 	if err != nil {
 		return fmt.Errorf("reading file: %w", err)
 	}
+	defer file.Close()
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -65,7 +67,7 @@ func runPost(cmd *cobra.Command, opts *postOptions) error {
 	if err != nil {
 		return fmt.Errorf("creating multipart form: %w", err)
 	}
-	if _, err := part.Write(data); err != nil {
+	if _, err := io.Copy(part, file); err != nil {
 		return fmt.Errorf("writing file data: %w", err)
 	}
 	if err := writer.Close(); err != nil {

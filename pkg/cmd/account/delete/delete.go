@@ -58,7 +58,7 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, key string) error {
 	fmtOpts := output.FromCmd(cmd)
 
 	// DELETE returns 204 (no body) on success
-	if resp.StatusCode == 204 || len(resp.Body) == 0 {
+	if resp.StatusCode == 204 {
 		synth := []byte(`{"success": true}`)
 		if fmtOpts.JQ != "" {
 			return output.PrintJSON(f.IOStreams, synth, fmtOpts.JQ)
@@ -73,12 +73,21 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, key string) error {
 		return nil
 	}
 
-	// If response has a body (unexpected for DELETE), render it
+	// Response has a body (Zuora returns 200 with job info for async delete)
 	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err == nil {
-		return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, []output.DetailField{
-			{Key: "Success", Value: fmt.Sprintf("%v", raw["success"])},
-		})
+	if err := json.Unmarshal(resp.Body, &raw); err != nil {
+		fmt.Fprintf(f.IOStreams.ErrOut, "Unexpected response from server while deleting account %s:\n%s\n", key, string(resp.Body))
+		return fmt.Errorf("failed to parse server response for account delete")
 	}
-	return nil
+
+	fields := []output.DetailField{
+		{Key: "Success", Value: fmt.Sprintf("%v", raw["success"])},
+	}
+	if jobID, ok := raw["jobId"].(string); ok {
+		fields = append(fields, output.DetailField{Key: "Job ID", Value: jobID})
+	}
+	if jobStatus, ok := raw["jobStatus"].(string); ok {
+		fields = append(fields, output.DetailField{Key: "Job Status", Value: jobStatus})
+	}
+	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
 }

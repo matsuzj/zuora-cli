@@ -2,6 +2,7 @@
 package cmdutil
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -23,7 +24,7 @@ func ResolveBody(body string, stdin io.Reader) (io.Reader, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading body file: %w", err)
 		}
-		return strings.NewReader(string(data)), nil
+		return bytes.NewReader(data), nil
 	}
 	return strings.NewReader(body), nil
 }

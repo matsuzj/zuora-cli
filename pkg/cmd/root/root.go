@@ -13,6 +13,9 @@ import (
 	configcmd "github.com/matsuzj/zuora-cli/pkg/cmd/config"
 	contactcmd "github.com/matsuzj/zuora-cli/pkg/cmd/contact"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	ordercmd "github.com/matsuzj/zuora-cli/pkg/cmd/order"
+	orderactioncmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-action"
+	orderlineitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/signup"
 	subcmd "github.com/matsuzj/zuora-cli/pkg/cmd/subscription"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/version"
@@ -103,6 +106,9 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(accountcmd.NewCmdAccount(f))
 	cmd.AddCommand(subcmd.NewCmdSubscription(f))
 	cmd.AddCommand(contactcmd.NewCmdContact(f))
+	cmd.AddCommand(ordercmd.NewCmdOrder(f))
+	cmd.AddCommand(orderactioncmd.NewCmdOrderAction(f))
+	cmd.AddCommand(orderlineitemcmd.NewCmdOrderLineItem(f))
 	cmd.AddCommand(signup.NewCmdSignup(f))
 
 	return cmd

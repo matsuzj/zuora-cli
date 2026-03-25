@@ -1,10 +1,12 @@
 package output
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 )
@@ -34,6 +36,9 @@ func StartPager(ios *iostreams.IOStreams) (io.WriteCloser, error) {
 
 	// Split PAGER into program + args to support values like "less -FRX"
 	parts := strings.Fields(pagerCmd)
+	if len(parts) == 0 {
+		return nopWriteCloser{ios.Out}, nil
+	}
 	cmd := exec.Command(parts[0], parts[1:]...)
 	cmd.Stdout = ios.Out
 	cmd.Stderr = ios.ErrOut
@@ -65,10 +70,26 @@ type pagerWriteCloser struct {
 }
 
 func (p *pagerWriteCloser) Write(b []byte) (int, error) {
-	return p.pipe.Write(b)
+	n, err := p.pipe.Write(b)
+	if err != nil && isEPIPE(err) {
+		return n, nil
+	}
+	return n, err
 }
 
 func (p *pagerWriteCloser) Close() error {
 	p.pipe.Close()
-	return p.cmd.Wait()
+	err := p.cmd.Wait()
+	// Ignore SIGPIPE exit status when user quits pager early (e.g. pressing 'q' in less)
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil
+		}
+	}
+	return err
+}
+
+func isEPIPE(err error) bool {
+	return errors.Is(err, syscall.EPIPE)
 }

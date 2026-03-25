@@ -88,6 +88,11 @@ func runAPI(opts *apiOptions, path string) error {
 	// Execute request
 	var result []byte
 	if opts.Paginate {
+		// Object Query API uses cursor-based pagination where nextPage is a cursor
+		// value, not a URL. DoPaginated expects URL-style nextPage values.
+		if strings.HasPrefix(path, "/object-query") || strings.HasPrefix(path, "object-query") {
+			return fmt.Errorf("--paginate is not supported for Object Query endpoints; use --cursor for manual pagination")
+		}
 		pages, err := client.DoPaginated(opts.Method, path, reqOpts...)
 		if err != nil {
 			return err

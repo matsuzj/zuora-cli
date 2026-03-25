@@ -544,13 +544,13 @@ fi
 header "Step 14: Output format tests (--json, --jq, --template)"
 # ─────────────────────────────────────────
 
-# 14a: renew with --jq (with orderDate for Orders tenant)
-echo "  Testing: renew with --jq '.success'"
-JQ_OUT=$($ZR subscription renew "$SUB_C" --body "{\"orderDate\":\"$TODAY\"}" --jq '.success' 2>/dev/null) || true
-if [ "$JQ_OUT" = "true" ]; then
-  pass "renew --jq → filtered output correct"
+# 14a: --jq output test (using non-mutating subscription get)
+echo "  Testing: subscription get with --jq '.status'"
+JQ_OUT=$($ZR subscription get "$SUB_C" --jq '.status' 2>/dev/null) || true
+if echo "$JQ_OUT" | grep -qi "active\|expired"; then
+  pass "get --jq → filtered output correct ($JQ_OUT)"
 else
-  fail "renew --jq → unexpected: $(echo "$JQ_OUT" | head -3)"
+  fail "get --jq → unexpected: $(echo "$JQ_OUT" | head -3)"
 fi
 
 # 14b: preview with --jq

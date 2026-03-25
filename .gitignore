@@ -24,3 +24,6 @@ Thumbs.db
 
 # Reviews
 .reviews/
+
+# E2E test logs
+tests/logs/

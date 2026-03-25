@@ -182,8 +182,30 @@ else
 fi
 
 # ─────────────────────────────────────────
-header "Step 5: Product List Legacy (実行テスト)"
+header "Step 5: NoArgs 拒否テスト (余分な位置引数)"
 # ─────────────────────────────────────────
+
+# create/update/list 系は cobra.NoArgs なので余分な引数を拒否すべき
+echo "  Testing: product create with stray arg"
+NOARGS_ERR=$($ZR product create extraArg --body '{}' 2>&1) || true
+if echo "$NOARGS_ERR" | grep -qi "unknown command\|too many arg"; then
+  pass "product create → rejects stray positional arg"
+else
+  fail "product create → accepted stray arg: $NOARGS_ERR"
+fi
+
+echo "  Testing: plan list with stray arg"
+NOARGS_ERR2=$($ZR plan list extraArg --body '{}' 2>&1) || true
+if echo "$NOARGS_ERR2" | grep -qi "unknown command\|too many arg"; then
+  pass "plan list → rejects stray positional arg"
+else
+  fail "plan list → accepted stray arg: $NOARGS_ERR2"
+fi
+
+# ─────────────────────────────────────────
+header "Step 6: Commerce API 実行テスト"
+# ─────────────────────────────────────────
+
 echo "  Testing: product list-legacy with empty filter"
 PL_RESULT=$($ZR product list-legacy --body '{}' 2>&1) || true
 if echo "$PL_RESULT" | jq -e '.' >/dev/null 2>&1; then
@@ -194,9 +216,6 @@ else
   fail "product list-legacy → unexpected: $(echo "$PL_RESULT" | head -3)"
 fi
 
-# ─────────────────────────────────────────
-header "Step 6: Plan List (実行テスト)"
-# ─────────────────────────────────────────
 echo "  Testing: plan list with empty filter"
 PLAN_LIST=$($ZR plan list --body '{}' 2>&1) || true
 if echo "$PLAN_LIST" | jq -e '.' >/dev/null 2>&1; then
@@ -205,6 +224,63 @@ elif echo "$PLAN_LIST" | grep -qi "error"; then
   skip "plan list → API error (Commerce API may not be enabled)"
 else
   fail "plan list → unexpected: $(echo "$PLAN_LIST" | head -3)"
+fi
+
+# ─────────────────────────────────────────
+header "Step 7: RatePlan Get (v1 API 実行テスト)"
+# ─────────────────────────────────────────
+
+# v1 API は Commerce API の有効/無効に依存しない
+# 既存のサブスクリプションから ratePlanId を取得してテスト
+echo "  Finding a rate plan ID from existing subscriptions..."
+# account list → 最初のアカウント → subscription list → 最初の ratePlan
+FIRST_ACCT=$($ZR account list --page-size 1 --json 2>/dev/null | jq -r '.data[0].accountNumber // empty' 2>/dev/null) || true
+
+if [ -n "$FIRST_ACCT" ]; then
+  SUB_DATA=$($ZR subscription list --account "$FIRST_ACCT" --json 2>/dev/null) || true
+  RATEPLAN_ID=$(echo "$SUB_DATA" | jq -r '.subscriptions[0].ratePlans[0].id // empty' 2>/dev/null) || true
+
+  if [ -n "$RATEPLAN_ID" ]; then
+    echo "  Testing: rateplan get $RATEPLAN_ID"
+    RP_RESULT=$($ZR rateplan get "$RATEPLAN_ID" --json 2>/dev/null) || true
+    if echo "$RP_RESULT" | jq -e '.id // .ratePlanId // .name' >/dev/null 2>&1; then
+      pass "rateplan get → returned rate plan data"
+    elif echo "$RP_RESULT" | grep -qi "error\|not found"; then
+      skip "rateplan get → API error (rate plan may not be accessible)"
+    else
+      fail "rateplan get → unexpected: $(echo "$RP_RESULT" | head -3)"
+    fi
+
+    # --jq output format test
+    echo "  Testing: rateplan get with --jq '.id'"
+    RP_JQ=$($ZR rateplan get "$RATEPLAN_ID" --jq '.id // .ratePlanId' 2>/dev/null) || true
+    if [ -n "$RP_JQ" ] && [ "$RP_JQ" != "null" ]; then
+      pass "rateplan get --jq → filtered output ($RP_JQ)"
+    else
+      skip "rateplan get --jq → no data returned"
+    fi
+  else
+    skip "rateplan get → no ratePlanId found in subscriptions"
+    skip "rateplan get --jq → skipped (no ratePlanId)"
+  fi
+else
+  skip "rateplan get → no account found to look up rate plans"
+  skip "rateplan get --jq → skipped (no account)"
+fi
+
+# ─────────────────────────────────────────
+header "Step 8: Output Format テスト"
+# ─────────────────────────────────────────
+
+# バリデーションエラーのテストでも --json が機能するか確認
+echo "  Testing: product get nonexistent --json (error handling with --json)"
+PG_JSON=$($ZR product get NONEXISTENT-KEY --json 2>&1) || true
+if echo "$PG_JSON" | grep -qi "error\|not found\|404"; then
+  pass "product get nonexistent --json → error surfaced correctly"
+elif echo "$PG_JSON" | jq -e '.' >/dev/null 2>&1; then
+  pass "product get nonexistent --json → returned JSON (maybe empty)"
+else
+  fail "product get nonexistent --json → unexpected: $(echo "$PG_JSON" | head -3)"
 fi
 
 # ─────────────────────────────────────────

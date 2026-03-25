@@ -4,9 +4,9 @@ package resume
 import (
 	"encoding/json"
 	"fmt"
+	"bytes"
 	"io"
 	"net/url"
-	"strings"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -60,7 +60,7 @@ Examples:
 	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Resume policy (Today, SpecificDate, FixedPeriodsFromSuspendDate, FixedPeriodsFromToday)")
 	cmd.Flags().StringVar(&opts.ResumeDate, "resume-date", "", "Resume date (for SpecificDate, YYYY-MM-DD)")
-	cmd.Flags().IntVar(&opts.Periods, "periods", 0, "Number of periods (for FixedPeriodsFromSuspendDate)")
+	cmd.Flags().IntVar(&opts.Periods, "periods", 0, "Number of periods (for FixedPeriodsFromSuspendDate or FixedPeriodsFromToday)")
 	cmd.Flags().StringVar(&opts.PeriodsType, "periods-type", "", "Period type (Day, Week, Month, Year)")
 
 	return cmd
@@ -93,7 +93,7 @@ func runResume(cmd *cobra.Command, f *factory.Factory, opts *resumeOptions, key 
 		if err != nil {
 			return err
 		}
-		bodyReader = strings.NewReader(string(data))
+		bodyReader = bytes.NewReader(data)
 	}
 
 	resp, err := client.Put(fmt.Sprintf("/v1/subscriptions/%s/resume", url.PathEscape(key)), bodyReader, api.WithCheckSuccess())

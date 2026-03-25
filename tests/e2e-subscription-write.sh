@@ -61,7 +61,7 @@ ACCT_BODY=$(cat <<'JSON'
 JSON
 )
 
-ACCT_RESULT=$($ZR account create --body "$ACCT_BODY" --json 2>&1) || true
+ACCT_RESULT=$($ZR account create --body "$ACCT_BODY" --json 2>/dev/null) || true
 ACCT_NUM=$(echo "$ACCT_RESULT" | jq -r '.accountNumber // empty' 2>/dev/null)
 ACCT_ID=$(echo "$ACCT_RESULT" | jq -r '.accountId // empty' 2>/dev/null)
 
@@ -69,7 +69,8 @@ if [ -n "$ACCT_NUM" ]; then
   pass "account create → $ACCT_NUM"
 else
   fail "account create failed: $ACCT_RESULT"
-  red "\nCannot proceed without a dedicated test account. Aborting."
+  printf '\n'
+  red "Cannot proceed without a dedicated test account. Aborting."
   exit 1
 fi
 
@@ -263,7 +264,7 @@ fi
 # 6c: Actual cancel with --body (Orders tenant requires orderDate)
 echo "  Testing: cancel $SUB_A --body (with orderDate for Orders tenant)"
 TODAY=$(date +%Y-%m-%d)
-CANCEL_OUT=$($ZR subscription cancel "$SUB_A" --body "{\"cancellationPolicy\":\"EndOfCurrentTerm\",\"orderDate\":\"$TODAY\"}" --json 2>&1) || true
+CANCEL_OUT=$($ZR subscription cancel "$SUB_A" --body "{\"cancellationPolicy\":\"EndOfCurrentTerm\",\"orderDate\":\"$TODAY\"}" --json 2>/dev/null) || true
 CANCEL_SUCCESS=$(echo "$CANCEL_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$CANCEL_SUCCESS" = "true" ]; then
@@ -315,7 +316,7 @@ fi
 
 # 7d: Actual suspend with --body (Orders tenant requires orderDate)
 echo "  Testing: suspend $SUB_B --body (with orderDate for Orders tenant)"
-SUSP_OUT=$($ZR subscription suspend "$SUB_B" --body "{\"suspendPolicy\":\"Today\",\"orderDate\":\"$TODAY\"}" --json 2>&1) || true
+SUSP_OUT=$($ZR subscription suspend "$SUB_B" --body "{\"suspendPolicy\":\"Today\",\"orderDate\":\"$TODAY\"}" --json 2>/dev/null) || true
 SUSP_SUCCESS=$(echo "$SUSP_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$SUSP_SUCCESS" = "true" ]; then
@@ -348,7 +349,7 @@ fi
 
 # 8c: Actual resume with --body (Orders tenant requires orderDate)
 echo "  Testing: resume $SUB_B --body (with orderDate for Orders tenant)"
-RES_OUT=$($ZR subscription resume "$SUB_B" --body "{\"resumePolicy\":\"Today\",\"orderDate\":\"$TODAY\"}" --json 2>&1) || true
+RES_OUT=$($ZR subscription resume "$SUB_B" --body "{\"resumePolicy\":\"Today\",\"orderDate\":\"$TODAY\"}" --json 2>/dev/null) || true
 RES_SUCCESS=$(echo "$RES_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$RES_SUCCESS" = "true" ]; then
@@ -386,7 +387,7 @@ if [ "$RENEW_BARE_SUCCEEDED" = "true" ]; then
   skip "subscription renew (with orderDate) → skipped: 9a already renewed SUB_C"
 else
   echo "  Testing: renew $SUB_C --body (with orderDate)"
-  RENEW2_OUT=$($ZR subscription renew "$SUB_C" --body "{\"orderDate\":\"$TODAY\"}" --json 2>&1) || true
+  RENEW2_OUT=$($ZR subscription renew "$SUB_C" --body "{\"orderDate\":\"$TODAY\"}" --json 2>/dev/null) || true
   RENEW2_SUCCESS=$(echo "$RENEW2_OUT" | jq -r '.success // empty' 2>/dev/null)
 
   if [ "$RENEW2_SUCCESS" = "true" ]; then
@@ -529,7 +530,7 @@ fi
 
 # 13b: Actual delete on cancelled subscription
 echo "  Testing: delete $SUB_A --confirm (Cancelled sub)"
-DEL_OUT=$($ZR subscription delete "$SUB_A" --confirm --json 2>&1) || true
+DEL_OUT=$($ZR subscription delete "$SUB_A" --confirm --json 2>/dev/null) || true
 DEL_SUCCESS=$(echo "$DEL_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$DEL_SUCCESS" = "true" ]; then

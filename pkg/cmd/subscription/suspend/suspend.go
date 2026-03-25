@@ -4,9 +4,9 @@ package suspend
 import (
 	"encoding/json"
 	"fmt"
+	"bytes"
 	"io"
 	"net/url"
-	"strings"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -93,7 +93,7 @@ func runSuspend(cmd *cobra.Command, f *factory.Factory, opts *suspendOptions, ke
 		if err != nil {
 			return err
 		}
-		bodyReader = strings.NewReader(string(data))
+		bodyReader = bytes.NewReader(data)
 	}
 
 	resp, err := client.Put(fmt.Sprintf("/v1/subscriptions/%s/suspend", url.PathEscape(key)), bodyReader, api.WithCheckSuccess())

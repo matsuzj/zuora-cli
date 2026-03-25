@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -50,7 +51,7 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 	path := fmt.Sprintf("/v1/async-jobs/%s", url.PathEscape(jobID))
 
 	for {
-		resp, err := client.Get(path)
+		resp, err := client.Get(path, api.WithCheckSuccess())
 		if err != nil {
 			return err
 		}

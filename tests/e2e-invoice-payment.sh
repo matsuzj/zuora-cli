@@ -155,31 +155,101 @@ else
 fi
 
 # ─────────────────────────────────────────
-header "Step 3: Invoice List (実行テスト)"
+header "Step 3: テストデータ生成 (Account + Subscription + Billing)"
 # ─────────────────────────────────────────
 
-# テスト用アカウントを取得
-FIRST_ACCT=$($ZR account list --page-size 1 --json 2>/dev/null | jq -r '.data[0].accountNumber // empty' 2>/dev/null) || true
+RATE_PLAN_ID="4c6059a8d8899f453ffa0637451d0003"
+TODAY=$(date +%Y-%m-%d)
 
-if [ -n "$FIRST_ACCT" ]; then
-  echo "  Testing: invoice list --account $FIRST_ACCT"
-  INV_LIST=$($ZR invoice list --account "$FIRST_ACCT" --json 2>/dev/null) || true
-  if echo "$INV_LIST" | jq -e '.' >/dev/null 2>&1; then
-    pass "invoice list → returned JSON"
+# Account create
+ACCT_BODY=$(cat <<'JSON'
+{
+  "name": "E2E-Invoice-Test",
+  "currency": "JPY",
+  "billCycleDay": 1,
+  "autoPay": false,
+  "billToContact": {
+    "firstName": "Test",
+    "lastName": "Invoice",
+    "country": "Japan",
+    "state": "Tokyo"
+  }
+}
+JSON
+)
+ACCT_RESULT=$($ZR account create --body "$ACCT_BODY" --json 2>/dev/null) || true
+ACCT_NUM=$(echo "$ACCT_RESULT" | jq -r '.accountNumber // empty' 2>/dev/null)
 
-    # invoice list のデータから invoice ID を取得
+if [ -n "$ACCT_NUM" ]; then
+  pass "account create → $ACCT_NUM"
+else
+  fail "account create failed"
+  printf '\n'
+  red "Cannot proceed without test account. Aborting."
+  exit 1
+fi
+
+# Order create with runBilling: true to generate invoice
+ORDER_BODY=$(cat <<EOF
+{
+  "existingAccountNumber": "$ACCT_NUM",
+  "orderDate": "$TODAY",
+  "subscriptions": [{
+    "orderActions": [{
+      "type": "CreateSubscription",
+      "triggerDates": [
+        {"name": "ServiceActivation", "triggerDate": "$TODAY"},
+        {"name": "CustomerAcceptance", "triggerDate": "$TODAY"}
+      ],
+      "createSubscription": {
+        "terms": {
+          "initialTerm": {"period": 12, "periodType": "Month", "termType": "TERMED", "startDate": "$TODAY"},
+          "renewalTerms": [{"period": 12, "periodType": "Month"}],
+          "renewalSetting": "RENEW_WITH_SPECIFIC_TERM",
+          "autoRenew": false
+        },
+        "subscribeToRatePlans": [{"productRatePlanId": "$RATE_PLAN_ID"}]
+      }
+    }]
+  }],
+  "processingOptions": {"runBilling": true, "collectPayment": false}
+}
+EOF
+)
+ORDER_RESULT=$($ZR order create --body "$ORDER_BODY" --json 2>/dev/null) || true
+ORDER_SUCCESS=$(echo "$ORDER_RESULT" | jq -r '.success // empty' 2>/dev/null)
+
+if [ "$ORDER_SUCCESS" = "true" ]; then
+  pass "order create (with billing) → $(echo "$ORDER_RESULT" | jq -r '.orderNumber // empty')"
+else
+  fail "order create failed: $(echo "$ORDER_RESULT" | head -3)"
+  ACCT_NUM=""
+fi
+
+# Wait for billing to complete
+sleep 3
+
+# ─────────────────────────────────────────
+header "Step 4: Invoice List (実行テスト)"
+# ─────────────────────────────────────────
+
+INV_ID=""
+if [ -n "$ACCT_NUM" ]; then
+  echo "  Testing: invoice list --account $ACCT_NUM"
+  INV_LIST=$($ZR invoice list --account "$ACCT_NUM" --json 2>/dev/null) || true
+  if echo "$INV_LIST" | jq -e '.invoices' >/dev/null 2>&1; then
+    INV_COUNT=$(echo "$INV_LIST" | jq '.invoices | length')
+    pass "invoice list → returned $INV_COUNT invoices"
     INV_ID=$(echo "$INV_LIST" | jq -r '.invoices[0].id // empty' 2>/dev/null) || true
   else
     skip "invoice list → API error"
-    INV_ID=""
   fi
 else
-  skip "invoice list → no account found"
-  INV_ID=""
+  skip "invoice list → no account"
 fi
 
 # ─────────────────────────────────────────
-header "Step 4: Invoice Get / Items (実行テスト)"
+header "Step 5: Invoice Get / Items / Files (実行テスト)"
 # ─────────────────────────────────────────
 
 if [ -n "$INV_ID" ]; then
@@ -209,19 +279,30 @@ if [ -n "$INV_ID" ]; then
   else
     skip "invoice get --jq → no data"
   fi
+  # invoice files
+  echo "  Testing: invoice files $INV_ID"
+  INV_FILES=$($ZR invoice files "$INV_ID" 2>&1) || true
+  if echo "$INV_FILES" | jq -e '.' >/dev/null 2>&1; then
+    pass "invoice files → returned JSON"
+  elif echo "$INV_FILES" | grep -qi "error"; then
+    skip "invoice files → API error (files may not be generated yet)"
+  else
+    fail "invoice files → unexpected: $(echo "$INV_FILES" | head -3)"
+  fi
 else
   skip "invoice get → no invoice ID"
   skip "invoice items → no invoice ID"
   skip "invoice get --jq → no invoice ID"
+  skip "invoice files → no invoice ID"
 fi
 
 # ─────────────────────────────────────────
-header "Step 5: Payment List (実行テスト)"
+header "Step 6: Payment List (実行テスト)"
 # ─────────────────────────────────────────
 
-if [ -n "$FIRST_ACCT" ]; then
-  echo "  Testing: payment list --account $FIRST_ACCT"
-  PAY_LIST=$($ZR payment list --account "$FIRST_ACCT" --json 2>/dev/null) || true
+if [ -n "$ACCT_NUM" ]; then
+  echo "  Testing: payment list --account $ACCT_NUM"
+  PAY_LIST=$($ZR payment list --account "$ACCT_NUM" --json 2>/dev/null) || true
   if echo "$PAY_LIST" | jq -e '.' >/dev/null 2>&1; then
     pass "payment list → returned JSON"
 
@@ -231,13 +312,16 @@ if [ -n "$FIRST_ACCT" ]; then
     PAY_ID=""
   fi
 else
-  skip "payment list → no account found"
+  skip "payment list → no account"
   PAY_ID=""
 fi
 
 # ─────────────────────────────────────────
-header "Step 6: Payment Get (実行テスト)"
+header "Step 7: Payment Get (実行テスト)"
 # ─────────────────────────────────────────
+# 注意: このテナントでは payment gateway が未設定のため payment 作成ができず、
+# payment get のテストに必要な payment ID が取得できない。
+# Gateway 設定済みテナントでは payment list から ID を取得して PASS になる。
 
 if [ -n "$PAY_ID" ]; then
   echo "  Testing: payment get $PAY_ID"

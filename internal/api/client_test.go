@@ -90,6 +90,20 @@ func TestClient_QueryParams(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestClient_QuerySlice(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		values := r.URL.Query()["filter[]"]
+		assert.Equal(t, []string{"status.EQ:Active", "balance.GT:0"}, values)
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL))
+	_, err := client.Get("/v1/test", WithQuerySlice("filter[]", []string{"status.EQ:Active", "balance.GT:0"}))
+	require.NoError(t, err)
+}
+
 func TestClient_APIError_V1Format(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
@@ -168,15 +182,15 @@ func TestClient_401_TokenRefresh(t *testing.T) {
 	}))
 	defer server.Close()
 
-	refreshCalled := false
+	tokenCallCount := 0
 	client := NewClient(
 		WithBaseURL(server.URL),
 		WithTokenSource(func() (string, error) {
-			if refreshCalled {
+			tokenCallCount++
+			if tokenCallCount > 1 {
 				return "refreshed-token", nil
 			}
-			refreshCalled = true
-			return "refreshed-token", nil
+			return "expired-token", nil
 		}),
 	)
 

@@ -6,11 +6,13 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/internal/config"
+	accountcmd "github.com/matsuzj/zuora-cli/pkg/cmd/account"
 	apicmd "github.com/matsuzj/zuora-cli/pkg/cmd/api"
 	authcmd "github.com/matsuzj/zuora-cli/pkg/cmd/auth"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/completion"
 	configcmd "github.com/matsuzj/zuora-cli/pkg/cmd/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	subcmd "github.com/matsuzj/zuora-cli/pkg/cmd/subscription"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/version"
 	"github.com/spf13/cobra"
 )
@@ -96,6 +98,8 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(authcmd.NewCmdAuth(f))
 	cmd.AddCommand(configcmd.NewCmdConfig(f))
 	cmd.AddCommand(apicmd.NewCmdAPI(f))
+	cmd.AddCommand(accountcmd.NewCmdAccount(f))
+	cmd.AddCommand(subcmd.NewCmdSubscription(f))
 
 	return cmd
 }

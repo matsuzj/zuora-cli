@@ -21,6 +21,8 @@ func TestRootHasSubcommands(t *testing.T) {
 	}
 	assert.Contains(t, names, "version")
 	assert.Contains(t, names, "completion")
+	assert.Contains(t, names, "account")
+	assert.Contains(t, names, "subscription")
 }
 
 func TestRootJsonTemplateExclusion(t *testing.T) {

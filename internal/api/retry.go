@@ -12,8 +12,9 @@ import (
 const maxRetries = 3
 
 // isIdempotent returns true for HTTP methods that are safe to retry on 5xx.
+// Per Zuora API docs, PUT is idempotent (Idempotency-Key is only for POST/PATCH).
 func isIdempotent(method string) bool {
-	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions || method == http.MethodDelete
+	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions || method == http.MethodPut || method == http.MethodDelete
 }
 
 func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {

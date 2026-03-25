@@ -56,7 +56,7 @@ func WithHTTPClient(hc *http.Client) ClientOption {
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: &http.Client{Timeout: 120 * time.Second},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -179,20 +179,10 @@ func (c *Client) Patch(path string, body io.Reader, opts ...RequestOption) (*Res
 	return c.Do(http.MethodPatch, path, append(opts, WithBody(body))...)
 }
 
-func (c *Client) buildURL(path string, query map[string]string) string {
+func (c *Client) buildURL(path string, query url.Values) string {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		// Absolute URL (e.g., nextPage) — add query params if any
-		if len(query) > 0 {
-			u, err := url.Parse(path)
-			if err == nil {
-				q := u.Query()
-				for k, v := range query {
-					q.Set(k, v)
-				}
-				u.RawQuery = q.Encode()
-				return u.String()
-			}
-		}
+		// Absolute URL (e.g., nextPage) — already contains all query params.
+		// Do not merge request-level query params to avoid duplicates on pagination.
 		return path
 	}
 	if !strings.HasPrefix(path, "/") {
@@ -205,8 +195,15 @@ func (c *Client) buildURL(path string, query map[string]string) string {
 	}
 	if len(query) > 0 {
 		q := u.Query()
-		for k, v := range query {
-			q.Set(k, v)
+		for k, vs := range query {
+			if _, exists := q[k]; exists {
+				// Key already present in the URL (e.g., from a nextPage path).
+				// Skip to avoid duplicating query params on paginated requests.
+				continue
+			}
+			for _, v := range vs {
+				q.Add(k, v)
+			}
 		}
 		u.RawQuery = q.Encode()
 	}

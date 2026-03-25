@@ -14,9 +14,11 @@ import (
 	configcmd "github.com/matsuzj/zuora-cli/pkg/cmd/config"
 	contactcmd "github.com/matsuzj/zuora-cli/pkg/cmd/contact"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	invoicecmd "github.com/matsuzj/zuora-cli/pkg/cmd/invoice"
 	ordercmd "github.com/matsuzj/zuora-cli/pkg/cmd/order"
 	orderactioncmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-action"
 	orderlineitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item"
+	paymentcmd "github.com/matsuzj/zuora-cli/pkg/cmd/payment"
 	plancmd "github.com/matsuzj/zuora-cli/pkg/cmd/plan"
 	productcmd "github.com/matsuzj/zuora-cli/pkg/cmd/product"
 	rateplancmd "github.com/matsuzj/zuora-cli/pkg/cmd/rateplan"
@@ -118,6 +120,8 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(plancmd.NewCmdPlan(f))
 	cmd.AddCommand(chargecmd.NewCmdCharge(f))
 	cmd.AddCommand(rateplancmd.NewCmdRatePlan(f))
+	cmd.AddCommand(invoicecmd.NewCmdInvoice(f))
+	cmd.AddCommand(paymentcmd.NewCmdPayment(f))
 
 	return cmd
 }

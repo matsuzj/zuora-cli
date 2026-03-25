@@ -1,0 +1,100 @@
+package email
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/matsuzj/zuora-cli/internal/config"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func newTestRoot(f *factory.Factory) *cobra.Command {
+	root := &cobra.Command{Use: "zr"}
+	root.PersistentFlags().Bool("json", false, "")
+	root.PersistentFlags().String("jq", "", "")
+	root.PersistentFlags().String("template", "", "")
+	invoice := &cobra.Command{Use: "invoice"}
+	invoice.AddCommand(NewCmdEmail(f))
+	root.AddCommand(invoice)
+	return root
+}
+
+func TestInvoiceEmail_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/v1/invoices/inv-001/emails", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+		})
+	}))
+	defer server.Close()
+
+	ios, _, out, errOut := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"invoice", "email", "inv-001", "--body", `{"emailAddresses":"user@example.com"}`})
+	err := root.Execute()
+
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "true")
+	assert.Contains(t, errOut.String(), "Invoice inv-001 email sent.")
+}
+
+func TestInvoiceEmail_RequiresBody(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"invoice", "email", "inv-001"})
+	err := root.Execute()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--body is required")
+}
+
+func TestInvoiceEmail_RequiresArg(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"invoice", "email"})
+	err := root.Execute()
+
+	assert.Error(t, err)
+}
+
+func TestInvoiceEmail_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{
+				{"code": 50000040, "message": "Email sending failed"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"invoice", "email", "inv-001", "--body", `{"emailAddresses":"user@example.com"}`})
+	err := root.Execute()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Email sending failed")
+}

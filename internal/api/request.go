@@ -6,9 +6,10 @@ import (
 )
 
 type requestConfig struct {
-	headers map[string]string
-	query   url.Values
-	body    io.Reader
+	headers      map[string]string
+	query        url.Values
+	body         io.Reader
+	checkSuccess bool
 }
 
 // RequestOption configures an API request.
@@ -41,6 +42,14 @@ func WithQuerySlice(key string, values []string) RequestOption {
 func WithBody(r io.Reader) RequestOption {
 	return func(rc *requestConfig) {
 		rc.body = r
+	}
+}
+
+// WithCheckSuccess enables Zuora success flag checking on the response.
+// When enabled, HTTP 200 responses with {"success": false} are treated as errors.
+func WithCheckSuccess() RequestOption {
+	return func(rc *requestConfig) {
+		rc.checkSuccess = true
 	}
 }
 

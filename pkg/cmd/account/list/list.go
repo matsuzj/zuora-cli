@@ -108,9 +108,16 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 		return err
 	}
 
-	// Show pagination hint with cursor value in table mode
+	// Show pagination hint with cursor value in table mode, preserving original flags
 	if body.NextPage != "" && !fmtOpts.JSON && fmtOpts.JQ == "" && fmtOpts.Template == "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "\nMore results available. Next page:\n  zr account list --cursor %q\n", body.NextPage)
+		hint := fmt.Sprintf("zr account list --cursor %q", body.NextPage)
+		if opts.PageSize != 20 {
+			hint += fmt.Sprintf(" --page-size %d", opts.PageSize)
+		}
+		for _, f := range opts.Filters {
+			hint += fmt.Sprintf(" --filter %q", f)
+		}
+		fmt.Fprintf(f.IOStreams.ErrOut, "\nMore results available. Next page:\n  %s\n", hint)
 	}
 
 	return nil

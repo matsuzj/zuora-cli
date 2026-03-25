@@ -47,7 +47,8 @@ func TestUsagePost_Success(t *testing.T) {
 		require.NoError(t, err)
 		defer file.Close()
 		assert.Equal(t, "usage.csv", header.Filename)
-		data, _ := io.ReadAll(file)
+		data, readErr := io.ReadAll(file)
+		require.NoError(t, readErr)
 		assert.Contains(t, string(data), "ACCOUNT_ID")
 
 		w.WriteHeader(200)

@@ -31,9 +31,10 @@ func TestMeterSummary_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/meters/meter123/summary", r.URL.Path)
 
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
 		var reqBody map[string]interface{}
-		json.Unmarshal(body, &reqBody)
+		require.NoError(t, json.Unmarshal(body, &reqBody))
 		assert.Equal(t, "FULL", reqBody["runType"])
 
 		w.WriteHeader(200)
@@ -60,9 +61,10 @@ func TestMeterSummary_Success(t *testing.T) {
 
 func TestMeterSummary_WithBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
 		var reqBody map[string]interface{}
-		json.Unmarshal(body, &reqBody)
+		require.NoError(t, json.Unmarshal(body, &reqBody))
 		assert.Equal(t, "FULL", reqBody["runType"])
 		assert.Equal(t, "2026-01-01", reqBody["startDate"])
 

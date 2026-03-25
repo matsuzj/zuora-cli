@@ -72,7 +72,7 @@ fi
 # 1d: usage create rejects stray args (NoArgs)
 echo "  Testing: usage create with stray arg"
 UC_NA=$($ZR usage create extraArg --body '{}' 2>&1) || true
-if echo "$UC_NA" | grep -qi "unknown command\|too many arg"; then
+if echo "$UC_NA" | grep -qi "unknown command\|too many arg\|accepts 0 arg"; then
   pass "usage create → rejects stray positional arg"
 else
   fail "usage create → accepted stray arg: $UC_NA"

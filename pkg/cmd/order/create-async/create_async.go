@@ -23,6 +23,7 @@ func NewCmdCreateAsync(f *factory.Factory) *cobra.Command {
 
 Examples:
   zr order create-async --body @order.json`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")

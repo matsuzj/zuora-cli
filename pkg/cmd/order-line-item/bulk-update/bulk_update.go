@@ -25,6 +25,7 @@ The --body must contain a JSON object with an "orderLineItems" array.
 
 Examples:
   zr order-line-item bulk-update --body @items.json`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")

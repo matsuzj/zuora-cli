@@ -29,6 +29,7 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 Examples:
   zr order create --body @order.json
   zr order create --body '{"existingAccountNumber":"A001","orderDate":"2026-01-01","orderLineItems":[...]}'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Body == "" {
 				return fmt.Errorf("--body is required")

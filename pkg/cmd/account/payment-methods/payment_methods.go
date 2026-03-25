@@ -42,19 +42,33 @@ func runPaymentMethods(cmd *cobra.Command, f *factory.Factory, key string) error
 
 	fmtOpts := output.FromCmd(cmd)
 
-	// Zuora API uses "returnedPaymentMethodType" as the envelope key (not "paymentMethods")
-	var body struct {
-		PaymentMethods []struct {
-			ID                  string  `json:"id"`
-			Type                string  `json:"type"`
-			CreditCardMaskNum   string  `json:"creditCardMaskNumber"`
-			AccountNumber       string  `json:"accountNumber"`
-			IsDefault           bool    `json:"isDefault"`
-			Status              string  `json:"status"`
-		} `json:"returnedPaymentMethodType"`
-	}
-	if err := json.Unmarshal(resp.Body, &body); err != nil {
+	// Zuora API returns payment methods under a dynamic key named after the
+	// payment method type (e.g. "creditcard", "creditcardreferencetransaction").
+	// We scan the response map for any array value to find the payment methods.
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(resp.Body, &raw); err != nil {
 		return fmt.Errorf("parsing response: %w", err)
+	}
+
+	type paymentMethod struct {
+		ID                string `json:"id"`
+		Type              string `json:"type"`
+		CreditCardMaskNum string `json:"creditCardMaskNumber"`
+		AccountNumber     string `json:"accountNumber"`
+		IsDefault         bool   `json:"isDefault"`
+		Status            string `json:"status"`
+	}
+
+	var methods []paymentMethod
+	skipKeys := map[string]bool{"success": true, "defaultPaymentMethodId": true, "paymentGateway": true}
+	for k, v := range raw {
+		if skipKeys[k] {
+			continue
+		}
+		var arr []paymentMethod
+		if err := json.Unmarshal(v, &arr); err == nil && len(arr) > 0 {
+			methods = append(methods, arr...)
+		}
 	}
 
 	cols := []output.Column{
@@ -65,8 +79,8 @@ func runPaymentMethods(cmd *cobra.Command, f *factory.Factory, key string) error
 		{Header: "STATUS", Field: "status"},
 	}
 
-	rows := make([][]string, len(body.PaymentMethods))
-	for i, pm := range body.PaymentMethods {
+	rows := make([][]string, len(methods))
+	for i, pm := range methods {
 		last4 := lastN(pm.CreditCardMaskNum, 4)
 		if last4 == "" {
 			last4 = lastN(pm.AccountNumber, 4)

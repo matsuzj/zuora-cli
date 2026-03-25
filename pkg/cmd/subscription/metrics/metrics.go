@@ -4,7 +4,6 @@ package metrics
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -48,7 +47,7 @@ func runMetrics(cmd *cobra.Command, opts *metricsOptions) error {
 	}
 
 	reqOpts := []api.RequestOption{
-		api.WithQuery("subscriptionNumbers", strings.Join(opts.SubscriptionNumbers, ",")),
+		api.WithQuerySlice("subscriptionNumbers[]", opts.SubscriptionNumbers),
 	}
 
 	resp, err := client.Get("/v1/subscriptions/subscription-metrics", reqOpts...)

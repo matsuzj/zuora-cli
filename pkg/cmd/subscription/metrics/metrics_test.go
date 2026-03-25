@@ -28,7 +28,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 func TestSubscriptionMetrics_Table(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/subscriptions/subscription-metrics", r.URL.Path)
-		assert.Equal(t, "A-S001,A-S002", r.URL.Query().Get("subscriptionNumbers"))
+		assert.Equal(t, []string{"A-S001", "A-S002"}, r.URL.Query()["subscriptionNumbers[]"])
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"subscriptionMetrics": []map[string]interface{}{

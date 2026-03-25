@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -35,7 +36,7 @@ func runGet(cmd *cobra.Command, f *factory.Factory, orderNumber string) error {
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/orders/%s", url.PathEscape(orderNumber)))
+	resp, err := client.Get(fmt.Sprintf("/v1/orders/%s", url.PathEscape(orderNumber)), api.WithCheckSuccess())
 	if err != nil {
 		return err
 	}

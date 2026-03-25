@@ -31,9 +31,10 @@ func TestSubscriptionMetrics_Table(t *testing.T) {
 		assert.Equal(t, []string{"A-S001", "A-S002"}, r.URL.Query()["subscriptionNumbers[]"])
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
 			"subscriptionMetrics": []map[string]interface{}{
-				{"subscriptionNumber": "A-S001", "mrr": 100.0, "tcv": 1200.0, "tcb": 600.0, "currency": "USD"},
-				{"subscriptionNumber": "A-S002", "mrr": 50.0, "tcv": 600.0, "tcb": 300.0, "currency": "USD"},
+				{"subscriptionNumber": "A-S001", "contractedMrr": 100.0, "asOfDayGrossMrr": 100.0, "asOfDayNetMrr": 100.0, "totalContractedValue": 1200.0, "netTotalContractedValue": 1200.0},
+				{"subscriptionNumber": "A-S002", "contractedMrr": 50.0, "asOfDayGrossMrr": 50.0, "asOfDayNetMrr": 50.0, "totalContractedValue": 600.0, "netTotalContractedValue": 600.0},
 			},
 		})
 	}))

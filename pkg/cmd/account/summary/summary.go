@@ -60,7 +60,7 @@ func runSummary(cmd *cobra.Command, f *factory.Factory, key string) error {
 		{Key: "Status", Value: getString(basicInfo, "status")},
 		{Key: "Balance", Value: getNumber(basicInfo, "balance")},
 		{Key: "Currency", Value: getString(basicInfo, "currency")},
-		{Key: "Default Payment Method", Value: getString(basicInfo, "defaultPaymentMethod")},
+		{Key: "Default Payment Method", Value: getPaymentMethodSummary(basicInfo)},
 	}
 
 	// Add subscription/invoice counts if available
@@ -88,6 +88,22 @@ func getString(m map[string]interface{}, key string) string {
 		return fmt.Sprintf("%v", v)
 	}
 	return ""
+}
+
+func getPaymentMethodSummary(basicInfo map[string]interface{}) string {
+	pm, ok := basicInfo["defaultPaymentMethod"].(map[string]interface{})
+	if !ok || pm == nil {
+		return ""
+	}
+	typ := getString(pm, "paymentMethodType")
+	id := getString(pm, "id")
+	if typ != "" && id != "" {
+		return fmt.Sprintf("%s (%s)", typ, id)
+	}
+	if id != "" {
+		return id
+	}
+	return typ
 }
 
 func getNumber(m map[string]interface{}, key string) string {

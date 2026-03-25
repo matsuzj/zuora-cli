@@ -60,10 +60,12 @@ func runMetrics(cmd *cobra.Command, opts *metricsOptions) error {
 	var body struct {
 		Metrics []struct {
 			SubscriptionNumber string  `json:"subscriptionNumber"`
-			MRR                float64 `json:"mrr"`
-			TCV                float64 `json:"tcv"`
-			TCB                float64 `json:"tcb"`
-			Currency           string  `json:"currency"`
+			ContractedMRR      float64 `json:"contractedMrr"`
+			GrossMRR           float64 `json:"asOfDayGrossMrr"`
+			NetMRR             float64 `json:"asOfDayNetMrr"`
+			TCV                float64 `json:"totalContractedValue"`
+			NetTCV             float64 `json:"netTotalContractedValue"`
+			ContractedNetMRR   float64 `json:"contractedNetMrr"`
 		} `json:"subscriptionMetrics"`
 	}
 	if err := json.Unmarshal(resp.Body, &body); err != nil {
@@ -72,20 +74,22 @@ func runMetrics(cmd *cobra.Command, opts *metricsOptions) error {
 
 	cols := []output.Column{
 		{Header: "SUBSCRIPTION", Field: "subscriptionNumber"},
-		{Header: "MRR", Field: "mrr"},
-		{Header: "TCV", Field: "tcv"},
-		{Header: "TCB", Field: "tcb"},
-		{Header: "CURRENCY", Field: "currency"},
+		{Header: "MRR", Field: "contractedMrr"},
+		{Header: "GROSS_MRR", Field: "asOfDayGrossMrr"},
+		{Header: "NET_MRR", Field: "asOfDayNetMrr"},
+		{Header: "TCV", Field: "totalContractedValue"},
+		{Header: "NET_TCV", Field: "netTotalContractedValue"},
 	}
 
 	rows := make([][]string, len(body.Metrics))
 	for i, m := range body.Metrics {
 		rows[i] = []string{
 			m.SubscriptionNumber,
-			fmt.Sprintf("%.2f", m.MRR),
+			fmt.Sprintf("%.2f", m.ContractedMRR),
+			fmt.Sprintf("%.2f", m.GrossMRR),
+			fmt.Sprintf("%.2f", m.NetMRR),
 			fmt.Sprintf("%.2f", m.TCV),
-			fmt.Sprintf("%.2f", m.TCB),
-			m.Currency,
+			fmt.Sprintf("%.2f", m.NetTCV),
 		}
 	}
 

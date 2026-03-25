@@ -70,7 +70,7 @@ func runRefund(cmd *cobra.Command, opts *refundOptions, paymentID string) error 
 
 	fields := []output.DetailField{
 		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Refund Number", Value: getString(raw, "number")},
+		{Key: "Refund Number", Value: getString(raw, "refundNumber")},
 		{Key: "Amount", Value: getString(raw, "amount")},
 		{Key: "Status", Value: getString(raw, "status")},
 		{Key: "Success", Value: getString(raw, "success")},

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -145,6 +146,16 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 
 	if resp.StatusCode >= 400 {
 		return nil, parseAPIError(resp.StatusCode, body)
+	}
+
+	// Zuora success flag check: some endpoints return HTTP 200 with {"success": false}
+	if rc.checkSuccess {
+		var envelope struct {
+			Success *bool `json:"success"`
+		}
+		if json.Unmarshal(body, &envelope) == nil && envelope.Success != nil && !*envelope.Success {
+			return nil, parseAPIError(resp.StatusCode, body)
+		}
 	}
 
 	return &Response{

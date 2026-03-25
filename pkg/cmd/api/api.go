@@ -4,12 +4,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 
 	internalapi "github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -69,7 +68,7 @@ func runAPI(opts *apiOptions, path string) error {
 
 	// Resolve body
 	if opts.Body != "" {
-		bodyReader, err := resolveBody(opts.Body, f.IOStreams.In)
+		bodyReader, err := cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 		if err != nil {
 			return err
 		}
@@ -126,19 +125,4 @@ func runAPI(opts *apiOptions, path string) error {
 		return output.PrintTemplate(f.IOStreams, result, opts.Template)
 	}
 	return output.PrintJSON(f.IOStreams, result, "")
-}
-
-func resolveBody(body string, stdin io.Reader) (io.Reader, error) {
-	if body == "-" {
-		return stdin, nil
-	}
-	if strings.HasPrefix(body, "@") {
-		filePath := body[1:]
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("reading body file: %w", err)
-		}
-		return strings.NewReader(string(data)), nil
-	}
-	return strings.NewReader(body), nil
 }

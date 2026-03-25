@@ -9,6 +9,7 @@ import (
 	accountcmd "github.com/matsuzj/zuora-cli/pkg/cmd/account"
 	apicmd "github.com/matsuzj/zuora-cli/pkg/cmd/api"
 	authcmd "github.com/matsuzj/zuora-cli/pkg/cmd/auth"
+	chargecmd "github.com/matsuzj/zuora-cli/pkg/cmd/charge"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/completion"
 	configcmd "github.com/matsuzj/zuora-cli/pkg/cmd/config"
 	contactcmd "github.com/matsuzj/zuora-cli/pkg/cmd/contact"
@@ -16,6 +17,9 @@ import (
 	ordercmd "github.com/matsuzj/zuora-cli/pkg/cmd/order"
 	orderactioncmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-action"
 	orderlineitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item"
+	plancmd "github.com/matsuzj/zuora-cli/pkg/cmd/plan"
+	productcmd "github.com/matsuzj/zuora-cli/pkg/cmd/product"
+	rateplancmd "github.com/matsuzj/zuora-cli/pkg/cmd/rateplan"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/signup"
 	subcmd "github.com/matsuzj/zuora-cli/pkg/cmd/subscription"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/version"
@@ -110,6 +114,10 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(orderactioncmd.NewCmdOrderAction(f))
 	cmd.AddCommand(orderlineitemcmd.NewCmdOrderLineItem(f))
 	cmd.AddCommand(signup.NewCmdSignup(f))
+	cmd.AddCommand(productcmd.NewCmdProduct(f))
+	cmd.AddCommand(plancmd.NewCmdPlan(f))
+	cmd.AddCommand(chargecmd.NewCmdCharge(f))
+	cmd.AddCommand(rateplancmd.NewCmdRatePlan(f))
 
 	return cmd
 }

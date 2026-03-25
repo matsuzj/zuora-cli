@@ -2,6 +2,7 @@ package signup
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,9 @@ func TestSignup_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/sign-up", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		body, _ := io.ReadAll(r.Body)
+		assert.Contains(t, string(body), "accountInfo")
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":            true,

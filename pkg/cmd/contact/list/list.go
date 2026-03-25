@@ -27,9 +27,6 @@ Examples:
   zr contact list --account-id 8aca822f12345
   zr contact list --account-id 8aca822f12345 --json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if accountID == "" {
-				return fmt.Errorf("--account-id is required")
-			}
 			return runList(cmd, f, accountID)
 		},
 	}

@@ -32,7 +32,7 @@ func TestContactSnapshot_Success(t *testing.T) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"id": "snap-123", "firstName": "John", "lastName": "Doe",
-			"workEmail": "j@example.com", "country": "US", "accountId": "a-1",
+			"workEmail": "j@example.com", "country": "US", "contactId": "c-456",
 		})
 	}))
 	defer server.Close()
@@ -48,6 +48,7 @@ func TestContactSnapshot_Success(t *testing.T) {
 	assert.Contains(t, out.String(), "Doe")
 	assert.Contains(t, out.String(), "j@example.com")
 	assert.Contains(t, out.String(), "US")
+	assert.Contains(t, out.String(), "c-456")
 }
 
 func TestContactSnapshot_RequiresArgs(t *testing.T) {

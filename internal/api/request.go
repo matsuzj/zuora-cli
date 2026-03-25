@@ -1,10 +1,13 @@
 package api
 
-import "io"
+import (
+	"io"
+	"net/url"
+)
 
 type requestConfig struct {
 	headers map[string]string
-	query   map[string]string
+	query   url.Values
 	body    io.Reader
 }
 
@@ -21,7 +24,16 @@ func WithHeader(key, value string) RequestOption {
 // WithQuery adds a query parameter to the request.
 func WithQuery(key, value string) RequestOption {
 	return func(rc *requestConfig) {
-		rc.query[key] = value
+		rc.query.Set(key, value)
+	}
+}
+
+// WithQuerySlice adds multiple values for a single query key (e.g. filter[]).
+func WithQuerySlice(key string, values []string) RequestOption {
+	return func(rc *requestConfig) {
+		for _, v := range values {
+			rc.query.Add(key, v)
+		}
 	}
 }
 
@@ -35,7 +47,7 @@ func WithBody(r io.Reader) RequestOption {
 func newRequestConfig(opts []RequestOption) *requestConfig {
 	rc := &requestConfig{
 		headers: make(map[string]string),
-		query:   make(map[string]string),
+		query:   make(url.Values),
 	}
 	for _, opt := range opts {
 		opt(rc)

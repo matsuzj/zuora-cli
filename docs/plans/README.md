@@ -212,7 +212,7 @@ environments:
 | `github.com/spf13/viper` | 設定管理 (YAML, 環境変数) |
 | `github.com/zalando/go-keyring` | OS キーチェーン連携 (macOS: Keychain, Linux: Secret Service。不在時: 環境変数 or 毎回入力。opt-in で平文ファイル保存可) |
 | `github.com/itchyny/gojq` | jq フィルタリング |
-| `github.com/olekukonenko/tablewriter` | テーブル出力 |
+| `github.com/olekukonko/tablewriter` | テーブル出力 |
 | `golang.org/x/term` | ターミナル検出 |
 | `github.com/stretchr/testify` | テストアサーション |
 

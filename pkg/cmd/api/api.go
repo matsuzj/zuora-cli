@@ -3,15 +3,14 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/itchyny/gojq"
 	internalapi "github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +21,7 @@ type apiOptions struct {
 	Headers  []string
 	Paginate bool
 	JQ       string
+	Template string
 }
 
 // NewCmdAPI creates the api command.
@@ -41,8 +41,9 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.Method = strings.ToUpper(opts.Method)
-			// Read --jq from global persistent flag
+			// Read --jq and --template from global persistent flags
 			opts.JQ, _ = cmd.Flags().GetString("jq")
+			opts.Template, _ = cmd.Flags().GetString("template")
 			return runAPI(opts, args[0])
 		},
 	}
@@ -85,7 +86,7 @@ func runAPI(opts *apiOptions, path string) error {
 	}
 
 	// Execute request
-	var output []byte
+	var result []byte
 	if opts.Paginate {
 		pages, err := client.DoPaginated(opts.Method, path, reqOpts...)
 		if err != nil {
@@ -100,7 +101,7 @@ func runAPI(opts *apiOptions, path string) error {
 				allData = append(allData, items...)
 			}
 		}
-		output, err = json.MarshalIndent(allData, "", "  ")
+		result, err = json.MarshalIndent(allData, "", "  ")
 		if err != nil {
 			return err
 		}
@@ -109,28 +110,17 @@ func runAPI(opts *apiOptions, path string) error {
 		if err != nil {
 			return err
 		}
-		output = resp.Body
+		result = resp.Body
 	}
 
-	// Apply jq filter
+	// Output via shared formatter (precedence: --jq > --template > pretty-print)
 	if opts.JQ != "" {
-		filtered, err := filterJQ(output, opts.JQ)
-		if err != nil {
-			return err
-		}
-		output = filtered
-	} else {
-		// Pretty-print JSON
-		var prettyJSON json.RawMessage
-		if err := json.Unmarshal(output, &prettyJSON); err == nil {
-			if pretty, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
-				output = pretty
-			}
-		}
+		return output.PrintJSON(f.IOStreams, result, opts.JQ)
 	}
-
-	fmt.Fprintln(f.IOStreams.Out, string(output))
-	return nil
+	if opts.Template != "" {
+		return output.PrintTemplate(f.IOStreams, result, opts.Template)
+	}
+	return output.PrintJSON(f.IOStreams, result, "")
 }
 
 func resolveBody(body string, stdin io.Reader) (io.Reader, error) {
@@ -146,48 +136,4 @@ func resolveBody(body string, stdin io.Reader) (io.Reader, error) {
 		return strings.NewReader(string(data)), nil
 	}
 	return strings.NewReader(body), nil
-}
-
-func filterJQ(data []byte, expr string) ([]byte, error) {
-	query, err := gojq.Parse(expr)
-	if err != nil {
-		return nil, fmt.Errorf("parsing jq expression: %w", err)
-	}
-
-	var input interface{}
-	if err := json.Unmarshal(data, &input); err != nil {
-		return nil, fmt.Errorf("parsing JSON for jq: %w", err)
-	}
-
-	code, err := gojq.Compile(query)
-	if err != nil {
-		return nil, fmt.Errorf("compiling jq expression: %w", err)
-	}
-
-	var results []string
-	iter := code.Run(input)
-	for {
-		v, ok := iter.Next()
-		if !ok {
-			break
-		}
-		if err, ok := v.(error); ok {
-			// Handle gojq halt/halt_error: stop iteration cleanly
-			var haltErr *gojq.HaltError
-			if errors.As(err, &haltErr) {
-				if haltErr.Value() != nil {
-					return nil, fmt.Errorf("jq halt: %v", haltErr.Value())
-				}
-				break
-			}
-			return nil, fmt.Errorf("jq error: %w", err)
-		}
-		b, err := json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, string(b))
-	}
-
-	return []byte(strings.Join(results, "\n")), nil
 }

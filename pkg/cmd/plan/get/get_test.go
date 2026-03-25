@@ -1,0 +1,69 @@
+package get
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/matsuzj/zuora-cli/internal/config"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func newTestRoot(f *factory.Factory) *cobra.Command {
+	root := &cobra.Command{Use: "zr"}
+	root.PersistentFlags().Bool("json", false, "")
+	root.PersistentFlags().String("jq", "", "")
+	root.PersistentFlags().String("template", "", "")
+	plan := &cobra.Command{Use: "plan"}
+	plan.AddCommand(NewCmdGet(f))
+	root.AddCommand(plan)
+	return root
+}
+
+func TestPlanGet_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/commerce/plans/query", r.URL.Path)
+		body, _ := io.ReadAll(r.Body)
+		var reqBody map[string]interface{}
+		json.Unmarshal(body, &reqBody)
+		assert.Equal(t, "RPK-001", reqBody["product_rate_plan_key"])
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":   "plan-001",
+			"name": "Monthly Plan",
+		})
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"plan", "get", "--key", "RPK-001"})
+	err := root.Execute()
+
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "plan-001")
+	assert.Contains(t, out.String(), "Monthly Plan")
+}
+
+func TestPlanGet_RequiresKey(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"plan", "get"})
+	err := root.Execute()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--key is required")
+}

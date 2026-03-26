@@ -171,13 +171,19 @@ type queryResult struct {
 	QueryLocator string                   `json:"queryLocator"`
 }
 
-// extractColumns returns sorted column names from the first record.
+// extractColumns returns sorted column names from all records (union of all keys).
 func extractColumns(records []map[string]interface{}) []string {
 	if len(records) == 0 {
 		return nil
 	}
-	var cols []string
-	for k := range records[0] {
+	seen := make(map[string]bool)
+	for _, rec := range records {
+		for k := range rec {
+			seen[k] = true
+		}
+	}
+	cols := make([]string, 0, len(seen))
+	for k := range seen {
 		cols = append(cols, k)
 	}
 	sort.Strings(cols)

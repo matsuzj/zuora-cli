@@ -27,6 +27,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 Examples:
   zr commitment list --account A00000001
   zr commitment list --account A00000001 --json`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Account == "" {
 				return fmt.Errorf("--account is required")

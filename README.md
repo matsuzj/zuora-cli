@@ -1,8 +1,14 @@
 # zuora-cli (zr)
 
-Zuora CLI — Work with Zuora from the command line.
+Zuora CLI -- Work with Zuora from the command line.
 
 ## Installation
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew install matsuzj/tap/zr
+```
 
 ### From source
 
@@ -10,15 +16,63 @@ Zuora CLI — Work with Zuora from the command line.
 go install github.com/matsuzj/zuora-cli/cmd/zr@latest
 ```
 
+### Binary releases
+
+Download pre-built binaries from the [Releases](https://github.com/matsuzj/zuora-cli/releases) page.
+
 ## Quick Start
 
 ```bash
 # Check version
 zr version
 
-# Generate shell completions
-source <(zr completion bash)
+# Authenticate (interactive)
+zr auth login
+
+# Set the active environment
+zr config set active_environment sandbox
+
+# List accounts
+zr account list
+
+# Get a subscription
+zr subscription get SUB-00000001
+
+# Raw API call
+zr api get /v1/accounts
 ```
+
+## Shell Completion
+
+```bash
+# Bash
+source <(zr completion bash)
+
+# Zsh
+source <(zr completion zsh)
+
+# Fish
+zr completion fish | source
+```
+
+To load completions on every session, add the appropriate line to your shell profile (e.g. `~/.bashrc`, `~/.zshrc`).
+
+## Aliases
+
+Save frequently used commands as aliases:
+
+```bash
+# Create an alias
+zr alias set ls "account list"
+
+# List all aliases
+zr alias list
+
+# Delete an alias
+zr alias delete ls
+```
+
+Aliases are stored in `~/.config/zr/aliases.yml`.
 
 ## Development
 
@@ -63,10 +117,13 @@ zuora-cli/
 │   │   ├── root/               # Root command + global flags
 │   │   ├── factory/            # DI (IOStreams, Config, HTTPClient)
 │   │   ├── version/            # version command
-│   │   └── completion/         # completion command
+│   │   ├── completion/         # completion command
+│   │   └── alias/              # alias set/delete/list
 │   └── iostreams/              # I/O abstraction
 ├── internal/
-│   └── build/                  # Build-time metadata
+│   ├── build/                  # Build-time metadata
+│   └── config/                 # Config file management
+├── .goreleaser.yml             # Release configuration
 ├── Taskfile.yml
 ├── Makefile
 └── docs/plans/                 # Development plans

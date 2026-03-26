@@ -7,6 +7,7 @@ import (
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/internal/config"
 	accountcmd "github.com/matsuzj/zuora-cli/pkg/cmd/account"
+	aliascmd "github.com/matsuzj/zuora-cli/pkg/cmd/alias"
 	apicmd "github.com/matsuzj/zuora-cli/pkg/cmd/api"
 	authcmd "github.com/matsuzj/zuora-cli/pkg/cmd/auth"
 	chargecmd "github.com/matsuzj/zuora-cli/pkg/cmd/charge"
@@ -140,6 +141,7 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(prepaidcmd.NewCmdPrepaid(f))
 	cmd.AddCommand(querycmd.NewCmdQuery(f))
 	cmd.AddCommand(omnichannelcmd.NewCmdOmnichannel(f))
+	cmd.AddCommand(aliascmd.NewCmdAlias(f))
 
 	return cmd
 }

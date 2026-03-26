@@ -77,11 +77,25 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, subscriptionKey string) 
 		return nil
 	}
 
-	// Response has a body
+	// 200 with empty or non-JSON body — synthesize success response
+	if len(resp.Body) == 0 || !json.Valid(resp.Body) {
+		synth := []byte(`{"success": true}`)
+		if fmtOpts.JQ != "" {
+			return output.PrintJSON(f.IOStreams, synth, fmtOpts.JQ)
+		}
+		if fmtOpts.JSON {
+			return output.PrintJSON(f.IOStreams, synth, "")
+		}
+		if fmtOpts.Template != "" {
+			return output.PrintTemplate(f.IOStreams, synth, fmtOpts.Template)
+		}
+		fmt.Fprintf(f.IOStreams.ErrOut, "Omni-channel subscription %s deleted.\n", subscriptionKey)
+		return nil
+	}
+
 	var raw map[string]interface{}
 	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Unexpected response from server while deleting omni-channel subscription %s:\n%s\n", subscriptionKey, string(resp.Body))
-		return fmt.Errorf("failed to parse server response for omni-channel subscription delete")
+		return fmt.Errorf("parsing response: %w", err)
 	}
 
 	fields := []output.DetailField{

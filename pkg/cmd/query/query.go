@@ -139,7 +139,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 		"size":    len(allRecords),
 		"done":    isDone,
 	}
-	if result.QueryLocator != "" {
+	if result.QueryLocator != "" && !limitTrimmed {
 		combinedMap["queryLocator"] = result.QueryLocator
 	}
 	combined, err := json.Marshal(combinedMap)

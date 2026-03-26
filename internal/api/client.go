@@ -84,7 +84,7 @@ func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
 // Do performs an HTTP request.
 func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, error) {
 	if c.readOnly && !isReadOnlyAllowed(method, path) {
-		return nil, &ReadOnlyError{}
+		return nil, &ReadOnlyError{Method: method, Path: path}
 	}
 
 	rc := newRequestConfig(opts)

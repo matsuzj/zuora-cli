@@ -3,7 +3,6 @@ package root
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -74,36 +73,56 @@ func TestRootReadOnlyFlag_BlocksWriteCommand(t *testing.T) {
 	cmd.SetArgs([]string{"--read-only", "account", "create", "--body", `{}`})
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "read-only mode"), "expected read-only error, got: %v", err)
+	var roErr *api.ReadOnlyError
+	assert.ErrorAs(t, err, &roErr, "expected ReadOnlyError, got: %v", err)
+}
+
+func TestRootReadOnlyEnvVar_BlocksWriteCommand(t *testing.T) {
+	t.Setenv("ZR_READ_ONLY", "true")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := &factory.Factory{
+		IOStreams: ios,
+		HttpClient: func() (*api.Client, error) {
+			return api.NewClient(api.WithBaseURL(server.URL)), nil
+		},
+	}
+
+	cmd := NewCmdRoot(f)
+	cmd.SetArgs([]string{"account", "create", "--body", `{}`})
+	err := cmd.Execute()
+	require.Error(t, err)
+	var roErr2 *api.ReadOnlyError
+	assert.ErrorAs(t, err, &roErr2)
 }
 
 func TestRootReadOnlyFlag_SetsReadOnlyOnClient(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 
-	var capturedClient *api.Client
 	f := &factory.Factory{
 		IOStreams: ios,
 		HttpClient: func() (*api.Client, error) {
-			c := api.NewClient(api.WithBaseURL("https://example.com"))
-			capturedClient = c
-			return c, nil
+			return api.NewClient(api.WithBaseURL("https://example.com")), nil
 		},
 	}
 
 	cmd := NewCmdRoot(f)
-	// Use version subcommand — it doesn't need auth or a real server.
-	// We trigger PersistentPreRunE by running any command.
 	cmd.SetArgs([]string{"--read-only", "version"})
-	_ = cmd.Execute()
+	require.NoError(t, cmd.Execute())
 
 	// After PersistentPreRunE, the factory's HttpClient wrapper should set readOnly.
-	// Invoke the factory's (now wrapped) HttpClient to verify.
 	client, err := f.HttpClient()
 	require.NoError(t, err)
+	require.NotNil(t, client)
 	// Verify the client is in read-only mode by attempting a write
 	_, writeErr := client.Post("/v1/accounts", nil)
 	require.Error(t, writeErr)
 	var roErr *api.ReadOnlyError
 	assert.ErrorAs(t, writeErr, &roErr)
-	_ = capturedClient // avoid unused warning
 }

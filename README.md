@@ -98,7 +98,7 @@ zr api /v1/orders -X POST --body @order.json
     --verbose              Enable debug output
 ```
 
-**Output modes**: `--jq` (implies JSON), `--json`, and `--template` are mutually exclusive. Default output is a formatted table.
+**Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. Default output is a formatted table.
 
 ## Shell Completion
 
@@ -131,7 +131,7 @@ zr alias list
 zr alias delete ls
 ```
 
-Aliases are stored in `~/.config/zr/aliases.yml`. Built-in command names cannot be overridden.
+Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/zr/aliases.yml`). Built-in command names cannot be overridden.
 
 ## Development
 

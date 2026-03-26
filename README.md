@@ -90,7 +90,7 @@ zr api /v1/orders -X POST --body @order.json
 ## Global Flags
 
 ```
--e, --env <name>           Environment name (sandbox, us-production, etc. Run `zr config env list` to see all)
+-e, --env <name>           Environment name (sandbox, us-production, eu-production, apac-production, etc.)
     --json                 Output as JSON
     --jq <expr>            Filter JSON output with a jq expression
     --template <tmpl>      Format output with a Go template

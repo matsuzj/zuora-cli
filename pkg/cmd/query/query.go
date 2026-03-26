@@ -130,10 +130,16 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 	fmtOpts := output.FromCmd(cmd)
 
 	// Build combined JSON for --json/--jq/--template
-	combined, err := json.Marshal(map[string]interface{}{
+	// Include done/queryLocator so callers can detect truncation (e.g. --limit)
+	combinedMap := map[string]interface{}{
 		"records": allRecords,
 		"size":    len(allRecords),
-	})
+		"done":    result.Done,
+	}
+	if result.QueryLocator != "" {
+		combinedMap["queryLocator"] = result.QueryLocator
+	}
+	combined, err := json.Marshal(combinedMap)
 	if err != nil {
 		return fmt.Errorf("encoding combined results: %w", err)
 	}

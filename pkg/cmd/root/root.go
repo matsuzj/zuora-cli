@@ -19,6 +19,7 @@ import (
 	fulfillmentitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/fulfillment-item"
 	invoicecmd "github.com/matsuzj/zuora-cli/pkg/cmd/invoice"
 	metercmd "github.com/matsuzj/zuora-cli/pkg/cmd/meter"
+	omnichannelcmd "github.com/matsuzj/zuora-cli/pkg/cmd/omnichannel"
 	ordercmd "github.com/matsuzj/zuora-cli/pkg/cmd/order"
 	orderactioncmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-action"
 	orderlineitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item"
@@ -26,6 +27,7 @@ import (
 	plancmd "github.com/matsuzj/zuora-cli/pkg/cmd/plan"
 	prepaidcmd "github.com/matsuzj/zuora-cli/pkg/cmd/prepaid"
 	productcmd "github.com/matsuzj/zuora-cli/pkg/cmd/product"
+	querycmd "github.com/matsuzj/zuora-cli/pkg/cmd/query"
 	rampcmd "github.com/matsuzj/zuora-cli/pkg/cmd/ramp"
 	rateplancmd "github.com/matsuzj/zuora-cli/pkg/cmd/rateplan"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/signup"
@@ -136,6 +138,8 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(fulfillmentcmd.NewCmdFulfillment(f))
 	cmd.AddCommand(fulfillmentitemcmd.NewCmdFulfillmentItem(f))
 	cmd.AddCommand(prepaidcmd.NewCmdPrepaid(f))
+	cmd.AddCommand(querycmd.NewCmdQuery(f))
+	cmd.AddCommand(omnichannelcmd.NewCmdOmnichannel(f))
 
 	return cmd
 }

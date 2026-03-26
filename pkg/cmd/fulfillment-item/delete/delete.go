@@ -74,16 +74,25 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, itemID string) error {
 		return nil
 	}
 
-	// 200 with empty or minimal body — treat as success
-	if len(resp.Body) == 0 {
+	// 200 with empty or non-JSON body — synthesize success response
+	if len(resp.Body) == 0 || json.Valid(resp.Body) == false {
+		synth := []byte(`{"success": true}`)
+		if fmtOpts.JQ != "" {
+			return output.PrintJSON(f.IOStreams, synth, fmtOpts.JQ)
+		}
+		if fmtOpts.JSON {
+			return output.PrintJSON(f.IOStreams, synth, "")
+		}
+		if fmtOpts.Template != "" {
+			return output.PrintTemplate(f.IOStreams, synth, fmtOpts.Template)
+		}
 		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment item %s deleted.\n", itemID)
 		return nil
 	}
 
 	var raw map[string]interface{}
 	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment item %s deleted.\n", itemID)
-		return nil
+		return fmt.Errorf("parsing response: %w", err)
 	}
 
 	fields := []output.DetailField{

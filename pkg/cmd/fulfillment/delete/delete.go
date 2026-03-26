@@ -75,7 +75,7 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, fulfillmentKey string) e
 	}
 
 	// 200 with empty or non-JSON body — synthesize success response
-	if len(resp.Body) == 0 || json.Valid(resp.Body) == false {
+	if len(resp.Body) == 0 || !json.Valid(resp.Body) {
 		synth := []byte(`{"success": true}`)
 		if fmtOpts.JQ != "" {
 			return output.PrintJSON(f.IOStreams, synth, fmtOpts.JQ)

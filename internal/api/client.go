@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -19,6 +20,7 @@ type Client struct {
 	zuoraVersion  string
 	verbose       bool
 	verboseWriter io.Writer
+	readOnly      bool
 }
 
 // ClientOption configures the Client.
@@ -54,6 +56,11 @@ func WithHTTPClient(hc *http.Client) ClientOption {
 	return func(c *Client) { c.httpClient = hc }
 }
 
+// WithReadOnly enables read-only mode, blocking write operations.
+func WithReadOnly() ClientOption {
+	return func(c *Client) { c.readOnly = true }
+}
+
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
@@ -71,8 +78,15 @@ func (c *Client) SetZuoraVersion(v string) { c.zuoraVersion = v }
 // SetVerbose enables verbose logging to the given writer.
 func (c *Client) SetVerbose(w io.Writer) { c.verbose = true; c.verboseWriter = w }
 
+// SetReadOnly enables or disables read-only mode.
+func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
+
 // Do performs an HTTP request.
 func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, error) {
+	if c.readOnly && !isReadOnlyAllowed(method, path) {
+		return nil, &ReadOnlyError{Method: method, Path: path}
+	}
+
 	rc := newRequestConfig(opts)
 
 	fullURL := c.buildURL(path, rc.query)
@@ -226,4 +240,70 @@ func (c *Client) buildURL(path string, query url.Values) string {
 		u.RawQuery = q.Encode()
 	}
 	return u.String()
+}
+
+// readOnlyPOSTAllowList contains POST endpoints that are read-only (exact match).
+var readOnlyPOSTAllowList = []string{
+	// ZOQL query
+	"v1/action/query",
+	"v1/action/querymore",
+	// Commerce API query/list (POST but read-only)
+	"commerce/charges/query",
+	"commerce/plans/query",
+	"commerce/plans/list",
+	"commerce/purchase-options/list",
+	"commerce/legacy/products/list",
+	// Preview (no data mutation, simulation only)
+	"v1/orders/preview",
+	"v1/async/orders/preview",
+	"v1/subscriptions/preview",
+}
+
+// readOnlyPOSTPatterns contains POST endpoints with dynamic path segments (regex match).
+var readOnlyPOSTPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`^v1/subscriptions/[^/]+/preview$`), // preview-change
+	regexp.MustCompile(`^meters/[^/]+/summary$`),           // meter summary (read-only)
+}
+
+// extractPath normalises a request path for allowlist matching.
+// It handles absolute URLs, strips query parameters, removes leading slashes,
+// and lowercases the result.
+func extractPath(rawPath string) string {
+	p := rawPath
+	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
+		if u, err := url.Parse(p); err == nil {
+			p = u.Path
+		}
+	}
+	if idx := strings.Index(p, "?"); idx >= 0 {
+		p = p[:idx]
+	}
+	return strings.ToLower(strings.TrimLeft(p, "/"))
+}
+
+// isReadOnlyAllowed returns true if the given method+path combination is allowed
+// in read-only mode. GET/HEAD/OPTIONS are always allowed. POST is allowed only
+// for allowlisted read-only endpoints. PUT/DELETE/PATCH are always blocked.
+func isReadOnlyAllowed(method, path string) bool {
+	m := strings.ToUpper(method)
+	switch m {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	case http.MethodPost:
+		p := extractPath(path)
+		for _, allowed := range readOnlyPOSTAllowList {
+			if p == allowed {
+				return true
+			}
+		}
+		for _, re := range readOnlyPOSTPatterns {
+			if re.MatchString(p) {
+				return true
+			}
+		}
+		return false
+	default:
+		// PUT, DELETE, PATCH, etc.
+		return false
+	}
 }

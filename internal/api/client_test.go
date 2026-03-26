@@ -223,6 +223,220 @@ func TestClient_Verbose(t *testing.T) {
 	assert.Contains(t, output, "HTTP 200")
 }
 
+// --- Read-Only Mode Tests ---
+
+func TestClient_ReadOnly_POSTBlocked(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	_, err := client.Post("/v1/accounts", strings.NewReader(`{}`))
+	require.Error(t, err)
+	var roErr *ReadOnlyError
+	require.ErrorAs(t, err, &roErr)
+}
+
+func TestClient_ReadOnly_PUTBlocked(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	_, err := client.Put("/v1/accounts/123", strings.NewReader(`{}`))
+	require.Error(t, err)
+	var roErr *ReadOnlyError
+	require.ErrorAs(t, err, &roErr)
+}
+
+func TestClient_ReadOnly_DELETEBlocked(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	_, err := client.Delete("/v1/accounts/123")
+	require.Error(t, err)
+	var roErr *ReadOnlyError
+	require.ErrorAs(t, err, &roErr)
+}
+
+func TestClient_ReadOnly_PATCHBlocked(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	_, err := client.Patch("/v1/accounts/123", strings.NewReader(`{}`))
+	require.Error(t, err)
+	var roErr *ReadOnlyError
+	require.ErrorAs(t, err, &roErr)
+}
+
+func TestClient_ReadOnly_GETAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	resp, err := client.Get("/v1/accounts")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestClient_ReadOnly_ZOQLQueryAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"done":true,"records":[]}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	resp, err := client.Post("/v1/action/query", strings.NewReader(`{"queryString":"SELECT Id FROM Account"}`))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestClient_ReadOnly_ZOQLQueryMoreAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"done":true,"records":[]}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	resp, err := client.Post("/v1/action/querymore", strings.NewReader(`{"queryLocator":"abc"}`))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestClient_ReadOnly_CommercePOSTAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+
+	endpoints := []string{
+		"/commerce/charges/query",
+		"/commerce/plans/query",
+		"/commerce/plans/list",
+		"/commerce/purchase-options/list",
+		"/commerce/legacy/products/list",
+	}
+	for _, ep := range endpoints {
+		resp, err := client.Post(ep, strings.NewReader(`{}`))
+		require.NoError(t, err, "should allow POST to %s", ep)
+		assert.Equal(t, 200, resp.StatusCode)
+	}
+}
+
+func TestClient_ReadOnly_SubscriptionPreviewChangeRegexAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	resp, err := client.Post("/v1/subscriptions/SUB-00001234/preview", strings.NewReader(`{}`))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestClient_ReadOnly_MeterSummaryRegexAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	resp, err := client.Post("/meters/meter-abc-123/summary", strings.NewReader(`{}`))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestClient_ReadOnly_AbsoluteURLNormalized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+
+	// Absolute URL with allowlisted path should be allowed
+	resp, err := client.Do("POST", server.URL+"/v1/action/query")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	// Absolute URL with non-allowlisted path should be blocked
+	_, err = client.Do("POST", server.URL+"/v1/accounts")
+	require.Error(t, err)
+	var roErr *ReadOnlyError
+	require.ErrorAs(t, err, &roErr)
+}
+
+func TestClient_ReadOnly_QueryParamNormalized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+
+	// Allowlisted path with query params should still be allowed
+	resp, err := client.Do("POST", "/v1/action/query?foo=bar")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestClient_ReadOnly_SetReadOnlyWorks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL))
+
+	// Initially not read-only — POST should work
+	_, err := client.Post("/v1/accounts", strings.NewReader(`{}`))
+	require.NoError(t, err)
+
+	// Enable read-only
+	client.SetReadOnly(true)
+	_, err = client.Post("/v1/accounts", strings.NewReader(`{}`))
+	require.Error(t, err)
+	var roErr *ReadOnlyError
+	require.ErrorAs(t, err, &roErr)
+
+	// Disable read-only
+	client.SetReadOnly(false)
+	_, err = client.Post("/v1/accounts", strings.NewReader(`{}`))
+	require.NoError(t, err)
+}
+
+func TestReadOnlyError_ExitCode(t *testing.T) {
+	err := &ReadOnlyError{}
+	assert.Equal(t, 5, err.ExitCode())
+	assert.Contains(t, err.Error(), "read-only mode")
+}
+
 func TestClient_Pagination(t *testing.T) {
 	page := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

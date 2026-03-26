@@ -27,3 +27,19 @@ func NewTestFactory(ios *iostreams.IOStreams, cfg config.Config, baseURL, token 
 		},
 	}
 }
+
+// NewTestFactoryReadOnly creates a Factory for testing with read-only mode enabled.
+// Delegates to NewTestFactory and wraps the HttpClient to enable read-only.
+func NewTestFactoryReadOnly(ios *iostreams.IOStreams, cfg config.Config, baseURL, token string) *Factory {
+	f := NewTestFactory(ios, cfg, baseURL, token)
+	origHttpClient := f.HttpClient
+	f.HttpClient = func() (*api.Client, error) {
+		client, err := origHttpClient()
+		if err != nil {
+			return nil, err
+		}
+		client.SetReadOnly(true)
+		return client, nil
+	}
+	return f
+}

@@ -99,9 +99,11 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 		allRecords = append(allRecords, result.Records...)
 	}
 
-	// Apply limit
+	// Apply limit — track whether we actually trimmed rows
+	limitTrimmed := false
 	if opts.Limit > 0 && len(allRecords) > opts.Limit {
 		allRecords = allRecords[:opts.Limit]
+		limitTrimmed = true
 	}
 
 	// Determine output destination
@@ -130,11 +132,12 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 	fmtOpts := output.FromCmd(cmd)
 
 	// Build combined JSON for --json/--jq/--template
-	// Include done/queryLocator so callers can detect truncation (e.g. --limit)
+	// done reflects whether the full result set is present (API complete AND no CLI truncation)
+	isDone := result.Done && !limitTrimmed
 	combinedMap := map[string]interface{}{
 		"records": allRecords,
 		"size":    len(allRecords),
-		"done":    result.Done,
+		"done":    isDone,
 	}
 	if result.QueryLocator != "" {
 		combinedMap["queryLocator"] = result.QueryLocator

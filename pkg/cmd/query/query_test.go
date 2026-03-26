@@ -133,7 +133,7 @@ func TestQuery_Limit(t *testing.T) {
 		Records []map[string]interface{} `json:"records"`
 		Size    int                      `json:"size"`
 	}
-	json.Unmarshal([]byte(out.String()), &result)
+	json.Unmarshal(out.Bytes(), &result)
 	assert.Equal(t, 2, result.Size)
 	assert.Len(t, result.Records, 2)
 }

@@ -5,8 +5,12 @@ import (
 	"path/filepath"
 )
 
-// ConfigDir returns the configuration directory path.
+// Dir returns the configuration directory path.
 // Respects $XDG_CONFIG_HOME; falls back to ~/.config/zr/.
+func Dir() string {
+	return configDir()
+}
+
 func configDir() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, "zr")

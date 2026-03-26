@@ -74,11 +74,16 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, itemID string) error {
 		return nil
 	}
 
-	// Response has a body
+	// 200 with empty or minimal body — treat as success
+	if len(resp.Body) == 0 {
+		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment item %s deleted.\n", itemID)
+		return nil
+	}
+
 	var raw map[string]interface{}
 	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Unexpected response from server while deleting fulfillment item %s:\n%s\n", itemID, string(resp.Body))
-		return fmt.Errorf("failed to parse server response for fulfillment item delete")
+		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment item %s deleted.\n", itemID)
+		return nil
 	}
 
 	fields := []output.DetailField{

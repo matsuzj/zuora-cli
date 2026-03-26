@@ -3,6 +3,7 @@ package root
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -96,6 +97,23 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 				}
 			}
 
+			// --read-only override (flag takes precedence over env var)
+			readOnly, _ := cmd.Flags().GetBool("read-only")
+			if !readOnly && !cmd.Flags().Changed("read-only") {
+				readOnly = os.Getenv("ZR_READ_ONLY") == "true"
+			}
+			if readOnly {
+				origHttpClient := f.HttpClient
+				f.HttpClient = func() (*api.Client, error) {
+					client, err := origHttpClient()
+					if err != nil {
+						return nil, err
+					}
+					client.SetReadOnly(true)
+					return client, nil
+				}
+			}
+
 			return nil
 		},
 	}
@@ -112,6 +130,7 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().String("template", "", "Format output with a Go template")
 	cmd.PersistentFlags().String("zuora-version", "", "Override Zuora API version header")
 	cmd.PersistentFlags().Bool("verbose", false, "Enable verbose/debug output")
+	cmd.PersistentFlags().Bool("read-only", false, "Block write operations (POST/PUT/DELETE/PATCH)")
 
 	// Subcommands
 	cmd.AddCommand(version.NewCmdVersion(f))

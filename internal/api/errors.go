@@ -81,3 +81,13 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 	apiErr.Message = string(body)
 	return apiErr
 }
+
+// ReadOnlyError is returned when a write operation is blocked in read-only mode.
+type ReadOnlyError struct{}
+
+func (e *ReadOnlyError) Error() string {
+	return "blocked: write operation not allowed in read-only mode. Remove --read-only flag or unset ZR_READ_ONLY to enable write operations"
+}
+
+// ExitCode returns 5 for read-only violations (1=general, 2=auth, 3=4xx, 4=5xx, 5=read-only).
+func (e *ReadOnlyError) ExitCode() int { return 5 }

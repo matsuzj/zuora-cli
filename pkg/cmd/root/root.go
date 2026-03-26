@@ -10,10 +10,13 @@ import (
 	apicmd "github.com/matsuzj/zuora-cli/pkg/cmd/api"
 	authcmd "github.com/matsuzj/zuora-cli/pkg/cmd/auth"
 	chargecmd "github.com/matsuzj/zuora-cli/pkg/cmd/charge"
+	commitmentcmd "github.com/matsuzj/zuora-cli/pkg/cmd/commitment"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/completion"
 	configcmd "github.com/matsuzj/zuora-cli/pkg/cmd/config"
 	contactcmd "github.com/matsuzj/zuora-cli/pkg/cmd/contact"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	fulfillmentcmd "github.com/matsuzj/zuora-cli/pkg/cmd/fulfillment"
+	fulfillmentitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/fulfillment-item"
 	invoicecmd "github.com/matsuzj/zuora-cli/pkg/cmd/invoice"
 	metercmd "github.com/matsuzj/zuora-cli/pkg/cmd/meter"
 	ordercmd "github.com/matsuzj/zuora-cli/pkg/cmd/order"
@@ -21,7 +24,9 @@ import (
 	orderlineitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item"
 	paymentcmd "github.com/matsuzj/zuora-cli/pkg/cmd/payment"
 	plancmd "github.com/matsuzj/zuora-cli/pkg/cmd/plan"
+	prepaidcmd "github.com/matsuzj/zuora-cli/pkg/cmd/prepaid"
 	productcmd "github.com/matsuzj/zuora-cli/pkg/cmd/product"
+	rampcmd "github.com/matsuzj/zuora-cli/pkg/cmd/ramp"
 	rateplancmd "github.com/matsuzj/zuora-cli/pkg/cmd/rateplan"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/signup"
 	subcmd "github.com/matsuzj/zuora-cli/pkg/cmd/subscription"
@@ -126,6 +131,11 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(paymentcmd.NewCmdPayment(f))
 	cmd.AddCommand(usagecmd.NewCmdUsage(f))
 	cmd.AddCommand(metercmd.NewCmdMeter(f))
+	cmd.AddCommand(rampcmd.NewCmdRamp(f))
+	cmd.AddCommand(commitmentcmd.NewCmdCommitment(f))
+	cmd.AddCommand(fulfillmentcmd.NewCmdFulfillment(f))
+	cmd.AddCommand(fulfillmentitemcmd.NewCmdFulfillmentItem(f))
+	cmd.AddCommand(prepaidcmd.NewCmdPrepaid(f))
 
 	return cmd
 }

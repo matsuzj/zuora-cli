@@ -18,7 +18,7 @@ fi
 
 DEFAULT_BASE_BRANCH="main"
 COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-10}"
-REVIEW_ROUNDS="${REVIEW_ROUNDS:-2}"  # 計画・実装各段階でのCodexレビュー回数
+REVIEW_ROUNDS="${REVIEW_ROUNDS:-4}"  # 計画・実装各段階でのCodexレビュー回数
 STAGE="all"
 ISSUE_NUMBER=""
 
@@ -38,7 +38,7 @@ usage() {
   plan | implement | review | test | pr | all (デフォルト)
 
 オプション:
-  --review-rounds  計画・実装各段階でのCodexレビュー回数 (デフォルト: 2, 合計最大4回)
+  --review-rounds  計画・実装各段階でのCodexレビュー回数 (デフォルト: 4, 合計最大8回)
 EOF
 }
 

@@ -62,3 +62,4 @@ fi
 
 echo ""
 echo "レビュー結果: ${OUT_DIR}/"
+exit "${review_exit}"

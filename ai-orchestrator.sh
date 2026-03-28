@@ -60,11 +60,10 @@ slugify() {
 preflight() {
     log "🔐 認証チェック..."
 
-    # ANTHROPIC_API_KEY ガード（サブスク優先のため未設定必須）
+    # ANTHROPIC_API_KEY 警告（サブスク優先のため未設定推奨、ただしClaude以外のステージでは致命的ではない）
     if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-        log "❌ ANTHROPIC_API_KEY が設定されています。API従量課金が優先されます。"
-        log "   → unset ANTHROPIC_API_KEY を実行してください。"
-        exit 1
+        log "⚠️  ANTHROPIC_API_KEY が設定されています。Claude実行時にAPI従量課金が優先されます。"
+        log "   → サブスク運用時は unset ANTHROPIC_API_KEY を実行してください。"
     fi
 
     if ! have_cmd gh; then
@@ -361,8 +360,7 @@ $(git diff --stat ${BASE_REF})
             --base "${DEFAULT_BASE_BRANCH}" \
             --head "${BRANCH}" \
             --label "ai-pr-created"
-    ) 2>/dev/null
-    local pr_exit=$?
+    ) 2>/dev/null && local pr_exit=0 || local pr_exit=$?
 
     if [[ ${pr_exit} -eq 0 ]]; then
         # ラベル更新（PR作成成功時のみ）

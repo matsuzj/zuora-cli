@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
+	"github.com/matsuzj/zuora-cli/internal/testutil/httpmock"
 )
 
 // TokenSource manages OAuth 2.0 token acquisition and caching.
@@ -53,7 +54,11 @@ func (ts *TokenSource) Refresh(envName string) (string, error) {
 
 	httpClient := ts.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+		if hc, ok := httpmock.ClientForURL(env.BaseURL); ok {
+			httpClient = hc
+		} else {
+			httpClient = &http.Client{Timeout: 30 * time.Second}
+		}
 	}
 
 	resp, err := httpClient.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(body.Encode()))

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	httptest "github.com/matsuzj/zuora-cli/internal/testutil/httpmock"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 

@@ -2,8 +2,8 @@ package paymentmethodscascading
 
 import (
 	"encoding/json"
+	httptest "github.com/matsuzj/zuora-cli/internal/testutil/httpmock"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -31,11 +31,11 @@ func TestPaymentMethodsCascading_Detail(t *testing.T) {
 		w.WriteHeader(200)
 		// Cascading config response
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":                        true,
-			"paymentMethodId":                "pm-parent",
-			"paymentMethodCascadingConsent":   true,
-			"paymentMethodType":              "CreditCard",
-			"creditCardMaskNumber":           "****9999",
+			"success":                       true,
+			"paymentMethodId":               "pm-parent",
+			"paymentMethodCascadingConsent": true,
+			"paymentMethodType":             "CreditCard",
+			"creditCardMaskNumber":          "****9999",
 		})
 	}))
 	defer server.Close()

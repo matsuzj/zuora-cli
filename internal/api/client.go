@@ -9,12 +9,15 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/matsuzj/zuora-cli/internal/testutil/httpmock"
 )
 
 // Client is an HTTP client for Zuora APIs.
 type Client struct {
 	baseURL       string
 	httpClient    *http.Client
+	httpClientSet bool
 	tokenSource   func() (string, error)
 	refreshToken  func() (string, error) // force refresh, bypassing cache
 	zuoraVersion  string
@@ -53,7 +56,10 @@ func WithVerbose(w io.Writer) ClientOption {
 
 // WithHTTPClient sets a custom http.Client.
 func WithHTTPClient(hc *http.Client) ClientOption {
-	return func(c *Client) { c.httpClient = hc }
+	return func(c *Client) {
+		c.httpClient = hc
+		c.httpClientSet = true
+	}
 }
 
 // WithReadOnly enables read-only mode, blocking write operations.
@@ -68,6 +74,11 @@ func NewClient(opts ...ClientOption) *Client {
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	if !c.httpClientSet {
+		if hc, ok := httpmock.ClientForURL(c.baseURL); ok {
+			c.httpClient = hc
+		}
 	}
 	return c
 }

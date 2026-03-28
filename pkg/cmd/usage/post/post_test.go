@@ -2,9 +2,9 @@ package post
 
 import (
 	"encoding/json"
+	httptest "github.com/matsuzj/zuora-cli/internal/testutil/httpmock"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"

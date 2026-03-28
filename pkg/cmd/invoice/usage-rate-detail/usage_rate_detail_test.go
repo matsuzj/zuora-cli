@@ -2,8 +2,8 @@ package usageratedetail
 
 import (
 	"encoding/json"
+	httptest "github.com/matsuzj/zuora-cli/internal/testutil/httpmock"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"

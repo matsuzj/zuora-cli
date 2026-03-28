@@ -72,6 +72,11 @@ preflight() {
         exit 1
     fi
 
+    if ! have_cmd jq; then
+        log "❌ jq が必要です。brew install jq でインストールしてください。"
+        exit 1
+    fi
+
     # Claude Code
     if have_cmd claude; then
         if claude auth status >/dev/null 2>&1; then
@@ -213,7 +218,7 @@ stage_implement() {
         cd "${WT_DIR}"
         claude --bare \
             --tools "Bash,Edit,Read" \
-            --dangerously-skip-permissions \
+            --allowedTools "Bash(make check)" "Bash(make test)" "Bash(make lint)" "Bash(go test *)" "Bash(go vet *)" \
             -p "以下のIssueを実装してください。まずAGENTS.mdを読んでください。
 
 Issue:

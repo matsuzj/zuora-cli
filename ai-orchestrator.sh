@@ -273,9 +273,7 @@ stage_test() {
 
     (
         cd "${WT_DIR}"
-        codex exec \
-            --ask-for-approval never \
-            --sandbox workspace-write \
+        codex exec --full-auto \
             "このブランチの変更に対してGoテストを追加・改善してください。
 実行コマンド: make test（または go test -race -count=1 ./...）
 失敗があれば修正してください。

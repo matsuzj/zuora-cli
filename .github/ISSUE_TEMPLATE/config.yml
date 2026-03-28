@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "Manual Issue (AI対象外)"
+    url: "https://github.com/matsuzj/zuora-cli/issues/new"
+    about: "AI自動実装ではなく、手動で対応するIssue"

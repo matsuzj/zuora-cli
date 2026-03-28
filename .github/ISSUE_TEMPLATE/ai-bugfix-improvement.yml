@@ -1,0 +1,91 @@
+name: "AI: Bug Fix / Improvement"
+description: "AI自動実装用 — バグ修正または既存機能の改善"
+labels: ["ai-implement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > このテンプレートは `ai-orchestrator.sh` が自動処理します。
+        > 各セクションをできるだけ具体的に記入してください。
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: "種別"
+      options:
+        - "fix: バグ修正"
+        - "feat: 既存機能の改善"
+        - "refactor: リファクタリング"
+        - "test: テスト追加・修正"
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: "現在の動作"
+      description: "何が起きているか。再現手順があればコマンド例で示す"
+      placeholder: |
+        ```bash
+        $ zr account list --json | jq '.data | length'
+        0
+        ```
+        アカウントが存在するのに空配列が返る。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "期待する動作"
+      description: "どうなるべきか。具体的な出力例があると AI が正確に実装できる"
+      placeholder: |
+        ```bash
+        $ zr account list --json | jq '.data | length'
+        5
+        ```
+        既存アカウントが正しくリストされる。
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause
+    attributes:
+      label: "原因の推定（わかれば）"
+      description: "該当ファイル・行番号・関数名があると AI の探索時間が大幅に短縮される"
+      placeholder: |
+        `pkg/cmd/account/list/list.go:45` の `runList` 関数で、
+        レスポンスの `.accounts` を `.data` として参照している。
+
+  - type: textarea
+    id: files
+    attributes:
+      label: "変更対象ファイル"
+      description: "修正が必要なファイルを列挙（AI のスコープ制限に重要）"
+      placeholder: |
+        - pkg/cmd/account/list/list.go
+        - pkg/cmd/account/list/list_test.go
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "受け入れ基準"
+      description: "全て満たされたら完了"
+      value: |
+        - [ ] 問題が修正されている
+        - [ ] 既存テストが壊れていない
+        - [ ] 修正に対するテストが追加されている
+        - [ ] `make check` (lint + test) 通過
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: "スコープ外（やらないこと）"
+      description: "AI が余計な変更をしないように明示的に除外する項目"
+      placeholder: |
+        - この Issue のスコープ外のリファクタリング
+        - 他コマンドへの同様の修正（別 Issue で対応）

@@ -4,6 +4,14 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
 
+# 前提チェック
+for cmd in gh jq; do
+    if ! command -v "${cmd}" >/dev/null 2>&1; then
+        echo "ERROR: ${cmd} が必要です。" >&2
+        exit 1
+    fi
+done
+
 LIMIT="${AI_POLL_LIMIT:-3}"
 LOCK_FILE="/tmp/ai-orchestrator.lock"
 
@@ -16,7 +24,7 @@ if [[ -f "${LOCK_FILE}" ]]; then
     fi
 fi
 echo $$ > "${LOCK_FILE}"
-trap "rm -f ${LOCK_FILE}" EXIT
+trap 'rm -f "${LOCK_FILE}"' EXIT
 
 issues_json="$(gh issue list --label "ai-implement" --state open --limit "${LIMIT}" --json number)"
 count="$(echo "${issues_json}" | jq 'length')"

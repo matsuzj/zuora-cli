@@ -139,7 +139,7 @@ fetch_issue() {
 setup_worktree() {
     local slug
     slug="$(slugify "${ISSUE_TITLE}")"
-    BRANCH="ai/issue-${ISSUE_NUMBER}-${slug}"
+    BRANCH="chore/ai-issue-${ISSUE_NUMBER}-${slug}"
     WT_DIR="${REPO_ROOT}/.worktrees/issue-${ISSUE_NUMBER}"
     BASE_REF="origin/${DEFAULT_BASE_BRANCH}"
 
@@ -150,7 +150,13 @@ setup_worktree() {
 
     if [[ -d "${WT_DIR}" ]]; then
         log "  既存worktreeをリフレッシュ"
-        (cd "${WT_DIR}" && git checkout -- . && git clean -fd && git rebase "${BASE_REF}") || true
+        (
+            cd "${WT_DIR}"
+            git fetch origin "${DEFAULT_BASE_BRANCH}"
+            git checkout -B "${BRANCH}" "${BASE_REF}"
+            git reset --hard "${BASE_REF}"
+            git clean -fd
+        )
     else
         git worktree add -b "${BRANCH}" "${WT_DIR}" "${BASE_REF}"
     fi
@@ -313,16 +319,19 @@ AGENTS.md のテスト規約に従ってください。"
 stage_pr() {
     log "🚀 ステージ5: Commit & Push & PR作成..."
 
-    (
-        cd "${WT_DIR}"
-        git add -A
-        if git diff --cached --quiet; then
-            log "  変更なし — コミットスキップ"
-            return 0
-        fi
-        git commit -m "feat: implement issue #${ISSUE_NUMBER}"
-        git push -u origin "${BRANCH}" --force-with-lease
-    )
+    pushd "${WT_DIR}" >/dev/null
+
+    git add -A
+    if git diff --cached --quiet; then
+        log "  変更なし — コミットスキップ"
+        popd >/dev/null
+        return 0
+    fi
+
+    git commit -m "feat: implement issue #${ISSUE_NUMBER}"
+    git push -u origin "${BRANCH}" --force-with-lease
+
+    popd >/dev/null
 
     # レビューサマリー取得
     local review_summary="レビュー未実施"

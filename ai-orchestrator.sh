@@ -109,6 +109,20 @@ preflight() {
 }
 
 #-------------------------------------------------------------------
+# AI コンテキスト読み込み
+#-------------------------------------------------------------------
+AI_CONTEXT=""
+load_ai_context() {
+    local ctx_file="${REPO_ROOT}/docs/ai-context.md"
+    if [[ -f "${ctx_file}" ]]; then
+        AI_CONTEXT=$(cat "${ctx_file}")
+        log "  📚 AIコンテキスト読み込み: ${ctx_file} ($(wc -l < "${ctx_file}") 行)"
+    else
+        log "  ⏭️  docs/ai-context.md なし（コンテキストなしで実行）"
+    fi
+}
+
+#-------------------------------------------------------------------
 # ユーティリティ
 #-------------------------------------------------------------------
 cooldown() {
@@ -176,22 +190,24 @@ stage_plan() {
     (
         cd "${WT_DIR}"
         claude --output-format text --permission-mode plan -p \
-            "以下のIssueの実装計画を作成してください。まずAGENTS.mdを読んでください。
+            "以下のIssueの実装計画を作成してください。
+コンテキストに実装パターンとプロジェクト規約が含まれています。これに従ってください。
 
-Issue:
+=== プロジェクトコンテキスト ===
+${AI_CONTEXT}
+
+=== Issue ===
 ${ISSUE_JSON}
 
 以下を含む計画を出力:
-1. 変更・作成するファイル一覧
+1. 変更・作成するファイル一覧（パス明記）
 2. 各ファイルの具体的な変更内容
 3. 追加すべきテストケース
 4. 受け入れ基準
-5. リスクとロールバック方法
 
 重要:
-- コマンド配置は pkg/cmd/<resource>/<action>/
-- go vet ./... && go test -race ./... が通ること
-- 環境変数プレフィックスは ZUORA_"
+- コンテキストの実装パターンに厳密に従う
+- go vet ./... && go test -race ./... が通ること"
     ) > "${LOG_DIR}/plan.md" 2>&1
 
     log "  ✅ 計画完了 → ${LOG_DIR}/plan.md"
@@ -255,16 +271,20 @@ stage_implement() {
         claude --output-format text \
             --tools "Bash,Edit,Read" \
             --allowedTools "Bash(make check)" "Bash(make test)" "Bash(make lint)" "Bash(go test *)" "Bash(go vet *)" \
-            -p "以下のIssueを実装してください。まずAGENTS.mdを読んでください。
+            -p "以下のIssueを実装してください。
+コンテキストに実装パターンとプロジェクト規約が含まれています。これに厳密に従ってください。
 
-Issue:
+=== プロジェクトコンテキスト ===
+${AI_CONTEXT}
+
+=== Issue ===
 ${ISSUE_JSON}
 
-計画:
+=== 計画 ===
 ${plan_content}
 
 重要:
-- このリポジトリはzr (zuora-cli) をビルドします
+- コンテキストのコードパターンをそのまま適用する（独自パターンを発明しない）
 - go vet ./... && go test -race ./... を実行して通ることを確認
 - 変更はこのIssueのスコープに限定
 - シークレットをログやエラーメッセージに出力しない
@@ -455,6 +475,7 @@ $(git diff --stat ${BASE_REF})
 #-------------------------------------------------------------------
 main() {
     preflight
+    load_ai_context
     ensure_labels
 
     if [[ -z "${ISSUE_NUMBER}" ]]; then

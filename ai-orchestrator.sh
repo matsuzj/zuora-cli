@@ -118,7 +118,9 @@ ensure_labels() {
 }
 
 pick_next_issue() {
-    gh issue list --label "ai-implement" --state open --limit 1 --json number --jq '.[0].number // empty'
+    # ai-in-progress を除外して、未着手の Issue のみ取得
+    gh issue list --label "ai-implement" --state open --limit 50 --json number,labels \
+        | jq -r '[.[] | select(.labels | map(.name) | index("ai-in-progress") | not)] | .[0].number // empty'
 }
 
 #-------------------------------------------------------------------
@@ -232,7 +234,12 @@ ${plan_content}
     ) > "${LOG_DIR}/implement.log" 2>&1
 
     # ビルド確認
-    (cd "${WT_DIR}" && make check 2>/dev/null) && log "  ✅ make check 通過" || log "  ⚠️  make check 失敗（手動確認推奨）"
+    if (cd "${WT_DIR}" && make check 2>&1); then
+        log "  ✅ make check 通過"
+    else
+        log "  ❌ make check 失敗 — パイプライン停止"
+        return 1
+    fi
 
     log "  ✅ 実装完了"
 }
@@ -250,7 +257,7 @@ stage_review() {
 
     (
         cd "${WT_DIR}"
-        codex review --base "${DEFAULT_BASE_BRANCH}"
+        codex review --uncommitted
     ) > "${LOG_DIR}/review.md" 2>&1
 
     log "  ✅ レビュー完了 → ${LOG_DIR}/review.md"
@@ -279,7 +286,12 @@ AGENTS.md のテスト規約に従ってください。"
     ) > "${LOG_DIR}/test.log" 2>&1
 
     # lint + テスト確認（Codexがテスト以外のファイルを変更した場合にも検出）
-    (cd "${WT_DIR}" && make check 2>/dev/null) && log "  ✅ make check 通過" || log "  ⚠️  make check 失敗（手動確認推奨）"
+    if (cd "${WT_DIR}" && make check 2>&1); then
+        log "  ✅ make check 通過"
+    else
+        log "  ❌ make check 失敗 — パイプライン停止"
+        return 1
+    fi
 
     log "  ✅ テスト生成完了"
 }
@@ -294,13 +306,11 @@ stage_pr() {
 
     git add -A
     if git diff --cached --quiet; then
-        log "  変更なし — コミットスキップ"
-        popd >/dev/null
-        return 0
+        log "  変更なし — コミットスキップ（PR作成は続行）"
+    else
+        git commit -m "feat: implement issue #${ISSUE_NUMBER}"
+        git push -u origin "${BRANCH}" --force-with-lease
     fi
-
-    git commit -m "feat: implement issue #${ISSUE_NUMBER}"
-    git push -u origin "${BRANCH}" --force-with-lease
 
     popd >/dev/null
 
@@ -376,6 +386,9 @@ main() {
     log "🎯 Issue #${ISSUE_NUMBER} を処理開始"
     fetch_issue
     setup_worktree
+
+    # 異常終了時に ai-in-progress ラベルを除去（ポーリングでリトライ可能にする）
+    trap 'gh issue edit "${ISSUE_NUMBER}" --remove-label "ai-in-progress" >/dev/null 2>&1 || true; log "⚠️  異常終了: ai-in-progress ラベルを除去しました"' ERR
 
     case "${STAGE}" in
         plan)      stage_plan ;;

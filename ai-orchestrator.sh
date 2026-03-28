@@ -98,12 +98,7 @@ preflight() {
         log "  ⏭️  Codex CLI: 未インストール（testスキップ）"
     fi
 
-    # Gemini CLI
-    if have_cmd gemini; then
-        log "  ✅ Gemini CLI: インストール済み"
-    else
-        log "  ⏭️  Gemini CLI: 未インストール（reviewスキップ）"
-    fi
+    # Codex CLI はテスト生成 + クロスレビューの両方で使用
 }
 
 #-------------------------------------------------------------------
@@ -248,38 +243,19 @@ ${plan_content}
 }
 
 #-------------------------------------------------------------------
-# ステージ3: クロスレビュー (Gemini CLI)
+# ステージ3: クロスレビュー (Codex CLI)
 #-------------------------------------------------------------------
 stage_review() {
-    if ! have_cmd gemini; then
-        log "  ⏭️  Gemini未インストール — スキップ"
+    if ! have_cmd codex; then
+        log "  ⏭️  Codex未インストール — スキップ"
         return 0
     fi
 
-    log "🔍 ステージ3: Gemini CLI でクロスレビュー..."
+    log "🔍 ステージ3: Codex CLI でクロスレビュー..."
 
     (
         cd "${WT_DIR}"
-        git diff --patch "${BASE_REF}...HEAD" \
-            | gemini -p "あなたはGoのシニアレビュアーです。このdiffをレビューしてください。
-
-コンテキスト:
-- プロジェクトは matsuzj/zuora-cli (zr)、gh CLIのパターンに準拠
-- 小さく、テスト可能な変更を重視
-
-以下の観点でレビュー:
-1. 正確性: 意図通りの実装か
-2. セキュリティ: シークレット漏洩、入力バリデーション
-3. Goベストプラクティス: エラーハンドリング、命名規則
-4. テストカバレッジ: 新しい関数にテストがあるか
-5. CLI UX: --json/--jq/--template の一貫性
-
-出力形式:
-- サマリー
-- 必須修正（ファイル/行ヒント付き）
-- 改善提案
-- テスト提案
-"
+        codex review --base "${DEFAULT_BASE_BRANCH}"
     ) > "${LOG_DIR}/review.md" 2>&1
 
     log "  ✅ レビュー完了 → ${LOG_DIR}/review.md"

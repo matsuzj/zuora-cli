@@ -60,7 +60,6 @@ ai-auth:
 	if [ -n "$${ANTHROPIC_API_KEY:-}" ]; then echo "⚠️  設定済み（API課金優先）"; else echo "✅ 未設定（サブスク優先）"; fi
 	@echo "=== Claude Code ===" && if command -v claude >/dev/null 2>&1; then claude auth status 2>&1 || echo "⚠️  未認証"; else echo "未インストール"; fi
 	@echo "=== Codex CLI ===" && if command -v codex >/dev/null 2>&1; then codex login status 2>&1 || echo "⚠️  未認証"; else echo "未インストール"; fi
-	@echo "=== Gemini CLI ===" && if command -v gemini >/dev/null 2>&1; then gemini --version; else echo "未インストール"; fi
 
 ai-status:
 	@echo "Branch: $$(git rev-parse --abbrev-ref HEAD)"

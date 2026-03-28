@@ -39,16 +39,6 @@ if have_cmd claude && [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
         || { echo "⚠️  Claude レビュー失敗（続行）"; review_exit=1; }
 fi
 
-# Gemini レビュー
-if have_cmd gemini; then
-    echo ""
-    echo "=== Gemini レビュー ==="
-    cat "${OUT_DIR}/diff.patch" \
-        | gemini -p "このdiffをGoベストプラクティスとパフォーマンスの観点でレビューしてください。" \
-        | tee "${OUT_DIR}/gemini.review.md" \
-        || { echo "⚠️  Gemini レビュー失敗（続行）"; review_exit=1; }
-fi
-
 # Codex レビュー
 if have_cmd codex; then
     echo ""

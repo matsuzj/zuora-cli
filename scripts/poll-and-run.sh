@@ -36,5 +36,5 @@ fi
 
 echo "${issues_json}" | jq -r '.[].number' | while read -r n; do
     echo "$(date): Issue #${n} の処理を開始"
-    ./ai-orchestrator.sh --issue "${n}" --stage all
+    ./ai-orchestrator.sh --issue "${n}" --stage all || echo "$(date): ⚠️  Issue #${n} 失敗（続行）"
 done

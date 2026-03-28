@@ -76,29 +76,31 @@ preflight() {
         exit 1
     fi
 
-    # Claude Code
+    # Claude Code — インストール済み＋認証済みの場合のみ有効
+    CLAUDE_AVAILABLE=false
     if have_cmd claude; then
         if claude auth status >/dev/null 2>&1; then
             log "  ✅ Claude Code: 認証OK"
+            CLAUDE_AVAILABLE=true
         else
-            log "  ⚠️  Claude Code: 未認証 → claude auth login を実行"
+            log "  ⚠️  Claude Code: 未認証（plan/implementスキップ） → claude auth login を実行"
         fi
     else
         log "  ⏭️  Claude Code: 未インストール（plan/implementスキップ）"
     fi
 
-    # Codex CLI
+    # Codex CLI — インストール済み＋認証済みの場合のみ有効
+    CODEX_AVAILABLE=false
     if have_cmd codex; then
         if codex login status >/dev/null 2>&1; then
             log "  ✅ Codex CLI: 認証OK"
+            CODEX_AVAILABLE=true
         else
-            log "  ⚠️  Codex CLI: 未認証 → codex login --device-auth を実行"
+            log "  ⚠️  Codex CLI: 未認証（review/testスキップ） → codex login --device-auth を実行"
         fi
     else
-        log "  ⏭️  Codex CLI: 未インストール（testスキップ）"
+        log "  ⏭️  Codex CLI: 未インストール（review/testスキップ）"
     fi
-
-    # Codex CLI はテスト生成 + クロスレビューの両方で使用
 }
 
 #-------------------------------------------------------------------
@@ -144,16 +146,9 @@ setup_worktree() {
     mkdir -p "${REPO_ROOT}/.worktrees"
 
     if [[ -d "${WT_DIR}" ]]; then
-        log "  既存worktreeをリフレッシュ"
-        (
-            cd "${WT_DIR}"
-            git fetch origin "${DEFAULT_BASE_BRANCH}"
-            git checkout -B "${BRANCH}" "${BASE_REF}"
-            git reset --hard "${BASE_REF}"
-            git clean -fd
-        )
+        log "  既存worktreeを再利用（分割ステージ実行時の変更を保持）"
     else
-        git worktree add -b "${BRANCH}" "${WT_DIR}" "${BASE_REF}"
+        git worktree add -B "${BRANCH}" "${WT_DIR}" "${BASE_REF}"
     fi
 
     # ラベル更新
@@ -164,8 +159,8 @@ setup_worktree() {
 # ステージ1: 計画 (Claude Code — permission-mode plan)
 #-------------------------------------------------------------------
 stage_plan() {
-    if ! have_cmd claude; then
-        log "  ⏭️  Claude未インストール — スキップ"
+    if [[ "${CLAUDE_AVAILABLE}" != "true" ]]; then
+        log "  ⏭️  Claude利用不可 — スキップ"
         return 0
     fi
 
@@ -203,8 +198,8 @@ zuora-cli (zr) プロジェクトの実装計画を作成してください。
 # ステージ2: 実装 (Claude Code)
 #-------------------------------------------------------------------
 stage_implement() {
-    if ! have_cmd claude; then
-        log "  ⏭️  Claude未インストール — スキップ"
+    if [[ "${CLAUDE_AVAILABLE}" != "true" ]]; then
+        log "  ⏭️  Claude利用不可 — スキップ"
         return 0
     fi
 
@@ -246,8 +241,8 @@ ${plan_content}
 # ステージ3: クロスレビュー (Codex CLI)
 #-------------------------------------------------------------------
 stage_review() {
-    if ! have_cmd codex; then
-        log "  ⏭️  Codex未インストール — スキップ"
+    if [[ "${CODEX_AVAILABLE}" != "true" ]]; then
+        log "  ⏭️  Codex利用不可 — スキップ"
         return 0
     fi
 
@@ -265,8 +260,8 @@ stage_review() {
 # ステージ4: テスト生成 (Codex CLI)
 #-------------------------------------------------------------------
 stage_test() {
-    if ! have_cmd codex; then
-        log "  ⏭️  Codex未インストール — スキップ"
+    if [[ "${CODEX_AVAILABLE}" != "true" ]]; then
+        log "  ⏭️  Codex利用不可 — スキップ"
         return 0
     fi
 
@@ -283,8 +278,8 @@ stage_test() {
 AGENTS.md のテスト規約に従ってください。"
     ) > "${LOG_DIR}/test.log" 2>&1
 
-    # テスト確認
-    (cd "${WT_DIR}" && make test 2>/dev/null) && log "  ✅ 全テスト通過" || log "  ⚠️  テスト失敗あり（手動確認推奨）"
+    # lint + テスト確認（Codexがテスト以外のファイルを変更した場合にも検出）
+    (cd "${WT_DIR}" && make check 2>/dev/null) && log "  ✅ make check 通過" || log "  ⚠️  make check 失敗（手動確認推奨）"
 
     log "  ✅ テスト生成完了"
 }

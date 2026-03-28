@@ -185,7 +185,7 @@ ${ISSUE_JSON}
 
 重要:
 - コマンド配置は pkg/cmd/<resource>/<action>/
-- make check (lint+test) が通ること
+- go vet ./... && go test -race ./... が通ること
 - 環境変数プレフィックスは ZUORA_"
     ) > "${LOG_DIR}/plan.md" 2>&1
 
@@ -223,17 +223,18 @@ ${plan_content}
 
 重要:
 - このリポジトリはzr (zuora-cli) をビルドします
-- make check (lint+test) を実行して通ることを確認
+- go vet ./... && go test -race ./... を実行して通ることを確認
 - 変更はこのIssueのスコープに限定
 - シークレットをログやエラーメッセージに出力しない
 "
     ) > "${LOG_DIR}/implement.log" 2>&1
 
     # ビルド確認
-    if (cd "${WT_DIR}" && make check 2>&1); then
-        log "  ✅ make check 通過"
+    # staticcheck が Go 1.26.1 と非互換のため、go vet + go test で検証
+    if (cd "${WT_DIR}" && go vet ./... && go test -race -count=1 ./... 2>&1); then
+        log "  ✅ vet + test 通過"
     else
-        log "  ❌ make check 失敗 — パイプライン停止"
+        log "  ❌ vet + test 失敗 — パイプライン停止"
         return 1
     fi
 
@@ -282,10 +283,11 @@ AGENTS.md のテスト規約に従ってください。"
     ) > "${LOG_DIR}/test.log" 2>&1
 
     # lint + テスト確認（Codexがテスト以外のファイルを変更した場合にも検出）
-    if (cd "${WT_DIR}" && make check 2>&1); then
-        log "  ✅ make check 通過"
+    # staticcheck が Go 1.26.1 と非互換のため、go vet + go test で検証
+    if (cd "${WT_DIR}" && go vet ./... && go test -race -count=1 ./... 2>&1); then
+        log "  ✅ vet + test 通過"
     else
-        log "  ❌ make check 失敗 — パイプライン停止"
+        log "  ❌ vet + test 失敗 — パイプライン停止"
         return 1
     fi
 

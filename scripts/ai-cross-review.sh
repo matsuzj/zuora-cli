@@ -26,13 +26,17 @@ if [[ ! -s "${OUT_DIR}/diff.patch" ]]; then
     exit 0
 fi
 
+# 各レビュアーの失敗が後続をブロックしないようにする
+review_exit=0
+
 # Claude レビュー
 if have_cmd claude && [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
     echo "=== Claude Code レビュー ==="
     cat "${OUT_DIR}/diff.patch" \
         | claude --bare --tools "Read" --permission-mode plan -p \
           "このdiffをバグとセキュリティの観点でレビューしてください。diff外の変更は提案しないでください。" \
-        | tee "${OUT_DIR}/claude.review.md"
+        | tee "${OUT_DIR}/claude.review.md" \
+        || { echo "⚠️  Claude レビュー失敗（続行）"; review_exit=1; }
 fi
 
 # Gemini レビュー
@@ -41,7 +45,8 @@ if have_cmd gemini; then
     echo "=== Gemini レビュー ==="
     cat "${OUT_DIR}/diff.patch" \
         | gemini -p "このdiffをGoベストプラクティスとパフォーマンスの観点でレビューしてください。" \
-        | tee "${OUT_DIR}/gemini.review.md"
+        | tee "${OUT_DIR}/gemini.review.md" \
+        || { echo "⚠️  Gemini レビュー失敗（続行）"; review_exit=1; }
 fi
 
 # Codex レビュー
@@ -51,7 +56,8 @@ if have_cmd codex; then
     codex exec --ask-for-approval never --sandbox read-only \
         "このdiffをレビューし、問題点を指摘してください。" \
         < "${OUT_DIR}/diff.patch" \
-        | tee "${OUT_DIR}/codex.review.md"
+        | tee "${OUT_DIR}/codex.review.md" \
+        || { echo "⚠️  Codex レビュー失敗（続行）"; review_exit=1; }
 fi
 
 echo ""

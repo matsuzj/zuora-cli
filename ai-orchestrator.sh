@@ -150,7 +150,8 @@ setup_worktree() {
     mkdir -p "${REPO_ROOT}/.worktrees"
 
     if [[ -d "${WT_DIR}" ]]; then
-        log "  既存worktreeを再利用"
+        log "  既存worktreeをリフレッシュ"
+        (cd "${WT_DIR}" && git checkout -- . && git clean -fd && git rebase "${BASE_REF}") || true
     else
         git worktree add -b "${BRANCH}" "${WT_DIR}" "${BASE_REF}"
     fi
@@ -360,15 +361,20 @@ $(git diff --stat ${BASE_REF})
             --base "${DEFAULT_BASE_BRANCH}" \
             --head "${BRANCH}" \
             --label "ai-pr-created"
-    ) 2>/dev/null || log "  ⚠️  PR作成スキップ（既存PRあり？）"
+    ) 2>/dev/null
+    local pr_exit=$?
 
-    # ラベル更新
-    gh issue edit "${ISSUE_NUMBER}" \
-        --add-label "ai-pr-created" \
-        --remove-label "ai-in-progress" \
-        --remove-label "ai-implement" >/dev/null 2>&1 || true
-
-    log "  ✅ PR作成完了"
+    if [[ ${pr_exit} -eq 0 ]]; then
+        # ラベル更新（PR作成成功時のみ）
+        gh issue edit "${ISSUE_NUMBER}" \
+            --add-label "ai-pr-created" \
+            --remove-label "ai-in-progress" \
+            --remove-label "ai-implement" >/dev/null 2>&1 || true
+        log "  ✅ PR作成完了"
+    else
+        log "  ⚠️  PR作成失敗（既存PRあり、または認証・ネットワークエラー）"
+        log "     ラベルは変更していません。手動確認してください。"
+    fi
 }
 
 #-------------------------------------------------------------------

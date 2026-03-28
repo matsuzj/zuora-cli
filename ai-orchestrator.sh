@@ -170,12 +170,11 @@ stage_plan() {
 
     (
         cd "${WT_DIR}"
-        echo "ISSUE_JSON:
-${ISSUE_JSON}
+        claude --output-format text --permission-mode plan -p \
+            "以下のIssueの実装計画を作成してください。まずAGENTS.mdを読んでください。
 
-PROMPT:
-zuora-cli (zr) プロジェクトの実装計画を作成してください。
-まず AGENTS.md を読み、プロジェクト規約に従ってください。
+Issue:
+${ISSUE_JSON}
 
 以下を含む計画を出力:
 1. 変更・作成するファイル一覧
@@ -187,10 +186,7 @@ zuora-cli (zr) プロジェクトの実装計画を作成してください。
 重要:
 - コマンド配置は pkg/cmd/<resource>/<action>/
 - make check (lint+test) が通ること
-- Zuora APIはOAuth 2.0クライアントクレデンシャルフロー
-- 環境変数プレフィックスは ZUORA_
-" | claude --bare --permission-mode plan -p \
-            "上記Issueの実装計画を作成してください。まずAGENTS.mdを読んでください。"
+- 環境変数プレフィックスは ZUORA_"
     ) > "${LOG_DIR}/plan.md" 2>&1
 
     log "  ✅ 計画完了 → ${LOG_DIR}/plan.md"
@@ -214,7 +210,7 @@ stage_implement() {
 
     (
         cd "${WT_DIR}"
-        claude --bare \
+        claude --output-format text \
             --tools "Bash,Edit,Read" \
             --allowedTools "Bash(make check)" "Bash(make test)" "Bash(make lint)" "Bash(go test *)" "Bash(go vet *)" \
             -p "以下のIssueを実装してください。まずAGENTS.mdを読んでください。

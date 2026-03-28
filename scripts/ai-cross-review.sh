@@ -44,7 +44,7 @@ review_exit=0
 if have_cmd claude && [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
     echo "=== Claude Code レビュー ==="
     cat "${OUT_DIR}/diff.patch" \
-        | claude --bare --tools "Read" --permission-mode plan -p \
+        | claude --output-format text --tools "Read" --permission-mode plan -p \
           "このdiffをバグとセキュリティの観点でレビューしてください。diff外の変更は提案しないでください。" \
         | tee "${OUT_DIR}/claude.review.md" \
         || { echo "⚠️  Claude レビュー失敗（続行）"; review_exit=1; }

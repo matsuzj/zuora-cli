@@ -18,6 +18,7 @@ fi
 
 DEFAULT_BASE_BRANCH="main"
 COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-10}"
+REVIEW_ROUNDS="${REVIEW_ROUNDS:-2}"  # 計画・実装各段階でのCodexレビュー回数
 STAGE="all"
 ISSUE_NUMBER=""
 
@@ -31,10 +32,13 @@ log() {
 usage() {
     cat <<'EOF'
 使い方:
-  ./ai-orchestrator.sh --issue <番号> [--stage <ステージ>] [--cooldown <秒>]
+  ./ai-orchestrator.sh --issue <番号> [--stage <ステージ>] [--cooldown <秒>] [--review-rounds <回数>]
 
 ステージ:
   plan | implement | review | test | pr | all (デフォルト)
+
+オプション:
+  --review-rounds  計画・実装各段階でのCodexレビュー回数 (デフォルト: 2, 合計最大4回)
 EOF
 }
 
@@ -43,6 +47,7 @@ while [[ $# -gt 0 ]]; do
         --issue)    ISSUE_NUMBER="${2:-}"; shift 2;;
         --stage)    STAGE="${2:-}"; shift 2;;
         --cooldown) COOLDOWN_SECONDS="${2:-}"; shift 2;;
+        --review-rounds) REVIEW_ROUNDS="${2:-}"; shift 2;;
         -h|--help)  usage; exit 0;;
         *)          echo "不明な引数: $1" >&2; usage; exit 1;;
     esac
@@ -190,6 +195,43 @@ ${ISSUE_JSON}
     ) > "${LOG_DIR}/plan.md" 2>&1
 
     log "  ✅ 計画完了 → ${LOG_DIR}/plan.md"
+
+    # Codex レビューループ: 計画をレビュー → Claude が修正を繰り返す
+    if [[ "${CODEX_AVAILABLE}" == "true" ]]; then
+        local round
+        for round in $(seq 1 "${REVIEW_ROUNDS}"); do
+            log "  🔍 計画レビュー (${round}/${REVIEW_ROUNDS})..."
+            cooldown
+
+            local plan_review=""
+            plan_review=$(cd "${WT_DIR}" && codex exec --full-auto \
+                "以下の実装計画をレビューしてください。重大な問題（抜け漏れ、矛盾、セキュリティリスク）のみ指摘してください。軽微なスタイルの問題は無視してください。対象: ${LOG_DIR}/plan.md (ref: AGENTS.md)" \
+                2>&1) || true
+            echo "${plan_review}" > "${LOG_DIR}/plan-review-round${round}.md"
+
+            if echo "${plan_review}" | grep -qiE 'critical|P1|重大|must fix|security'; then
+                log "    ⚠️  重大な指摘あり → Claude で計画修正"
+                cooldown
+                (
+                    cd "${WT_DIR}"
+                    claude --output-format text --permission-mode plan -p \
+                        "以下のレビュー指摘に基づいて実装計画を修正してください。
+
+現在の計画:
+$(cat "${LOG_DIR}/plan.md")
+
+レビュー指摘:
+${plan_review}
+
+重大な指摘のみ修正し、修正後の計画全体を出力してください。"
+                ) > "${LOG_DIR}/plan.md" 2>&1
+                log "    ✅ 計画修正完了"
+            else
+                log "    ✅ 重大な指摘なし"
+                break
+            fi
+        done
+    fi
 }
 
 #-------------------------------------------------------------------
@@ -239,6 +281,50 @@ ${plan_content}
     fi
 
     log "  ✅ 実装完了"
+
+    # Codex レビューループ: 実装をレビュー → Claude が修正を繰り返す
+    if [[ "${CODEX_AVAILABLE}" == "true" && "${CLAUDE_AVAILABLE}" == "true" ]]; then
+        local round
+        for round in $(seq 1 "${REVIEW_ROUNDS}"); do
+            log "  🔍 実装レビュー (${round}/${REVIEW_ROUNDS})..."
+            cooldown
+
+            local impl_review=""
+            impl_review=$(cd "${WT_DIR}" && codex review --uncommitted 2>&1) || true
+            echo "${impl_review}" > "${LOG_DIR}/impl-review-round${round}.md"
+
+            if echo "${impl_review}" | grep -qiE 'critical|P1|重大|must fix|security|bug|error'; then
+                log "    ⚠️  重大な指摘あり → Claude で修正"
+                cooldown
+                (
+                    cd "${WT_DIR}"
+                    claude --output-format text \
+                        --tools "Bash,Edit,Read" \
+                        --allowedTools "Bash(make check)" "Bash(make test)" "Bash(make lint)" "Bash(go test *)" "Bash(go vet *)" \
+                        -p "以下のCodexレビュー指摘を修正してください。まずAGENTS.mdを読んでください。
+
+レビュー指摘:
+${impl_review}
+
+重要:
+- 指摘された問題のみ修正（スコープを広げない）
+- go vet ./... && go test -race ./... を実行して通ることを確認
+- シークレットをログやエラーメッセージに出力しない"
+                ) > "${LOG_DIR}/impl-fix-round${round}.log" 2>&1
+
+                # 修正後の検証
+                if (cd "${WT_DIR}" && go vet ./... && go test -race -count=1 ./... 2>&1); then
+                    log "    ✅ 修正後 vet + test 通過"
+                else
+                    log "    ❌ 修正後 vet + test 失敗 — パイプライン停止"
+                    return 1
+                fi
+            else
+                log "    ✅ 重大な指摘なし"
+                break
+            fi
+        done
+    fi
 }
 
 #-------------------------------------------------------------------

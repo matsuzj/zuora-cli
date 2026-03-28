@@ -324,7 +324,7 @@ Closes #${ISSUE_NUMBER}
 |---|---|---|
 | 計画 | Claude Code (plan mode) | ✅ |
 | 実装 | Claude Code | ✅ |
-| クロスレビュー | Gemini CLI | ✅ |
+| クロスレビュー | Codex CLI | ✅ |
 | テスト生成 | Codex CLI (sandbox) | ✅ |
 
 ### クロスレビュー概要
@@ -340,7 +340,7 @@ $(git diff --stat ${BASE_REF})
             --base "${DEFAULT_BASE_BRANCH}" \
             --head "${BRANCH}" \
             --label "ai-pr-created"
-    ) 2>/dev/null && local pr_exit=0 || local pr_exit=$?
+    ) 2>"${LOG_DIR}/pr-create.err" && local pr_exit=0 || local pr_exit=$?
 
     if [[ ${pr_exit} -eq 0 ]]; then
         # ラベル更新（PR作成成功時のみ）
@@ -350,7 +350,7 @@ $(git diff --stat ${BASE_REF})
             --remove-label "ai-implement" >/dev/null 2>&1 || true
         log "  ✅ PR作成完了"
     else
-        log "  ⚠️  PR作成失敗（既存PRあり、または認証・ネットワークエラー）"
+        log "  ⚠️  PR作成失敗（詳細: ${LOG_DIR}/pr-create.err）"
         # ai-in-progress を除去してポーリングでリトライ可能にする
         gh issue edit "${ISSUE_NUMBER}" \
             --remove-label "ai-in-progress" >/dev/null 2>&1 || true

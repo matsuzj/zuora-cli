@@ -12,7 +12,7 @@ for cmd in gh jq; do
     fi
 done
 
-LIMIT="${AI_POLL_LIMIT:-3}"
+LIMIT="${AI_POLL_LIMIT:-1}"  # Claude Max レート制限対策: デフォルト1件ずつ処理
 LOCK_FILE="/tmp/ai-orchestrator-$(printf '%s' "${REPO_ROOT}" | shasum | cut -d' ' -f1).lock"
 
 # 二重実行防止

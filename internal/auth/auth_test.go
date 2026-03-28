@@ -2,8 +2,8 @@ package auth
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -31,7 +31,7 @@ func TestToken_CachedValid(t *testing.T) {
 }
 
 func TestToken_CachedExpired_Refresh(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/oauth/token", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
 
@@ -47,7 +47,6 @@ func TestToken_CachedExpired_Refresh(t *testing.T) {
 			"expires_in":   3600,
 		})
 	}))
-	defer server.Close()
 
 	cfg := config.NewMockConfig()
 	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
@@ -94,11 +93,10 @@ func TestToken_NoCredentials(t *testing.T) {
 }
 
 func TestToken_AuthFailed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"error":"invalid_client"}`))
 	}))
-	defer server.Close()
 
 	cfg := config.NewMockConfig()
 	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}

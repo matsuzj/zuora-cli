@@ -2,8 +2,8 @@ package list
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestAccountList_Table(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/object-query/accounts", r.URL.Path)
 		assert.Equal(t, "10", r.URL.Query().Get("pageSize"))
 		w.WriteHeader(200)
@@ -36,7 +36,6 @@ func TestAccountList_Table(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -54,7 +53,7 @@ func TestAccountList_Table(t *testing.T) {
 }
 
 func TestAccountList_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": []map[string]interface{}{
@@ -62,7 +61,6 @@ func TestAccountList_JSON(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -77,13 +75,12 @@ func TestAccountList_JSON(t *testing.T) {
 }
 
 func TestAccountList_Filter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		filters := r.URL.Query()["filter[]"]
 		assert.Equal(t, []string{"status.EQ:Active"}, filters)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"data": []interface{}{}})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -97,7 +94,7 @@ func TestAccountList_Filter(t *testing.T) {
 }
 
 func TestAccountList_JQ(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": []map[string]interface{}{
@@ -106,7 +103,6 @@ func TestAccountList_JQ(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

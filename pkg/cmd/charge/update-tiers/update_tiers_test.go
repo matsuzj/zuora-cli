@@ -2,8 +2,8 @@ package updatetiers
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestChargeUpdateTiers_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/commerce/tiers", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -35,7 +35,6 @@ func TestChargeUpdateTiers_Success(t *testing.T) {
 			"success": true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()

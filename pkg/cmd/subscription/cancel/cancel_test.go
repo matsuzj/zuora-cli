@@ -2,8 +2,8 @@ package cancel
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestCancel_WithPolicy(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Contains(t, r.URL.Path, "/cancel")
 		var body map[string]interface{}
@@ -35,7 +35,6 @@ func TestCancel_WithPolicy(t *testing.T) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "subscriptionId": "sub-1"})
 	}))
-	defer server.Close()
 
 	ios, _, out, errOut := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
@@ -47,11 +46,10 @@ func TestCancel_WithPolicy(t *testing.T) {
 }
 
 func TestCancel_WithBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")

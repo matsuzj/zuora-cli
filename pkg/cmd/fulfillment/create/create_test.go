@@ -2,8 +2,8 @@ package create
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestFulfillmentCreate_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/fulfillments", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -36,7 +36,6 @@ func TestFulfillmentCreate_Success(t *testing.T) {
 			"key":     "F-00000001",
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -65,7 +64,7 @@ func TestFulfillmentCreate_RequiresBody(t *testing.T) {
 }
 
 func TestFulfillmentCreate_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -74,7 +73,6 @@ func TestFulfillmentCreate_SuccessFalse(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

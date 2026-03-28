@@ -1,8 +1,8 @@
 package delete
 
 import (
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -25,12 +25,11 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestAccountDelete_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "DELETE", r.Method)
 		assert.Equal(t, "/v1/accounts/A001", r.URL.Path)
 		w.WriteHeader(204)
 	}))
-	defer server.Close()
 
 	ios, _, _, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -45,10 +44,9 @@ func TestAccountDelete_Success(t *testing.T) {
 }
 
 func TestAccountDelete_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

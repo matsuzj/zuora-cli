@@ -1,8 +1,8 @@
 package root
 
 import (
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -54,11 +54,10 @@ func TestRootGlobalFlags(t *testing.T) {
 }
 
 func TestRootReadOnlyFlag_BlocksWriteCommand(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"id":"acc-123","success":true}`))
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	f := &factory.Factory{
@@ -80,11 +79,10 @@ func TestRootReadOnlyFlag_BlocksWriteCommand(t *testing.T) {
 func TestRootReadOnlyEnvVar_BlocksWriteCommand(t *testing.T) {
 	t.Setenv("ZR_READ_ONLY", "true")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"success":true}`))
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	f := &factory.Factory{

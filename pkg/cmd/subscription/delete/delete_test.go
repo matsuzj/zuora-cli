@@ -2,8 +2,8 @@ package delete
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,13 +26,12 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestDelete_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method) // Zuora uses PUT for delete
 		assert.Contains(t, r.URL.Path, "/delete")
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 	}))
-	defer server.Close()
 
 	ios, _, _, errOut := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")

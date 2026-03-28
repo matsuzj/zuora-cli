@@ -2,8 +2,8 @@ package query
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -24,7 +24,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestQuery_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/action/query", r.URL.Path)
 
@@ -42,7 +42,6 @@ func TestQuery_Success(t *testing.T) {
 			"done": true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -59,7 +58,7 @@ func TestQuery_Success(t *testing.T) {
 
 func TestQuery_Pagination(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		callCount++
 
@@ -88,7 +87,6 @@ func TestQuery_Pagination(t *testing.T) {
 			"done":    true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -105,7 +103,7 @@ func TestQuery_Pagination(t *testing.T) {
 }
 
 func TestQuery_Limit(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"records": []map[string]interface{}{
@@ -117,7 +115,6 @@ func TestQuery_Limit(t *testing.T) {
 			"done": true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -139,7 +136,7 @@ func TestQuery_Limit(t *testing.T) {
 }
 
 func TestQuery_CSV(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"records": []map[string]interface{}{
@@ -149,7 +146,6 @@ func TestQuery_CSV(t *testing.T) {
 			"done": true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

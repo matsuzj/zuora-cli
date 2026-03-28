@@ -2,8 +2,8 @@ package list
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestContactList_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/action/query", r.URL.Path)
 		w.WriteHeader(200)
@@ -37,7 +37,6 @@ func TestContactList_Success(t *testing.T) {
 			"size": 1,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
@@ -52,7 +51,7 @@ func TestContactList_Success(t *testing.T) {
 
 func TestContactList_Pagination(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		w.WriteHeader(200)
 		if callCount == 1 {
@@ -76,7 +75,6 @@ func TestContactList_Pagination(t *testing.T) {
 			})
 		}
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
@@ -91,7 +89,7 @@ func TestContactList_Pagination(t *testing.T) {
 
 func TestContactList_Pagination_JSON(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		w.WriteHeader(200)
 		if callCount == 1 {
@@ -109,7 +107,6 @@ func TestContactList_Pagination_JSON(t *testing.T) {
 			})
 		}
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")

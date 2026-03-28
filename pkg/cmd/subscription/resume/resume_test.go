@@ -2,8 +2,8 @@ package resume
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestResume_WithPolicy(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		var body map[string]interface{}
 		json.NewDecoder(r.Body).Decode(&body)
@@ -34,7 +34,6 @@ func TestResume_WithPolicy(t *testing.T) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 	}))
-	defer server.Close()
 
 	ios, _, _, errOut := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")

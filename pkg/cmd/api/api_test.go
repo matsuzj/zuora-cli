@@ -2,8 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,7 +27,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestAPI_GET(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/v1/accounts", r.URL.Path)
 		w.WriteHeader(200)
@@ -35,7 +35,6 @@ func TestAPI_GET(t *testing.T) {
 			"accounts": []map[string]string{{"name": "Test"}},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -50,13 +49,12 @@ func TestAPI_GET(t *testing.T) {
 }
 
 func TestAPI_POST_WithBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{"id":"123"}`))
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -71,11 +69,10 @@ func TestAPI_POST_WithBody(t *testing.T) {
 }
 
 func TestAPI_POST_WithFileBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"ok":true}`))
 	}))
-	defer server.Close()
 
 	tmpFile := filepath.Join(t.TempDir(), "body.json")
 	require.NoError(t, os.WriteFile(tmpFile, []byte(`{"name":"from-file"}`), 0600))
@@ -93,12 +90,11 @@ func TestAPI_POST_WithFileBody(t *testing.T) {
 }
 
 func TestAPI_CustomHeaders(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "custom-value", r.Header.Get("X-Custom"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -112,7 +108,7 @@ func TestAPI_CustomHeaders(t *testing.T) {
 }
 
 func TestAPI_JQFilter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": []map[string]string{
@@ -121,7 +117,6 @@ func TestAPI_JQFilter(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -138,7 +133,7 @@ func TestAPI_JQFilter(t *testing.T) {
 }
 
 func TestAPI_ErrorResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -147,7 +142,6 @@ func TestAPI_ErrorResponse(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -14,12 +14,11 @@ import (
 )
 
 func TestClient_BearerTokenInjection(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{"ok":true}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(
 		WithBaseURL(server.URL),
@@ -32,12 +31,11 @@ func TestClient_BearerTokenInjection(t *testing.T) {
 }
 
 func TestClient_ZuoraVersionHeader(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "2025-08-12", r.Header.Get("Zuora-Version"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(
 		WithBaseURL(server.URL),
@@ -49,13 +47,12 @@ func TestClient_ZuoraVersionHeader(t *testing.T) {
 }
 
 func TestClient_PostWithBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{"id":"123"}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	body := strings.NewReader(`{"name":"test"}`)
@@ -65,12 +62,11 @@ func TestClient_PostWithBody(t *testing.T) {
 }
 
 func TestClient_CustomHeaders(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "custom-value", r.Header.Get("X-Custom"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	_, err := client.Get("/v1/test", WithHeader("X-Custom", "custom-value"))
@@ -78,12 +74,11 @@ func TestClient_CustomHeaders(t *testing.T) {
 }
 
 func TestClient_QueryParams(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "20", r.URL.Query().Get("pageSize"))
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	_, err := client.Get("/v1/test", WithQuery("pageSize", "20"))
@@ -91,13 +86,12 @@ func TestClient_QueryParams(t *testing.T) {
 }
 
 func TestClient_QuerySlice(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()["filter[]"]
 		assert.Equal(t, []string{"status.EQ:Active", "balance.GT:0"}, values)
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	_, err := client.Get("/v1/test", WithQuerySlice("filter[]", []string{"status.EQ:Active", "balance.GT:0"}))
@@ -105,7 +99,7 @@ func TestClient_QuerySlice(t *testing.T) {
 }
 
 func TestClient_APIError_V1Format(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -114,7 +108,6 @@ func TestClient_APIError_V1Format(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	_, err := client.Get("/v1/accounts/XXX")
@@ -128,7 +121,7 @@ func TestClient_APIError_V1Format(t *testing.T) {
 }
 
 func TestClient_APIError_V2Format(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": map[string]string{
@@ -137,7 +130,6 @@ func TestClient_APIError_V2Format(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	_, err := client.Get("/v1/missing")
@@ -151,12 +143,11 @@ func TestClient_APIError_V2Format(t *testing.T) {
 
 func TestClient_ServerError_ExitCode(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		w.WriteHeader(500)
 		w.Write([]byte(`{"message":"internal error"}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(
 		WithBaseURL(server.URL),
@@ -169,7 +160,7 @@ func TestClient_ServerError_ExitCode(t *testing.T) {
 
 func TestClient_401_TokenRefresh(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		if callCount == 1 {
 			w.WriteHeader(401)
@@ -180,7 +171,6 @@ func TestClient_401_TokenRefresh(t *testing.T) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"ok":true}`))
 	}))
-	defer server.Close()
 
 	tokenCallCount := 0
 	client := NewClient(
@@ -200,11 +190,10 @@ func TestClient_401_TokenRefresh(t *testing.T) {
 }
 
 func TestClient_Verbose(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"ok":true}`))
 	}))
-	defer server.Close()
 
 	var buf bytes.Buffer
 	client := NewClient(
@@ -226,11 +215,10 @@ func TestClient_Verbose(t *testing.T) {
 // --- Read-Only Mode Tests ---
 
 func TestClient_ReadOnly_POSTBlocked(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	_, err := client.Post("/v1/accounts", strings.NewReader(`{}`))
@@ -240,11 +228,10 @@ func TestClient_ReadOnly_POSTBlocked(t *testing.T) {
 }
 
 func TestClient_ReadOnly_PUTBlocked(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	_, err := client.Put("/v1/accounts/123", strings.NewReader(`{}`))
@@ -254,11 +241,10 @@ func TestClient_ReadOnly_PUTBlocked(t *testing.T) {
 }
 
 func TestClient_ReadOnly_DELETEBlocked(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	_, err := client.Delete("/v1/accounts/123")
@@ -268,11 +254,10 @@ func TestClient_ReadOnly_DELETEBlocked(t *testing.T) {
 }
 
 func TestClient_ReadOnly_PATCHBlocked(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	_, err := client.Patch("/v1/accounts/123", strings.NewReader(`{}`))
@@ -282,11 +267,10 @@ func TestClient_ReadOnly_PATCHBlocked(t *testing.T) {
 }
 
 func TestClient_ReadOnly_GETAllowed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"ok":true}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	resp, err := client.Get("/v1/accounts")
@@ -295,11 +279,10 @@ func TestClient_ReadOnly_GETAllowed(t *testing.T) {
 }
 
 func TestClient_ReadOnly_ZOQLQueryAllowed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"done":true,"records":[]}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	resp, err := client.Post("/v1/action/query", strings.NewReader(`{"queryString":"SELECT Id FROM Account"}`))
@@ -308,11 +291,10 @@ func TestClient_ReadOnly_ZOQLQueryAllowed(t *testing.T) {
 }
 
 func TestClient_ReadOnly_ZOQLQueryMoreAllowed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"done":true,"records":[]}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	resp, err := client.Post("/v1/action/querymore", strings.NewReader(`{"queryLocator":"abc"}`))
@@ -321,11 +303,10 @@ func TestClient_ReadOnly_ZOQLQueryMoreAllowed(t *testing.T) {
 }
 
 func TestClient_ReadOnly_CommercePOSTAllowed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"data":[]}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 
@@ -344,11 +325,10 @@ func TestClient_ReadOnly_CommercePOSTAllowed(t *testing.T) {
 }
 
 func TestClient_ReadOnly_SubscriptionPreviewChangeRegexAllowed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	resp, err := client.Post("/v1/subscriptions/SUB-00001234/preview", strings.NewReader(`{}`))
@@ -357,11 +337,10 @@ func TestClient_ReadOnly_SubscriptionPreviewChangeRegexAllowed(t *testing.T) {
 }
 
 func TestClient_ReadOnly_MeterSummaryRegexAllowed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 	resp, err := client.Post("/meters/meter-abc-123/summary", strings.NewReader(`{}`))
@@ -370,11 +349,10 @@ func TestClient_ReadOnly_MeterSummaryRegexAllowed(t *testing.T) {
 }
 
 func TestClient_ReadOnly_AbsoluteURLNormalized(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 
@@ -391,11 +369,10 @@ func TestClient_ReadOnly_AbsoluteURLNormalized(t *testing.T) {
 }
 
 func TestClient_ReadOnly_QueryParamNormalized(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
 
@@ -406,11 +383,10 @@ func TestClient_ReadOnly_QueryParamNormalized(t *testing.T) {
 }
 
 func TestClient_ReadOnly_SetReadOnlyWorks(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 
@@ -439,7 +415,7 @@ func TestReadOnlyError_ExitCode(t *testing.T) {
 
 func TestClient_Pagination(t *testing.T) {
 	page := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		page++
 		resp := map[string]interface{}{
 			"data": []map[string]string{{"id": fmt.Sprintf("item-%d", page)}},
@@ -450,7 +426,6 @@ func TestClient_Pagination(t *testing.T) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL))
 	pages, err := client.DoPaginated("GET", "/v1/test")

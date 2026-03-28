@@ -2,8 +2,8 @@ package versions
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestSubscriptionVersions_Detail(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/subscriptions/A-S001/versions/1", r.URL.Path)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -34,7 +34,6 @@ func TestSubscriptionVersions_Detail(t *testing.T) {
 			"name": "Gold Plan", "status": "Active", "termType": "TERMED",
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

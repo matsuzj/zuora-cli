@@ -2,8 +2,8 @@ package apply
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestPaymentApply_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/v1/payments/pay-001/apply", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -39,7 +39,6 @@ func TestPaymentApply_Success(t *testing.T) {
 			"success":       true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -80,7 +79,7 @@ func TestPaymentApply_RequiresArg(t *testing.T) {
 }
 
 func TestPaymentApply_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -89,7 +88,6 @@ func TestPaymentApply_SuccessFalse(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

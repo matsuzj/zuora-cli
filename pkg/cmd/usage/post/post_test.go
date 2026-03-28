@@ -2,9 +2,9 @@ package post
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -35,7 +35,7 @@ func TestUsagePost_Success(t *testing.T) {
 	err := os.WriteFile(csvFile, []byte("ACCOUNT_ID,UOM,QTY,STARTDATE\nA001,Each,10,01/01/2026\n"), 0644)
 	require.NoError(t, err)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/usage", r.URL.Path)
 		assert.Contains(t, r.Header.Get("Content-Type"), "multipart/form-data")
@@ -57,7 +57,6 @@ func TestUsagePost_Success(t *testing.T) {
 			"checkImportStatus": "https://rest.zuora.com/v1/usage/123/status",
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()

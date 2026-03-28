@@ -2,8 +2,8 @@ package summary
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestAccountSummary_Detail(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/accounts/A001/summary", r.URL.Path)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -38,7 +38,6 @@ func TestAccountSummary_Detail(t *testing.T) {
 			"invoices":      []interface{}{map[string]string{"id": "inv-1"}, map[string]string{"id": "inv-2"}},
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

@@ -2,8 +2,8 @@ package get
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -26,7 +26,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestProductGet_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/commerce/products/PROD-001", r.URL.Path)
 		w.WriteHeader(200)
@@ -37,7 +37,6 @@ func TestProductGet_Success(t *testing.T) {
 			"description": "A test product",
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -53,12 +52,11 @@ func TestProductGet_Success(t *testing.T) {
 }
 
 func TestProductGet_PathEscape(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/commerce/products/a%2Fb", r.URL.RawPath)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"id": "a/b"})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

@@ -2,8 +2,8 @@ package auth
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -22,7 +22,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestAuthLogin_WithFlags(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token": "new-token",
@@ -30,7 +30,6 @@ func TestAuthLogin_WithFlags(t *testing.T) {
 			"expires_in":   3600,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

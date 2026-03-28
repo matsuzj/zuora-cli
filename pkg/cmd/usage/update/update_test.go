@@ -2,9 +2,9 @@ package update
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -27,7 +27,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestUsageUpdate_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/v1/object/usage/usage123", r.URL.Path)
 		body, _ := io.ReadAll(r.Body)
@@ -38,7 +38,6 @@ func TestUsageUpdate_Success(t *testing.T) {
 			"Id":      "usage123",
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()

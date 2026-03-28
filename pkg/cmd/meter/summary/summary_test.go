@@ -2,9 +2,9 @@ package summary
 
 import (
 	"encoding/json"
+	"github.com/matsuzj/zuora-cli/internal/testutil"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -27,7 +27,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 }
 
 func TestMeterSummary_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/meters/meter123/summary", r.URL.Path)
 
@@ -44,7 +44,6 @@ func TestMeterSummary_Success(t *testing.T) {
 			"runType": "FULL",
 		})
 	}))
-	defer server.Close()
 
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
@@ -60,7 +59,7 @@ func TestMeterSummary_Success(t *testing.T) {
 }
 
 func TestMeterSummary_WithBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		var reqBody map[string]interface{}
@@ -73,7 +72,6 @@ func TestMeterSummary_WithBody(t *testing.T) {
 			"success": true,
 		})
 	}))
-	defer server.Close()
 
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

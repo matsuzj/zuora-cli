@@ -26,7 +26,10 @@ fi
 echo $$ > "${LOCK_FILE}"
 trap 'rm -f "${LOCK_FILE}"' EXIT
 
-issues_json="$(gh issue list --label "ai-implement" --state open --limit "${LIMIT}" --json number)"
+# ai-implement ラベルがあり、かつ ai-in-progress ラベルがない Issue を取得
+# limit をフィルタ前に十分大きく取り、フィルタ後に制限する
+issues_json="$(gh issue list --label "ai-implement" --state open --limit 50 --json number,labels \
+    | jq --argjson limit "${LIMIT}" '[.[] | select(.labels | map(.name) | index("ai-in-progress") | not)] | .[:$limit]')"
 count="$(echo "${issues_json}" | jq 'length')"
 
 if [[ "${count}" -eq 0 ]]; then

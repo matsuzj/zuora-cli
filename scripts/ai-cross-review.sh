@@ -9,22 +9,33 @@ mkdir -p "${OUT_DIR}"
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
-# staged優先、なければworking tree diff
-if git diff --cached --quiet; then
-    DIFF_CMD=(git diff --patch)
-    DIFF_LABEL="working-tree"
-else
-    DIFF_CMD=(git diff --cached --patch)
-    DIFF_LABEL="staged"
+# staged + unstaged + untracked の全変更を単一 patch に統合
+# git diff だけでは untracked が漏れるため intent-to-add を一時的に使用
+# untracked ファイルを一時的に intent-to-add で追跡し、diff に含める
+_intent_files=()
+while IFS= read -r f; do
+    _intent_files+=("${f}")
+done < <(git ls-files --others --exclude-standard)
+
+if [[ ${#_intent_files[@]} -gt 0 ]]; then
+    git add -N "${_intent_files[@]}" 2>/dev/null || true
 fi
 
-echo "Diff source: ${DIFF_LABEL}"
-"${DIFF_CMD[@]}" > "${OUT_DIR}/diff.patch"
+# 全変更（staged + unstaged）を1つの patch に統合
+git diff HEAD --patch > "${OUT_DIR}/diff.patch" 2>/dev/null || \
+    git diff --patch > "${OUT_DIR}/diff.patch"
+
+# intent-to-add で追加したファイルのみ元に戻す（ユーザーの既存 stage を壊さない）
+if [[ ${#_intent_files[@]} -gt 0 ]]; then
+    git reset HEAD -- "${_intent_files[@]}" >/dev/null 2>&1 || true
+fi
 
 if [[ ! -s "${OUT_DIR}/diff.patch" ]]; then
     echo "差分がありません"
     exit 0
 fi
+
+echo "Diff source: staged + unstaged + untracked"
 
 # 各レビュアーの失敗が後続をブロックしないようにする
 review_exit=0
@@ -39,13 +50,11 @@ if have_cmd claude && [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
         || { echo "⚠️  Claude レビュー失敗（続行）"; review_exit=1; }
 fi
 
-# Codex レビュー
+# Codex レビュー（--uncommitted で untracked も含む）
 if have_cmd codex; then
     echo ""
     echo "=== Codex レビュー ==="
-    codex exec --ask-for-approval never --sandbox read-only \
-        "このdiffをレビューし、問題点を指摘してください。" \
-        < "${OUT_DIR}/diff.patch" \
+    codex review --uncommitted \
         | tee "${OUT_DIR}/codex.review.md" \
         || { echo "⚠️  Codex レビュー失敗（続行）"; review_exit=1; }
 fi

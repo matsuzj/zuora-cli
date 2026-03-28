@@ -351,7 +351,10 @@ $(git diff --stat ${BASE_REF})
         log "  ✅ PR作成完了"
     else
         log "  ⚠️  PR作成失敗（既存PRあり、または認証・ネットワークエラー）"
-        log "     ラベルは変更していません。手動確認してください。"
+        # ai-in-progress を除去してポーリングでリトライ可能にする
+        gh issue edit "${ISSUE_NUMBER}" \
+            --remove-label "ai-in-progress" >/dev/null 2>&1 || true
+        log "     ai-in-progress ラベルを除去しました。次回ポーリングでリトライされます。"
     fi
 }
 

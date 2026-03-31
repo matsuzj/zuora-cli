@@ -103,7 +103,7 @@ zr api /v1/orders -X POST --body @order.json
 
 **Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. Default output is a formatted table.
 
-**Read-only mode**: `--read-only` (or `ZR_READ_ONLY=true`) blocks all write operations. ZOQL queries and preview endpoints are allowed. Useful for safe exploration and automation.
+**Read-only mode**: `--read-only` (or `ZR_READ_ONLY=true`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
 
 ## Shell Completion
 

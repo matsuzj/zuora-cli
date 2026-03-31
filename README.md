@@ -12,6 +12,8 @@ A CLI tool for Zuora API operations, modeled after GitHub CLI (`gh`). Manage acc
 brew install matsuzj/tap/zr
 ```
 
+Shell completions (bash, zsh, fish) are installed automatically.
+
 ### Binary releases
 
 Download pre-built binaries from the [Releases](https://github.com/matsuzj/zuora-cli/releases) page.

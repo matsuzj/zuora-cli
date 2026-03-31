@@ -3,6 +3,10 @@ project_name: zr
 before:
   hooks:
     - go mod tidy
+    - mkdir -p completions
+    - sh -c "go run ./cmd/zr completion bash > completions/zr.bash"
+    - sh -c "go run ./cmd/zr completion zsh > completions/zr.zsh"
+    - sh -c "go run ./cmd/zr completion fish > completions/zr.fish"
 builds:
   - main: ./cmd/zr
     binary: zr
@@ -20,17 +24,27 @@ builds:
       - -X github.com/matsuzj/zuora-cli/internal/build.Commit={{.Commit}}
       - -X github.com/matsuzj/zuora-cli/internal/build.Date={{.Date}}
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - completions/*
 checksum:
   name_template: checksums.txt
 brews:
   - repository:
       owner: matsuzj
       name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/matsuzj/zuora-cli
     description: "Zuora CLI - Work with Zuora from the command line"
+    license: "MIT"
     install: |
       bin.install "zr"
+      bash_completion.install "completions/zr.bash" => "zr"
+      zsh_completion.install "completions/zr.zsh" => "_zr"
+      fish_completion.install "completions/zr.fish"
     test: |
       system "#{bin}/zr", "version"

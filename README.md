@@ -98,9 +98,12 @@ zr api /v1/orders -X POST --body @order.json
     --template <tmpl>      Format output with a Go template
     --zuora-version <ver>  Override Zuora API version header
     --verbose              Enable debug output
+    --read-only            Block write operations (POST/PUT/DELETE/PATCH)
 ```
 
 **Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. Default output is a formatted table.
+
+**Read-only mode**: `--read-only` (or `ZR_READ_ONLY=1`) blocks all write operations. ZOQL queries and preview endpoints are allowed. Useful for safe exploration and automation.
 
 ## Shell Completion
 
@@ -147,7 +150,7 @@ Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/
 
 ```bash
 task build          # outputs ./bin/zr
-task test           # go test -race ./...
+task test           # go test -race -count=1 ./...
 task lint           # go vet + staticcheck
 ```
 

@@ -1,0 +1,126 @@
+name: "AI: New Command"
+description: "AI自動実装用 — 新しいCLIコマンドの追加"
+labels: ["ai-implement", "feat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > このテンプレートは `ai-orchestrator.sh` が自動処理します。
+        > 各セクションをできるだけ具体的に記入してください。
+
+  - type: input
+    id: resource
+    attributes:
+      label: "リソース名"
+      description: "pkg/cmd/<resource>/ のディレクトリ名（既存: account, subscription, order, invoice, payment, ...）"
+      placeholder: "例: credit-memo"
+    validations:
+      required: true
+
+  - type: input
+    id: action
+    attributes:
+      label: "アクション名"
+      description: "pkg/cmd/<resource>/<action>/ のディレクトリ名"
+      placeholder: "例: list, get, create, update, delete, cancel"
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: "Zuora API エンドポイント"
+      description: |
+        メソッド、パス、主要パラメータ、レスポンス構造を記載。
+        Zuora API Reference から該当エンドポイントの情報をコピーしてください。
+      placeholder: |
+        ## エンドポイント
+        GET /v1/credit-memos
+
+        ## クエリパラメータ
+        - accountId (string, optional): アカウントID
+        - pageSize (int, optional, default: 20)
+
+        ## レスポンス例
+        ```json
+        {
+          "creditMemos": [
+            {
+              "id": "2c92c0f...",
+              "creditMemoNumber": "CM00000001",
+              "accountId": "2c92c0f...",
+              "amount": 100.00,
+              "status": "Draft"
+            }
+          ],
+          "nextPage": "..."
+        }
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: cli-spec
+    attributes:
+      label: "CLI 仕様"
+      description: "コマンドの使い方、フラグ、出力形式を定義"
+      placeholder: |
+        ## 使い方
+        zr credit-memo list [--account <id>] [--status <status>]
+
+        ## フラグ
+        - --account, -a (string): アカウントIDでフィルタ
+        - --status (string): ステータスでフィルタ (Draft, Posted, Canceled)
+
+        ## テーブル出力カラム
+        | Header | JSON field |
+        |--------|-----------|
+        | NUMBER | creditMemoNumber |
+        | ACCOUNT | accountId |
+        | AMOUNT | amount |
+        | STATUS | status |
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: "参考実装"
+      description: "パターンを踏襲する既存コマンドのパス（AI が実装パターンを正確にコピーするために重要）"
+      placeholder: "例: pkg/cmd/invoice/list/ （list系）, pkg/cmd/account/get/ （get系）"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "受け入れ基準"
+      description: "全て満たされたら完了。チェックリスト形式で記載"
+      value: |
+        - [ ] `pkg/cmd/<resource>/<action>/` にコマンド実装
+        - [ ] `pkg/cmd/<resource>/<resource>.go` の親コマンドに AddCommand
+        - [ ] `pkg/cmd/root/root.go` に親コマンドを登録（新リソースの場合のみ）
+        - [ ] `*_test.go` に httptest モックテスト（正常系 + エラー系）
+        - [ ] `--json` / `--jq` / `--template` 出力対応
+        - [ ] `make check` (lint + test) 通過
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: "スコープ外（やらないこと）"
+      description: "AI が余計な変更をしないように明示的に除外する項目"
+      placeholder: |
+        - 他のコマンドのリファクタリング
+        - README.md の更新
+        - 既存テストの変更
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: "補足"
+      description: "API の注意点、特殊なレスポンス構造、エッジケースなど"
+      placeholder: |
+        - レスポンスの `creditMemos` 配列がトップレベルにある（`data` ではない）
+        - ページネーションは `nextPage` URL 方式

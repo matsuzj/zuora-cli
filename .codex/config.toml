@@ -1,0 +1,9 @@
+# 公式ドキュメントで確認済みのキーのみ使用
+model = "gpt-5-codex"
+model_provider = "openai"
+cli_auth_credentials_store = "keyring"
+
+developer_instructions = """
+This is matsuzj/zuora-cli (zr). Follow AGENTS.md and keep changes minimal and tested.
+Prefer make check; avoid external network calls in tests.
+"""

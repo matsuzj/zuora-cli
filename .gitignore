@@ -28,3 +28,9 @@ Thumbs.db
 
 # E2E test logs
 tests/logs/
+
+# AI orchestrator logs
+logs/
+
+# Git worktrees for AI agents
+.worktrees/

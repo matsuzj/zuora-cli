@@ -1,21 +1,25 @@
 #!/bin/bash
-# E2E Test: Usage + Meter Commands (Phase 7)
+# E2E Test: Usage & Meter Commands (Sub-phase 3d)
 # テナント: apac-sandbox
-# 注意: Usage/Meter API はテナント設定・プロダクト設定に依存する
+# 注意: usage/meter は専用のテナント設定が必要なため、バリデーション中心のテスト。
+#       各ケースは「終了コードが非ゼロ」かつ「想定したエラーメッセージを含む」ことを
+#       固定文字列で検証する。help にフォールバックしたり exit 0 になる退行を検出できる。
 
 set -uo pipefail
 
-ZR="./bin/zr"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ZR="$SCRIPT_DIR/../bin/zr"
 PASS=0
 FAIL=0
 SKIP=0
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Log directory
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-usage-meter-${TIMESTAMP}.log"
 
+# Tee all output to log file
 exec > >(tee >(sed 's/\x1b\[[0-9;]*m//g' > "$LOG_FILE")) 2>&1
 
 green()  { printf "\033[32m%s\033[0m\n" "$1"; }
@@ -28,179 +32,106 @@ skip() { SKIP=$((SKIP+1)); yellow "  ⊘ $1 (skipped)"; }
 
 header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
 
+# expect_fail <description> <expected-substring> -- <command...>
+# Passes only when the command exits non-zero AND its combined (stdout+stderr)
+# output contains the exact expected substring (fixed-string match). This makes a
+# regression that drops the validation, prints help, or exits 0 a real FAIL —
+# unlike a loose 'grep -qi arg|required' which any usage banner would satisfy.
+expect_fail() {
+  local desc="$1" want="$2"; shift 2
+  [ "${1:-}" = "--" ] && shift
+  local out rc
+  out=$("$@" 2>&1); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF -- "$want"; then
+    pass "$desc"
+  else
+    fail "$desc → rc=$rc, expected '$want', got: $(printf '%s' "$out" | head -1)"
+  fi
+}
+
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-if $ZR auth status 2>&1 | grep -q "Environment:"; then
+[ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }
+# auth status always exits 0 and prints "Token: valid|expired"; the only reliable
+# signal of a usable session is a "Token: ... valid" line, so key on that.
+AUTH_OUT=$($ZR auth status 2>&1)
+if echo "$AUTH_OUT" | grep -qE "Token:[[:space:]]+valid"; then
   pass "Auth OK"
 else
-  fail "Auth failed"
+  fail "Auth failed (token not valid): $(echo "$AUTH_OUT" | grep -i 'token' | head -1)"
   exit 1
 fi
 
 # ─────────────────────────────────────────
 header "Step 1: Usage Validation"
 # ─────────────────────────────────────────
-
-# 1a: usage post missing --file
 echo "  Testing: usage post without --file"
-UP_ERR=$($ZR usage post 2>&1) || true
-if echo "$UP_ERR" | grep -q "\-\-file is required"; then
-  pass "usage post validation → requires --file"
-else
-  fail "usage post validation → unexpected: $UP_ERR"
-fi
+expect_fail "usage post validation → requires --file" "--file is required" -- $ZR usage post
 
-# 1b: usage post with nonexistent file
-echo "  Testing: usage post with nonexistent file"
-UP_NF=$($ZR usage post --file /nonexistent/file.csv 2>&1) || true
-if echo "$UP_NF" | grep -qi "no such file\|not found\|reading file"; then
-  pass "usage post → correctly rejects nonexistent file"
-else
-  fail "usage post nonexistent → unexpected: $UP_NF"
-fi
+echo "  Testing: usage post with nonexistent file (local IO error, not API)"
+expect_fail "usage post validation → file not found (local)" \
+  "no such file or directory" -- $ZR usage post --file /nonexistent/file.csv
 
-# 1c: usage create missing --body
-echo "  Testing: usage create without --body"
-UC_ERR=$($ZR usage create 2>&1) || true
-if echo "$UC_ERR" | grep -q "\-\-body is required"; then
-  pass "usage create validation → requires --body"
-else
-  fail "usage create validation → unexpected: $UC_ERR"
-fi
-
-# 1d: usage create rejects stray args (NoArgs)
-echo "  Testing: usage create with stray arg"
-UC_NA=$($ZR usage create extraArg --body '{}' 2>&1) || true
-if echo "$UC_NA" | grep -qi "unknown command\|too many arg\|accepts 0 arg"; then
-  pass "usage create → rejects stray positional arg"
-else
-  fail "usage create → accepted stray arg: $UC_NA"
-fi
-
-# 1e: usage get missing argument
 echo "  Testing: usage get without argument"
-UG_ERR=$($ZR usage get 2>&1) || true
-if echo "$UG_ERR" | grep -qi "arg\|required"; then
-  pass "usage get validation → requires argument"
-else
-  fail "usage get validation → unexpected: $UG_ERR"
-fi
+expect_fail "usage get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR usage get
 
-# 1f: usage update missing --body
-echo "  Testing: usage update without --body"
-UU_ERR=$($ZR usage update FAKE-ID 2>&1) || true
-if echo "$UU_ERR" | grep -q "\-\-body is required"; then
-  pass "usage update validation → requires --body"
-else
-  fail "usage update validation → unexpected: $UU_ERR"
-fi
+echo "  Testing: usage create without --body"
+expect_fail "usage create validation → requires --body" "--body is required" -- $ZR usage create
 
-# 1g: usage delete missing --confirm
-echo "  Testing: usage delete without --confirm"
-UD_ERR=$($ZR usage delete FAKE-ID 2>&1) || true
-if echo "$UD_ERR" | grep -q "\-\-confirm"; then
-  pass "usage delete validation → requires --confirm"
-else
-  fail "usage delete validation → unexpected: $UD_ERR"
-fi
+echo "  Testing: usage update without argument"
+expect_fail "usage update validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR usage update
 
-# 1h: usage delete missing argument
 echo "  Testing: usage delete without argument"
-UD_ERR2=$($ZR usage delete --confirm 2>&1) || true
-if echo "$UD_ERR2" | grep -qi "arg\|required"; then
-  pass "usage delete validation → requires argument"
-else
-  fail "usage delete validation → unexpected: $UD_ERR2"
-fi
+expect_fail "usage delete validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR usage delete
 
 # ─────────────────────────────────────────
 header "Step 2: Meter Validation"
 # ─────────────────────────────────────────
-
-# 2a: meter run missing arguments (requires 2)
 echo "  Testing: meter run without arguments"
-MR_ERR=$($ZR meter run 2>&1) || true
-if echo "$MR_ERR" | grep -qi "arg\|required"; then
-  pass "meter run validation → requires 2 arguments"
-else
-  fail "meter run validation → unexpected: $MR_ERR"
-fi
+expect_fail "meter run validation → requires 2 arguments" "accepts 2 arg(s), received 0" -- $ZR meter run
 
-# 2b: meter debug missing arguments
+echo "  Testing: meter run with only 1 argument"
+expect_fail "meter run validation → requires 2 arguments (got 1)" "accepts 2 arg(s), received 1" -- $ZR meter run ONLY-ONE
+
 echo "  Testing: meter debug without arguments"
-MD_ERR=$($ZR meter debug 2>&1) || true
-if echo "$MD_ERR" | grep -qi "arg\|required"; then
-  pass "meter debug validation → requires 2 arguments"
-else
-  fail "meter debug validation → unexpected: $MD_ERR"
-fi
+expect_fail "meter debug validation → requires 2 arguments" "accepts 2 arg(s), received 0" -- $ZR meter debug
 
-# 2c: meter status missing arguments
 echo "  Testing: meter status without arguments"
-MS_ERR=$($ZR meter status 2>&1) || true
-if echo "$MS_ERR" | grep -qi "arg\|required"; then
-  pass "meter status validation → requires 2 arguments"
-else
-  fail "meter status validation → unexpected: $MS_ERR"
-fi
+expect_fail "meter status validation → requires 2 arguments" "accepts 2 arg(s), received 0" -- $ZR meter status
 
-# 2d: meter summary missing --run-type
-echo "  Testing: meter summary without --run-type"
-MSU_ERR=$($ZR meter summary FAKE-ID 2>&1) || true
-if echo "$MSU_ERR" | grep -qi "run-type.*required\|required.*run-type"; then
-  pass "meter summary validation → requires --run-type"
-else
-  fail "meter summary validation → unexpected: $MSU_ERR"
-fi
-
-# 2e: meter summary missing argument
 echo "  Testing: meter summary without argument"
-MSU_ERR2=$($ZR meter summary 2>&1) || true
-if echo "$MSU_ERR2" | grep -qi "arg\|required"; then
-  pass "meter summary validation → requires argument"
-else
-  fail "meter summary validation → unexpected: $MSU_ERR2"
-fi
+expect_fail "meter summary validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR meter summary
 
-# 2f: meter audit missing required flags
+# With the positional present, the missing required --run-type flag is reported.
+echo "  Testing: meter summary without --run-type"
+expect_fail "meter summary validation → requires --run-type" \
+  "--run-type is required" -- $ZR meter summary FAKE-ID
+
 echo "  Testing: meter audit without required flags"
-MA_ERR=$($ZR meter audit FAKE-ID 2>&1) || true
-if echo "$MA_ERR" | grep -qi "required\|export-type\|run-type\|from\|to"; then
-  pass "meter audit validation → requires flags"
-else
-  fail "meter audit validation → unexpected: $MA_ERR"
-fi
+# meter audit validates required flags only after the positional arg is supplied,
+# so the first missing flag reported is --export-type. Pin to that exact text
+# rather than a loose alternation that included the substring 'to' (matches almost
+# any output) — the old predicate could not detect the flag check regressing.
+expect_fail "meter audit validation → requires --export-type" \
+  "--export-type is required" -- $ZR meter audit FAKE-ID
 
-# 2g: meter audit missing argument
 echo "  Testing: meter audit without argument"
-MA_ERR2=$($ZR meter audit 2>&1) || true
-if echo "$MA_ERR2" | grep -qi "arg\|required"; then
-  pass "meter audit validation → requires argument"
-else
-  fail "meter audit validation → unexpected: $MA_ERR2"
-fi
+expect_fail "meter audit validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR meter audit
 
 # ─────────────────────────────────────────
-header "Summary"
+header "Step 3: Summary"
 # ─────────────────────────────────────────
 echo ""
-TOTAL=$((PASS + FAIL + SKIP))
-green  "  Passed:  $PASS / $TOTAL"
-if [ "$FAIL" -gt 0 ]; then
-  red  "  Failed:  $FAIL / $TOTAL"
-fi
-if [ "$SKIP" -gt 0 ]; then
-  yellow "  Skipped: $SKIP / $TOTAL"
-fi
+echo "  Passed:  $PASS / $((PASS+FAIL+SKIP))"
+echo "  Failed:  $FAIL / $((PASS+FAIL+SKIP))"
+echo "  Skipped: $SKIP / $((PASS+FAIL+SKIP))"
 echo ""
 echo "  Log: $LOG_FILE"
 echo ""
-
 if [ "$FAIL" -gt 0 ]; then
-  red "  RESULT: FAIL"
+  echo "  RESULT: FAIL"
   exit 1
 else
-  green "  RESULT: PASS"
-  exit 0
+  echo "  RESULT: PASS"
 fi

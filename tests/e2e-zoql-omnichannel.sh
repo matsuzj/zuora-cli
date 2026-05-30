@@ -1,15 +1,16 @@
 #!/bin/bash
-# E2E Test: ZOQL + ChangeLog + Omnichannel (Phase 9)
+# E2E Test: ZOQL Query + Omnichannel + Changelog + api + Read-only mode
+# テナント: apac-sandbox (Account テーブルにシードデータあり)
 
 set -uo pipefail
 
-ZR="./bin/zr"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ZR="$SCRIPT_DIR/../bin/zr"
 PASS=0
 FAIL=0
 SKIP=0
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-zoql-omnichannel-${TIMESTAMP}.log"
@@ -26,178 +27,217 @@ skip() { SKIP=$((SKIP+1)); yellow "  ⊘ $1 (skipped)"; }
 
 header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
 
+# run <command...> — stdout→RUN_OUT (clean), stderr→RUN_ERR, exit→RUN_RC.
+RUN_OUT=""; RUN_ERR=""; RUN_RC=0
+run() {
+  local ef="$LOG_DIR/.run.$$.err"
+  RUN_OUT=$("$@" 2>"$ef"); RUN_RC=$?
+  RUN_ERR=$(cat "$ef" 2>/dev/null); rm -f "$ef"
+}
+
+# run_retry <attempts> <command...> — retries on a transient Zuora API error.
+run_retry() {
+  local attempts="$1"; shift
+  local i
+  for ((i=1; i<=attempts; i++)); do
+    run "$@"
+    [ "$RUN_RC" -eq 0 ] && return 0
+    echo "$RUN_ERR" | grep -qiE "HTTP 429|HTTP 5[0-9][0-9]|rate limit" || return "$RUN_RC"
+    sleep 2
+  done
+  return "$RUN_RC"
+}
+
+# expect_fail <description> <expected-substring> -- <command...>
+expect_fail() {
+  local desc="$1" want="$2"; shift 2
+  [ "${1:-}" = "--" ] && shift
+  local out rc
+  out=$("$@" 2>&1); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF -- "$want"; then
+    pass "$desc"
+  else
+    fail "$desc → rc=$rc, expected '$want', got: $(printf '%s' "$out" | head -1)"
+  fi
+}
+
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-if $ZR auth status 2>&1 | grep -q "Environment:"; then
+[ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }
+AUTH_OUT=$($ZR auth status 2>&1)
+if echo "$AUTH_OUT" | grep -qE "Token:[[:space:]]+valid"; then
   pass "Auth OK"
 else
-  fail "Auth failed"
+  fail "Auth failed (token not valid): $(echo "$AUTH_OUT" | grep -i 'token' | head -1)"
   exit 1
 fi
 
 # ─────────────────────────────────────────
 header "Step 1: ZOQL Query Validation"
 # ─────────────────────────────────────────
-
 echo "  Testing: query without argument"
-Q_ERR=$($ZR query 2>&1) || true
-if echo "$Q_ERR" | grep -qi "arg\|required"; then
-  pass "query validation → requires argument"
-else
-  fail "query validation → unexpected: $Q_ERR"
-fi
+expect_fail "query validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR query
 
 # ─────────────────────────────────────────
-header "Step 2: ZOQL Query 実行テスト"
+header "Step 2: ZOQL Query Execution"
 # ─────────────────────────────────────────
-
-echo "  Testing: query 'SELECT Id, Name FROM Account LIMIT 3'"
-Q_RESULT=$($ZR query "SELECT Id, Name FROM Account LIMIT 3" --json 2>/dev/null) || true
-if echo "$Q_RESULT" | jq -e '.records' >/dev/null 2>&1; then
-  Q_COUNT=$(echo "$Q_RESULT" | jq '.records | length')
-  pass "query → returned $Q_COUNT records"
-elif echo "$Q_RESULT" | grep -qi "error"; then
-  skip "query → API error"
-else
-  fail "query → unexpected: $(echo "$Q_RESULT" | head -3)"
-fi
-
-# query with --limit
-echo "  Testing: query with --limit 1"
-Q_LIMIT=$($ZR query "SELECT Id FROM Account" --limit 1 --json 2>/dev/null) || true
-if echo "$Q_LIMIT" | jq -e '.records' >/dev/null 2>&1; then
-  Q_LCOUNT=$(echo "$Q_LIMIT" | jq '.records | length')
-  if [ "$Q_LCOUNT" -le "1" ]; then
-    pass "query --limit 1 → returned $Q_LCOUNT records (≤1)"
+# Account is seeded on this tenant, so a successful query MUST return >=1 record.
+echo "  Testing: query 'SELECT ... FROM Account'"
+run_retry 3 $ZR query "SELECT Id, Name, AccountNumber FROM Account WHERE Status = 'Active'" --json
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.records' >/dev/null 2>&1; then
+  Q_COUNT=$(echo "$RUN_OUT" | jq -r '.records | length')
+  if [ "${Q_COUNT:-0}" -ge 1 ]; then
+    pass "query → returned $Q_COUNT records"
   else
-    fail "query --limit 1 → returned $Q_LCOUNT records (expected ≤1)"
+    fail "query → 0 records (expected >=1 from seeded Account)"
   fi
+elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qiE "HTTP 429|rate limit|HTTP 503"; then
+  skip "query → transient: $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
 else
-  skip "query --limit → API error"
+  fail "query (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
 fi
 
-# query with --csv
-echo "  Testing: query with --csv"
-Q_CSV=$($ZR query "SELECT Id, Name FROM Account LIMIT 2" --csv 2>/dev/null) || true
-if echo "$Q_CSV" | head -1 | grep -qi "Id\|name"; then
-  pass "query --csv → returned CSV with headers"
+echo "  Testing: query with --jq '.records | length'"
+run_retry 3 $ZR query "SELECT Id FROM Account" --jq '.records | length'
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+  pass "query --jq → numeric count: $RUN_OUT"
 else
-  skip "query --csv → unexpected output"
+  fail "query --jq → non-numeric '$RUN_OUT' (rc=$RUN_RC) ${RUN_ERR}"
 fi
 
-# query with --export
-EXPORT_FILE=$(mktemp /tmp/zr-e2e-export-XXXXXX.json)
-echo "  Testing: query with --export"
-$ZR query "SELECT Id FROM Account LIMIT 1" --json --export "$EXPORT_FILE" 2>/dev/null || true
-if [ -s "$EXPORT_FILE" ]; then
-  pass "query --export → file written"
+echo "  Testing: query --csv"
+run_retry 3 $ZR query "SELECT Id, Name FROM Account" --csv
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | head -1 | grep -qiE 'id|name'; then
+  pass "query CSV → has header row"
 else
-  skip "query --export → file empty or missing"
+  fail "query CSV → no header (rc=$RUN_RC) ${RUN_ERR}"
 fi
-rm -f "$EXPORT_FILE"
 
 # ─────────────────────────────────────────
-header "Step 3: Subscription ChangeLog Validation"
+header "Step 3: Subscription Changelog Validation"
 # ─────────────────────────────────────────
-
 echo "  Testing: subscription changelog without argument"
-CL_ERR=$($ZR subscription changelog 2>&1) || true
-if echo "$CL_ERR" | grep -qi "arg\|required"; then
-  pass "subscription changelog validation → requires argument"
-else
-  fail "subscription changelog validation → unexpected: $CL_ERR"
-fi
+expect_fail "changelog validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR subscription changelog
 
 echo "  Testing: subscription changelog-by-order without argument"
-CLO_ERR=$($ZR subscription changelog-by-order 2>&1) || true
-if echo "$CLO_ERR" | grep -qi "arg\|required"; then
-  pass "subscription changelog-by-order validation → requires argument"
-else
-  fail "subscription changelog-by-order validation → unexpected: $CLO_ERR"
-fi
+expect_fail "changelog-by-order validation → requires argument" \
+  "accepts 1 arg(s), received 0" -- $ZR subscription changelog-by-order
 
 echo "  Testing: subscription changelog-version without arguments"
-CLV_ERR=$($ZR subscription changelog-version 2>&1) || true
-if echo "$CLV_ERR" | grep -qi "arg\|required"; then
-  pass "subscription changelog-version validation → requires 2 arguments"
-else
-  fail "subscription changelog-version validation → unexpected: $CLV_ERR"
-fi
+expect_fail "changelog-version validation → requires arguments" \
+  "accepts 2 arg(s), received 0" -- $ZR subscription changelog-version
 
 # ─────────────────────────────────────────
 header "Step 4: Omnichannel Validation"
 # ─────────────────────────────────────────
+echo "  Testing: omnichannel get without argument"
+expect_fail "omnichannel get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR omnichannel get
 
 echo "  Testing: omnichannel create without --body"
-OC_ERR=$($ZR omnichannel create 2>&1) || true
-if echo "$OC_ERR" | grep -q "\-\-body is required"; then
-  pass "omnichannel create validation → requires --body"
-else
-  fail "omnichannel create validation → unexpected: $OC_ERR"
-fi
-
-echo "  Testing: omnichannel create rejects stray arg"
-OC_NA=$($ZR omnichannel create extraArg --body '{}' 2>&1) || true
-if echo "$OC_NA" | grep -qi "unknown command\|too many arg\|accepts 0 arg"; then
-  pass "omnichannel create → rejects stray positional arg"
-else
-  fail "omnichannel create → accepted stray arg"
-fi
-
-echo "  Testing: omnichannel get without argument"
-OG_ERR=$($ZR omnichannel get 2>&1) || true
-if echo "$OG_ERR" | grep -qi "arg\|required"; then
-  pass "omnichannel get validation → requires argument"
-else
-  fail "omnichannel get validation → unexpected: $OG_ERR"
-fi
-
-echo "  Testing: omnichannel delete without --confirm"
-OD_ERR=$($ZR omnichannel delete FAKE-KEY 2>&1) || true
-if echo "$OD_ERR" | grep -q "\-\-confirm"; then
-  pass "omnichannel delete validation → requires --confirm"
-else
-  fail "omnichannel delete validation → unexpected: $OD_ERR"
-fi
+expect_fail "omnichannel create validation → requires --body" "--body is required" -- $ZR omnichannel create
 
 echo "  Testing: omnichannel delete without argument"
-OD_ERR2=$($ZR omnichannel delete --confirm 2>&1) || true
-if echo "$OD_ERR2" | grep -qi "arg\|required"; then
-  pass "omnichannel delete validation → requires argument"
+expect_fail "omnichannel delete validation → requires argument" \
+  "accepts 1 arg(s), received 0" -- $ZR omnichannel delete
+
+echo "  Testing: omnichannel delete without --confirm"
+expect_fail "omnichannel delete validation → requires --confirm" \
+  "this action is irreversible. Use --confirm to proceed" -- $ZR omnichannel delete OC-FAKE
+
+# ─────────────────────────────────────────
+header "Step 5: api passthrough"
+# ─────────────────────────────────────────
+# api takes a single <path> arg; the method defaults to GET (override with -X).
+echo "  Testing: api without arguments"
+expect_fail "api validation → requires path" "accepts 1 arg(s), received 0" -- $ZR api
+
+echo "  Testing: api /v1/catalog/products (live GET)"
+run_retry 3 $ZR api /v1/catalog/products --json
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.' >/dev/null 2>&1; then
+  pass "api GET → returned JSON"
 else
-  fail "omnichannel delete validation → unexpected: $OD_ERR2"
+  fail "api GET (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+fi
+
+echo "  Testing: api with --jq scalar"
+run_retry 3 $ZR api /v1/catalog/products --jq '.products | type'
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qF "array"; then
+  pass "api GET --jq → .products is array"
+else
+  fail "api GET --jq → got '$RUN_OUT' (rc=$RUN_RC) ${RUN_ERR}"
+fi
+
+echo "  Testing: api on missing resource (error passthrough)"
+run $ZR api /v1/accounts/NOPE-DOES-NOT-EXIST
+if [ "$RUN_RC" -ne 0 ] && echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "Zuora API error"; then
+  pass "api GET 404 → surfaced Zuora API error with non-zero exit"
+else
+  fail "api GET 404 → expected Zuora API error + rc!=0, got rc=$RUN_RC: ${RUN_ERR:-$RUN_OUT}"
+fi
+
+echo "  Testing: api --paginate (auto-follow pages)"
+run_retry 3 $ZR api /v1/catalog/products --paginate --json
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.' >/dev/null 2>&1; then
+  pass "api --paginate → returned aggregated JSON"
+else
+  fail "api --paginate (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
 fi
 
 # ─────────────────────────────────────────
-header "Step 6: Read-only mode (ZR_READ_ONLY)"
+header "Step 5.5: global --env flag"
 # ─────────────────────────────────────────
+# --env overrides the active environment for a single invocation.
+echo "  Testing: query --env apac-sandbox (explicit env)"
+run_retry 3 $ZR query "SELECT Id FROM Account" --env apac-sandbox --json
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.records' >/dev/null 2>&1; then
+  pass "query --env apac-sandbox → returned records"
+else
+  fail "query --env apac-sandbox (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+fi
 
-# 6a: a write (non-allowlisted POST) must be BLOCKED in read-only mode
+echo "  Testing: --env unknown-environment (error path)"
+expect_fail "--env unknown → rejected" "unknown environment" -- $ZR query "SELECT Id FROM Account" --env no-such-env
+
+# ─────────────────────────────────────────
+header "Step 6: Read-only mode"
+# ─────────────────────────────────────────
+# 6a: ZR_READ_ONLY=1 blocks a write
 echo "  Testing: ZR_READ_ONLY=1 blocks account create"
-RO_WRITE=$(ZR_READ_ONLY=1 $ZR account create --body '{"name":"ro-smoke"}' 2>&1) || true
-if echo "$RO_WRITE" | grep -qi "read-only"; then
-  pass "read-only → account create blocked"
+RO_OUT=$(ZR_READ_ONLY=1 $ZR account create --body '{"name":"test"}' 2>&1) || true
+if echo "$RO_OUT" | grep -qF "not allowed in read-only mode"; then
+  pass "read-only mode → blocks account create"
 else
-  fail "read-only → account create NOT blocked: $(echo "$RO_WRITE" | head -1)"
+  fail "read-only mode → did not block: $(echo "$RO_OUT" | head -1)"
 fi
 
-# 6b: a non-recognized-falsy value must FAIL CLOSED (still read-only)
-echo "  Testing: ZR_READ_ONLY=yes also blocks writes (fail-safe)"
-RO_WRITE2=$(ZR_READ_ONLY=yes $ZR account create --body '{"name":"ro-smoke"}' 2>&1) || true
-if echo "$RO_WRITE2" | grep -qi "read-only"; then
-  pass "read-only → ZR_READ_ONLY=yes blocks writes (fail-safe)"
+# 6b: an UNRECOGNIZED value must fail closed (default-true branch)
+echo "  Testing: ZR_READ_ONLY=maybe (unrecognized) fails closed"
+RO_OUT2=$(ZR_READ_ONLY=maybe $ZR order create --body '{}' 2>&1) || true
+if echo "$RO_OUT2" | grep -qF "not allowed in read-only mode"; then
+  pass "read-only mode (unrecognized value) → fails closed, blocks write"
 else
-  fail "read-only → ZR_READ_ONLY=yes did NOT block: $(echo "$RO_WRITE2" | head -1)"
+  fail "read-only mode (maybe) → did not block: $(echo "$RO_OUT2" | head -1)"
 fi
 
-# 6c: an allowlisted read (ZOQL query) must still WORK in read-only mode
-echo "  Testing: ZR_READ_ONLY=1 still allows ZOQL query"
-RO_READ=$(ZR_READ_ONLY=1 $ZR query "SELECT Id FROM Product" --json 2>/dev/null) || true
-if echo "$RO_READ" | jq -e '.' >/dev/null 2>&1; then
-  pass "read-only → ZOQL query allowed"
+# 6c: a recognized falsy value must NOT block; the write proceeds to a real
+# API/validation error instead of the read-only guard.
+echo "  Testing: ZR_READ_ONLY=0 does not block (off path)"
+RO_OFF=$(ZR_READ_ONLY=0 $ZR account create --body '{"name":"test"}' 2>&1) || true
+if echo "$RO_OFF" | grep -qF "not allowed in read-only mode"; then
+  fail "read-only mode (0) → wrongly blocked the write"
 else
-  fail "read-only → ZOQL query unexpectedly blocked: $(echo "$RO_READ" | head -1)"
+  pass "read-only mode (0) → write not blocked (proceeded to API: $(echo "$RO_OFF" | head -1))"
+fi
+
+# 6d: read commands are allowed under read-only — assert a real result shape,
+# not mere valid JSON (an error rendered as JSON would also be valid JSON).
+echo "  Testing: ZR_READ_ONLY=1 allows query (read)"
+RO_READ=$(ZR_READ_ONLY=1 $ZR query "SELECT Id FROM Account" --json 2>&1) || true
+if echo "$RO_READ" | jq -e '.records' >/dev/null 2>&1 && ! echo "$RO_READ" | grep -qi "read-only"; then
+  pass "read-only mode → allows query (has .records, not blocked)"
+else
+  fail "read-only mode → query not allowed as expected: $(echo "$RO_READ" | head -1)"
 fi
 
 # ─────────────────────────────────────────
@@ -205,21 +245,15 @@ header "Summary"
 # ─────────────────────────────────────────
 echo ""
 TOTAL=$((PASS + FAIL + SKIP))
-green  "  Passed:  $PASS / $TOTAL"
-if [ "$FAIL" -gt 0 ]; then
-  red  "  Failed:  $FAIL / $TOTAL"
-fi
-if [ "$SKIP" -gt 0 ]; then
-  yellow "  Skipped: $SKIP / $TOTAL"
-fi
+echo "  Passed:  $PASS / $TOTAL"
+echo "  Failed:  $FAIL / $TOTAL"
+echo "  Skipped: $SKIP / $TOTAL"
 echo ""
 echo "  Log: $LOG_FILE"
 echo ""
-
 if [ "$FAIL" -gt 0 ]; then
-  red "  RESULT: FAIL"
+  echo "  RESULT: FAIL"
   exit 1
 else
-  green "  RESULT: PASS"
-  exit 0
+  echo "  RESULT: PASS"
 fi

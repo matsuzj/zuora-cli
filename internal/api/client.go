@@ -20,8 +20,8 @@ import (
 type Client struct {
 	baseURL       string
 	httpClient    *http.Client
-	tokenSource   func() (string, error)
-	refreshToken  func() (string, error) // force refresh, bypassing cache
+	tokenSource   func(context.Context) (string, error)
+	refreshToken  func(context.Context) (string, error) // force refresh, bypassing cache
 	zuoraVersion  string
 	userAgent     string
 	verbose       bool
@@ -41,13 +41,14 @@ func WithBaseURL(u string) ClientOption {
 	return func(c *Client) { c.baseURL = strings.TrimRight(u, "/") }
 }
 
-// WithTokenSource sets the token provider for authentication.
-func WithTokenSource(fn func() (string, error)) ClientOption {
+// WithTokenSource sets the token provider for authentication. The provider
+// receives a context so a token fetch can be cancelled (e.g. Ctrl-C).
+func WithTokenSource(fn func(context.Context) (string, error)) ClientOption {
 	return func(c *Client) { c.tokenSource = fn }
 }
 
 // WithRefreshToken sets the force-refresh token provider (bypasses cache).
-func WithRefreshToken(fn func() (string, error)) ClientOption {
+func WithRefreshToken(fn func(context.Context) (string, error)) ClientOption {
 	return func(c *Client) { c.refreshToken = fn }
 }
 
@@ -199,7 +200,7 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 
 	// Auth header
 	if c.tokenSource != nil {
-		token, err := c.tokenSource()
+		token, err := c.tokenSource(ctx)
 		if err != nil {
 			return nil, err
 		}

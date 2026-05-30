@@ -208,8 +208,8 @@ func TestRetry_POST_401Refresh_KeepsIdempotencyKeyStable(t *testing.T) {
 	c := newNoSleepClient(
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
-		WithTokenSource(func() (string, error) { return "t1", nil }),
-		WithRefreshToken(func() (string, error) { return "t2", nil }),
+		WithTokenSource(func(context.Context) (string, error) { return "t1", nil }),
+		WithRefreshToken(func(context.Context) (string, error) { return "t2", nil }),
 	)
 	_, err := c.Post("/v1/accounts", strings.NewReader(`{"a":1}`))
 	require.NoError(t, err)
@@ -256,8 +256,8 @@ func TestRetry_401_RefreshError_Aborts(t *testing.T) {
 	c := newNoSleepClient(
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
-		WithTokenSource(func() (string, error) { return "tok", nil }),
-		WithRefreshToken(func() (string, error) { return "", assertErr{} }),
+		WithTokenSource(func(context.Context) (string, error) { return "tok", nil }),
+		WithRefreshToken(func(context.Context) (string, error) { return "", assertErr{} }),
 	)
 	_, err := c.Get("/v1/test")
 	require.Error(t, err)

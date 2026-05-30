@@ -17,6 +17,10 @@ type APIError struct {
 	Code       string
 	Message    string
 	Raw        string
+	// SafeToRetry is set on a non-idempotent (POST/PATCH) failure that was not
+	// retried automatically, to tell the user the command can be safely re-run
+	// because it carries an Idempotency-Key.
+	SafeToRetry bool
 }
 
 func (e *APIError) Error() string {
@@ -28,6 +32,12 @@ func (e *APIError) Error() string {
 	}
 	if e.StatusCode == http.StatusUnauthorized {
 		msg += "\n  Hint: credentials may be expired. Run: zr auth login"
+	}
+	if e.SafeToRetry {
+		msg += "\n  Hint: this write was not retried automatically. It is safe to run the" +
+			" command again — it carries an Idempotency-Key, so if the original" +
+			" request did go through, the retry returns HTTP 409 instead of" +
+			" creating a duplicate."
 	}
 	return msg
 }

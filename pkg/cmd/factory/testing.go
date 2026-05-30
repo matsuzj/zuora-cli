@@ -1,6 +1,8 @@
 package factory
 
 import (
+	"context"
+
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
@@ -13,11 +15,11 @@ func NewTestFactory(ios *iostreams.IOStreams, cfg config.Config, baseURL, token 
 		Config: func() (config.Config, error) {
 			return cfg, nil
 		},
-		AuthToken: func() (string, error) {
+		AuthToken: func(context.Context) (string, error) {
 			return token, nil
 		},
 		HttpClient: func() (*api.Client, error) {
-			tokenFn := func() (string, error) { return token, nil }
+			tokenFn := func(context.Context) (string, error) { return token, nil }
 			return api.NewClient(
 				api.WithBaseURL(baseURL),
 				api.WithTokenSource(tokenFn),

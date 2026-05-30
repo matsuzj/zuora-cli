@@ -65,9 +65,15 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			// Only retry transport errors for idempotent methods.
+			// Only retry transport errors for idempotent methods. For POST/PATCH
+			// the request may have reached the server, so we do not auto-retry;
+			// the caller can safely re-run (the request carries an
+			// Idempotency-Key) — surface that guidance.
 			if !isIdempotent(req.Method) {
-				return nil, err
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return nil, ctxErr
+				}
+				return nil, &APIError{Message: err.Error(), SafeToRetry: true}
 			}
 			lastErr = err
 			continue
@@ -98,7 +104,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				refreshFn = c.tokenSource
 			}
 			if refreshFn != nil {
-				token, err := refreshFn()
+				token, err := refreshFn(ctx)
 				if err != nil {
 					return nil, err
 				}
@@ -115,8 +121,13 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 			continue
 
 		case resp.StatusCode >= 500:
-			// Non-idempotent 5xx: return error immediately, don't retry.
-			return nil, readAPIError(resp)
+			// Non-idempotent 5xx: do not auto-retry (the mutation may have been
+			// applied), but mark it safe to re-run thanks to the Idempotency-Key.
+			apiErr := readAPIError(resp)
+			if ae, ok := apiErr.(*APIError); ok {
+				ae.SafeToRetry = true
+			}
+			return nil, apiErr
 
 		default:
 			return resp, nil

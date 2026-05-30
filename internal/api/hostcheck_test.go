@@ -25,7 +25,7 @@ func TestClient_CrossHostAbsoluteURL_Refused(t *testing.T) {
 
 	c := NewClient(
 		WithBaseURL("https://rest.zuora.com"),
-		WithTokenSource(func() (string, error) { return "secret-token", nil }),
+		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
 	)
 	_, err := c.Get(attacker.URL + "/v1/accounts")
 	require.Error(t, err, "an off-host absolute URL must be refused")

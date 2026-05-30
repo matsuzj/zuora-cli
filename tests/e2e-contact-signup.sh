@@ -219,16 +219,25 @@ else
   fail "contact scrub validation → unexpected: $SCRUB_ERR"
 fi
 
-# 6b: Actual scrub
+# 6b: scrub without --confirm (irreversible guard)
+echo "  Testing: contact scrub without --confirm"
+SCRUB_NOCONFIRM=$($ZR contact scrub "$CONTACT_ID" 2>&1) || true
+if echo "$SCRUB_NOCONFIRM" | grep -q "\-\-confirm"; then
+  pass "contact scrub validation → requires --confirm"
+else
+  fail "contact scrub validation → unexpected: $SCRUB_NOCONFIRM"
+fi
+
+# 6c: Actual scrub
 echo "  Testing: contact scrub $CONTACT_ID"
-SCRUB_OUT=$($ZR contact scrub "$CONTACT_ID" --json 2>/dev/null) || true
+SCRUB_OUT=$($ZR contact scrub "$CONTACT_ID" --confirm --json 2>/dev/null) || true
 SCRUB_SUCCESS=$(echo "$SCRUB_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$SCRUB_SUCCESS" = "true" ]; then
   pass "contact scrub → success"
 else
   # Scrub may require specific permissions
-  SCRUB_ERR2=$($ZR contact scrub "$CONTACT_ID" 2>&1) || true
+  SCRUB_ERR2=$($ZR contact scrub "$CONTACT_ID" --confirm 2>&1) || true
   if echo "$SCRUB_ERR2" | grep -qi "error\|permission\|not.*enabled"; then
     skip "contact scrub → tenant may not have scrub permission enabled"
   else

@@ -261,10 +261,19 @@ else
   fail "cancel validation → unexpected: $CANCEL_ERR2"
 fi
 
-# 6c: Actual cancel with --body (Orders tenant requires orderDate)
+# 6c: cancel without --confirm (irreversible guard)
+echo "  Testing: cancel without --confirm"
+CANCEL_NOCONFIRM=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm 2>&1) || true
+if echo "$CANCEL_NOCONFIRM" | grep -q "\-\-confirm"; then
+  pass "cancel validation → requires --confirm"
+else
+  fail "cancel validation → unexpected: $CANCEL_NOCONFIRM"
+fi
+
+# 6d: Actual cancel with --body (Orders tenant requires orderDate)
 echo "  Testing: cancel $SUB_A --body (with orderDate for Orders tenant)"
 TODAY=$(date +%Y-%m-%d)
-CANCEL_OUT=$($ZR subscription cancel "$SUB_A" --body "{\"cancellationPolicy\":\"EndOfCurrentTerm\",\"orderDate\":\"$TODAY\"}" --json 2>/dev/null) || true
+CANCEL_OUT=$($ZR subscription cancel "$SUB_A" --body "{"cancellationPolicy":"EndOfCurrentTerm","orderDate":"$TODAY"}" --confirm --json 2>/dev/null) || true
 CANCEL_SUCCESS=$(echo "$CANCEL_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$CANCEL_SUCCESS" = "true" ]; then
@@ -276,7 +285,7 @@ fi
 # 6d: Verify cancel with --policy only sends correct payload (dry check, not on SUB_B)
 # NOTE: We do NOT cancel SUB_B here — it is reserved for suspend/resume in Step 7-8.
 echo "  Testing: cancel validation with --policy on already-cancelled SUB_A"
-CANCEL_NODATE=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm 2>&1) || true
+CANCEL_NODATE=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm --confirm 2>&1) || true
 if echo "$CANCEL_NODATE" | grep -qi "error\|オーダー日\|キャンセル済み"; then
   pass "cancel --policy on cancelled sub → correctly rejected"
 else

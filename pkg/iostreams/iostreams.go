@@ -34,6 +34,23 @@ func (s *IOStreams) IsTerminal() bool {
 	return false
 }
 
+// IsStderrTerminal returns true if stderr is a terminal (not piped).
+func (s *IOStreams) IsStderrTerminal() bool {
+	if f, ok := s.ErrOut.(*os.File); ok {
+		return term.IsTerminal(int(f.Fd()))
+	}
+	return false
+}
+
+// ColorEnabled reports whether colorized output should be used: only when
+// stdout is a terminal and NO_COLOR is not set (https://no-color.org).
+func (s *IOStreams) ColorEnabled() bool {
+	if _, noColor := os.LookupEnv("NO_COLOR"); noColor {
+		return false
+	}
+	return s.IsTerminal()
+}
+
 // Test returns IOStreams backed by bytes.Buffer for testing.
 func Test() (*IOStreams, *bytes.Buffer, *bytes.Buffer, *bytes.Buffer) {
 	in := &bytes.Buffer{}

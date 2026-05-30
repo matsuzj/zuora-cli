@@ -49,6 +49,29 @@ func TestAPI_GET(t *testing.T) {
 	assert.Contains(t, out.String(), "Test")
 }
 
+// A non-JSON 2xx body (e.g. a text/CSV download or a proxy's HTML page) must be
+// passed through to stdout and exit 0 — not dropped/errored — on the raw `api`
+// escape hatch's default (no --jq/--template) path.
+func TestAPI_NonJSONBody_PassesThrough(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(200)
+		w.Write([]byte("plain text body, not json"))
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"api", "/v1/export"})
+	err := root.Execute()
+
+	require.NoError(t, err, "non-JSON 2xx must not error on the default api path")
+	assert.Contains(t, out.String(), "plain text body, not json")
+}
+
 func TestAPI_POST_WithBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)

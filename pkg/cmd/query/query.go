@@ -3,11 +3,11 @@ package query
 
 import (
 	"bytes"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -54,7 +54,7 @@ Examples:
 	return cmd
 }
 
-func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
+func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error) {
 	f := opts.Factory
 	client, err := f.HttpClient()
 	if err != nil {
@@ -73,7 +73,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 	}
 
 	var result queryResult
-	if err := json.Unmarshal(resp.Body, &result); err != nil {
+	if err := decodeQueryResult(resp.Body, &result); err != nil {
 		return fmt.Errorf("parsing query response: %w", err)
 	}
 
@@ -93,7 +93,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 			return err
 		}
 		result = queryResult{}
-		if err := json.Unmarshal(resp.Body, &result); err != nil {
+		if err := decodeQueryResult(resp.Body, &result); err != nil {
 			return fmt.Errorf("parsing queryMore response: %w", err)
 		}
 		allRecords = append(allRecords, result.Records...)
@@ -106,16 +106,26 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 		limitTrimmed = true
 	}
 
-	// Determine output destination
+	// Determine output destination. For --export, write to a temp file in the
+	// target's directory and rename on success, so a mid-stream error leaves any
+	// pre-existing target file intact (atomic, all-or-nothing export).
 	var outWriter io.Writer = f.IOStreams.Out
-	var exportFile *os.File
 	if opts.Export != "" {
-		exportFile, err = os.Create(opts.Export)
+		tmp, err := os.CreateTemp(filepath.Dir(opts.Export), ".zr-export-*")
 		if err != nil {
 			return fmt.Errorf("creating export file: %w", err)
 		}
-		defer exportFile.Close()
-		outWriter = exportFile
+		tmpName := tmp.Name()
+		outWriter = tmp
+		defer func() {
+			tmp.Close()
+			if retErr == nil {
+				retErr = os.Rename(tmpName, opts.Export)
+			}
+			if retErr != nil {
+				os.Remove(tmpName)
+			}
+		}()
 	}
 
 	// Build an IOStreams pointing to the export destination (or original stdout)
@@ -161,15 +171,16 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) error {
 	columns := extractColumns(allRecords)
 	rows := buildRows(allRecords, columns)
 
-	if opts.CSV {
-		return writeCSV(outWriter, columns, rows)
-	}
-
-	// Default: table output
 	cols := make([]output.Column, len(columns))
 	for i, c := range columns {
 		cols[i] = output.Column{Header: c, Field: c}
 	}
+
+	if opts.CSV {
+		return output.PrintCSV(outWriter, rows, cols)
+	}
+
+	// Default: table output
 	return output.Render(ios, combined, fmtOpts, rows, cols)
 }
 
@@ -178,6 +189,14 @@ type queryResult struct {
 	Size         int                      `json:"size"`
 	Done         bool                     `json:"done"`
 	QueryLocator string                   `json:"queryLocator"`
+}
+
+// decodeQueryResult decodes a ZOQL response using json.Number for all numbers,
+// so large IDs and high-precision amounts in records are not rounded by float64.
+func decodeQueryResult(body []byte, v *queryResult) error {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	return dec.Decode(v)
 }
 
 // extractColumns returns sorted column names from all records (union of all keys).
@@ -206,7 +225,7 @@ func buildRows(records []map[string]interface{}, columns []string) [][]string {
 		row := make([]string, len(columns))
 		for j, col := range columns {
 			if v, ok := rec[col]; ok && v != nil {
-				row[j] = fmt.Sprintf("%v", v)
+				row[j] = formatCell(v)
 			}
 		}
 		rows[i] = row
@@ -214,19 +233,15 @@ func buildRows(records []map[string]interface{}, columns []string) [][]string {
 	return rows
 }
 
-// writeCSV writes records as CSV.
-func writeCSV(w io.Writer, columns []string, rows [][]string) error {
-	writer := csv.NewWriter(w)
-
-	if err := writer.Write(columns); err != nil {
-		return err
-	}
-	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
-			return err
+// formatCell renders a record value for a table/CSV cell. Scalars use their
+// natural string form; nested objects/arrays are JSON-encoded so they read as
+// JSON rather than Go's map[...] / [...] syntax.
+func formatCell(v interface{}) string {
+	switch v.(type) {
+	case map[string]interface{}, []interface{}:
+		if b, err := json.Marshal(v); err == nil {
+			return string(b)
 		}
 	}
-
-	writer.Flush()
-	return writer.Error()
+	return fmt.Sprintf("%v", v)
 }

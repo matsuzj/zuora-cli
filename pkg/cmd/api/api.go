@@ -117,12 +117,15 @@ func runAPI(opts *apiOptions, path string) error {
 		result = resp.Body
 	}
 
-	// Output via shared formatter (precedence: --jq > --template > pretty-print)
+	// Output via shared formatter (precedence: --jq > --template > pretty-print).
+	// --jq and --template require JSON, so a non-JSON body is a genuine error
+	// there. The default path is the raw escape hatch: pass non-JSON through
+	// verbatim rather than failing and dropping the body.
 	if opts.JQ != "" {
 		return output.PrintJSON(f.IOStreams, result, opts.JQ)
 	}
 	if opts.Template != "" {
 		return output.PrintTemplate(f.IOStreams, result, opts.Template)
 	}
-	return output.PrintJSON(f.IOStreams, result, "")
+	return output.PrintRawOrJSON(f.IOStreams, result)
 }

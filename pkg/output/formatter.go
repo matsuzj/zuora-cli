@@ -2,6 +2,7 @@
 package output
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
@@ -47,7 +48,10 @@ func Render(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, rows [
 		return PrintTemplate(ios, rawJSON, opts.Template)
 	}
 	w := io.Writer(ios.Out)
-	if pager, err := StartPager(ios); err == nil {
+	if pager, err := StartPager(ios); err != nil {
+		// Pager failed to start — fall back to direct output but tell the user why.
+		fmt.Fprintf(ios.ErrOut, "warning: could not start pager: %v\n", err)
+	} else {
 		defer pager.Close()
 		w = pager
 	}

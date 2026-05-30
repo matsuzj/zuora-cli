@@ -7,10 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 )
+
+// refreshLocks serializes token refreshes per environment so concurrent callers
+// do not each POST to the OAuth endpoint; the second caller observes the token
+// the first one cached.
+var refreshLocks sync.Map // envName -> *sync.Mutex
 
 // TokenSource manages OAuth 2.0 token acquisition and caching.
 type TokenSource struct {
@@ -29,6 +35,17 @@ func (ts *TokenSource) Token(envName string) (string, error) {
 	if cached.IsValid() {
 		return cached.AccessToken, nil
 	}
+
+	// Serialize refreshes per environment to avoid duplicate token requests.
+	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
+	mu := muAny.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Re-check: another goroutine may have refreshed while we waited.
+	if cached, err := ts.Config.Token(envName); err == nil && cached.IsValid() {
+		return cached.AccessToken, nil
+	}
 	return ts.Refresh(envName)
 }
 
@@ -42,6 +59,12 @@ func (ts *TokenSource) Refresh(envName string) (string, error) {
 	env, err := ts.Config.Environment(envName)
 	if err != nil {
 		return "", err
+	}
+	if err := config.ValidateBaseURL(env.BaseURL); err != nil {
+		return "", &AuthError{
+			Message: fmt.Sprintf("environment %q has an invalid base URL: %v", envName, err),
+			Hint:    "Check your environment configuration.",
+		}
 	}
 
 	tokenURL := env.BaseURL + "/oauth/token"

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -49,9 +50,15 @@ func (s *keyringStore) Set(envName, clientID, clientSecret string) error {
 func (s *keyringStore) Get(envName string) (string, string, error) {
 	clientID, err := keyring.Get(serviceName, envName+"/client_id")
 	if err != nil {
+		hint := "Run 'zr auth login' to authenticate."
+		// A keyring error other than "not found" usually means the OS keyring
+		// is unavailable (e.g. headless Linux/CI without a secret service).
+		if !errors.Is(err, keyring.ErrNotFound) {
+			hint = "OS keyring unavailable. Set ZR_CLIENT_ID and ZR_CLIENT_SECRET environment variables instead."
+		}
 		return "", "", &AuthError{
 			Message: fmt.Sprintf("no credentials found for environment %q", envName),
-			Hint:    "Run 'zr auth login' to authenticate.",
+			Hint:    hint,
 		}
 	}
 	clientSecret, err := keyring.Get(serviceName, envName+"/client_secret")
@@ -66,10 +73,11 @@ func (s *keyringStore) Get(envName string) (string, string, error) {
 
 func (s *keyringStore) Delete(envName string) error {
 	var firstErr error
-	if err := keyring.Delete(serviceName, envName+"/client_id"); err != nil {
+	// Treat "not found" as success: deleting an already-absent secret is fine.
+	if err := keyring.Delete(serviceName, envName+"/client_id"); err != nil && !errors.Is(err, keyring.ErrNotFound) {
 		firstErr = err
 	}
-	if err := keyring.Delete(serviceName, envName+"/client_secret"); err != nil && firstErr == nil {
+	if err := keyring.Delete(serviceName, envName+"/client_secret"); err != nil && !errors.Is(err, keyring.ErrNotFound) && firstErr == nil {
 		firstErr = err
 	}
 	return firstErr

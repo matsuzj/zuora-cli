@@ -4,7 +4,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
+
+// maxRawErrorBody caps how much of an unparseable error body is echoed to the
+// user, mirroring the OAuth path, so a large HTML gateway page is not dumped.
+const maxRawErrorBody = 500
 
 // APIError represents a Zuora API error response.
 type APIError struct {
@@ -15,14 +20,24 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
+	var msg string
 	if e.Code != "" {
-		return fmt.Sprintf("Zuora API error (HTTP %d)\n  Code: %s\n  Message: %s", e.StatusCode, e.Code, e.Message)
+		msg = fmt.Sprintf("Zuora API error (HTTP %d)\n  Code: %s\n  Message: %s", e.StatusCode, e.Code, e.Message)
+	} else {
+		msg = fmt.Sprintf("Zuora API error (HTTP %d): %s", e.StatusCode, e.Message)
 	}
-	return fmt.Sprintf("Zuora API error (HTTP %d): %s", e.StatusCode, e.Message)
+	if e.StatusCode == http.StatusUnauthorized {
+		msg += "\n  Hint: credentials may be expired. Run: zr auth login"
+	}
+	return msg
 }
 
-// ExitCode returns 3 for client errors (4xx) and 4 for server errors (5xx).
+// ExitCode maps the HTTP status to a CLI exit code:
+// 2 for 401 (auth — matches AuthError), 4 for 5xx (server), 3 for other 4xx.
 func (e *APIError) ExitCode() int {
+	if e.StatusCode == http.StatusUnauthorized {
+		return 2
+	}
 	if e.StatusCode >= 500 {
 		return 4
 	}
@@ -78,7 +93,11 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 		return apiErr
 	}
 
-	apiErr.Message = string(body)
+	msg := string(body)
+	if len(msg) > maxRawErrorBody {
+		msg = msg[:maxRawErrorBody] + "..."
+	}
+	apiErr.Message = msg
 	return apiErr
 }
 

@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/matsuzj/zuora-cli/internal/build"
 )
 
 // Client is an HTTP client for Zuora APIs.
@@ -18,9 +23,14 @@ type Client struct {
 	tokenSource   func() (string, error)
 	refreshToken  func() (string, error) // force refresh, bypassing cache
 	zuoraVersion  string
+	userAgent     string
 	verbose       bool
 	verboseWriter io.Writer
 	readOnly      bool
+	ctx           context.Context
+	// sleep waits for d or until the context is cancelled; it is a seam so
+	// tests can run the retry loop without real backoff delays.
+	sleep func(ctx context.Context, d time.Duration) error
 }
 
 // ClientOption configures the Client.
@@ -61,15 +71,61 @@ func WithReadOnly() ClientOption {
 	return func(c *Client) { c.readOnly = true }
 }
 
+// WithContext sets the base context used for all requests, so cancellation
+// (e.g. Ctrl-C) propagates to in-flight requests and retry backoff.
+func WithContext(ctx context.Context) ClientOption {
+	return func(c *Client) { c.ctx = ctx }
+}
+
+// WithUserAgent overrides the User-Agent header.
+func WithUserAgent(ua string) ClientOption {
+	return func(c *Client) { c.userAgent = ua }
+}
+
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
 		httpClient: &http.Client{Timeout: 120 * time.Second},
+		userAgent:  "zuora-cli/" + build.Version,
+		ctx:        context.Background(),
+		sleep:      sleepWithContext,
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
+	if c.ctx == nil {
+		c.ctx = context.Background()
+	}
+	if c.sleep == nil {
+		c.sleep = sleepWithContext
+	}
 	return c
+}
+
+// sleepWithContext waits for d or until ctx is cancelled, whichever comes first.
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return ctx.Err()
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+// newIdempotencyKey returns a random hex key for safely retrying mutations.
+func newIdempotencyKey() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// Fall back to a time-based key; collisions are acceptable here because
+		// the key only needs to be stable across retries of one request.
+		return fmt.Sprintf("zr-%d", time.Now().UnixNano())
+	}
+	return "zr-" + hex.EncodeToString(b[:])
 }
 
 // SetZuoraVersion overrides the Zuora-Version header.
@@ -80,6 +136,13 @@ func (c *Client) SetVerbose(w io.Writer) { c.verbose = true; c.verboseWriter = w
 
 // SetReadOnly enables or disables read-only mode.
 func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
+
+// SetContext sets the base context used for all requests.
+func (c *Client) SetContext(ctx context.Context) {
+	if ctx != nil {
+		c.ctx = ctx
+	}
+}
 
 // Do performs an HTTP request.
 func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, error) {
@@ -96,7 +159,11 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		bodyReader = rc.body
 	}
 
-	req, err := http.NewRequest(method, fullURL, bodyReader)
+	ctx := c.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -111,6 +178,9 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 	}
 
 	// Standard headers
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
 	if c.zuoraVersion != "" {
 		req.Header.Set("Zuora-Version", c.zuoraVersion)
 	}
@@ -118,7 +188,16 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	// Custom headers
+	// Idempotency-Key for mutating methods so any retry (429/401/5xx) is
+	// deduplicated server-side, preventing duplicate orders/payments/refunds.
+	// The key is stable across retries because it is set once on the request.
+	if method == http.MethodPost || method == http.MethodPatch {
+		if req.Header.Get("Idempotency-Key") == "" {
+			req.Header.Set("Idempotency-Key", newIdempotencyKey())
+		}
+	}
+
+	// Custom headers (caller may override the above, e.g. multipart Content-Type)
 	for k, v := range rc.headers {
 		req.Header.Set(k, v)
 	}

@@ -2,8 +2,8 @@
 package summary
 
 import (
-	"encoding/json"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/url"
 

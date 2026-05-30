@@ -1,4 +1,4 @@
-package revert
+package update
 
 import (
 	"encoding/json"
@@ -20,19 +20,25 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
 	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdRevert(f))
+	order.AddCommand(NewCmdUpdate(f))
 	root.AddCommand(order)
 	return root
 }
 
-func TestOrderRevert_Success(t *testing.T) {
+func TestOrderUpdate_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/orders/O-00000001/revert", r.URL.Path)
+		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "/v1/orders/O-00000001", r.URL.Path)
+
+		var body map[string]interface{}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, "Completed", body["orderDate"])
+
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":     true,
 			"orderNumber": "O-00000001",
+			"status":      "Completed",
 		})
 	}))
 	defer server.Close()
@@ -42,21 +48,45 @@ func TestOrderRevert_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`, "--confirm"})
+	root.SetArgs([]string{"order", "update", "O-00000001", "--body", `{"orderDate":"Completed"}`})
 	err := root.Execute()
 
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 reverted.")
+	assert.Contains(t, errOut.String(), "Order O-00000001 updated.")
 }
 
-func TestOrderRevert_RequiresBody(t *testing.T) {
+func TestOrderUpdate_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{
+				{"code": 53100020, "message": "Missing required field"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order", "update", "O-00000001", "--body", `{"bad":"data"}`})
+	err := root.Execute()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Missing required field")
+}
+
+func TestOrderUpdate_RequiresBody(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001"})
+	root.SetArgs([]string{"order", "update", "O-00000001"})
 	err := root.Execute()
 
 	assert.Error(t, err)

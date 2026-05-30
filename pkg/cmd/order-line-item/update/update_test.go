@@ -1,7 +1,8 @@
-package revert
+package update
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,46 +20,63 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "")
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
-	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdRevert(f))
-	root.AddCommand(order)
+	oli := &cobra.Command{Use: "order-line-item"}
+	oli.AddCommand(NewCmdUpdate(f))
+	root.AddCommand(oli)
 	return root
 }
 
-func TestOrderRevert_Success(t *testing.T) {
+func TestOrderLineItemUpdate_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/orders/O-00000001/revert", r.URL.Path)
+		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "/v1/order-line-items/OLI-001", r.URL.Path)
+
+		raw, _ := io.ReadAll(r.Body)
+		var got map[string]interface{}
+		require.NoError(t, json.Unmarshal(raw, &got))
+		assert.Equal(t, "Updated description", got["description"])
+
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"orderNumber": "O-00000001",
+			"success": true,
+			"id":      "OLI-001",
 		})
 	}))
 	defer server.Close()
 
-	ios, _, out, errOut := iostreams.Test()
+	ios, _, _, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`, "--confirm"})
+	root.SetArgs([]string{"order-line-item", "update", "OLI-001", "--body", `{"description":"Updated description"}`})
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 reverted.")
+	assert.Contains(t, errOut.String(), "Order line item OLI-001 updated.")
 }
 
-func TestOrderRevert_RequiresBody(t *testing.T) {
+func TestOrderLineItemUpdate_RequiresBody(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001"})
+	root.SetArgs([]string{"order-line-item", "update", "OLI-001"})
 	err := root.Execute()
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")
+}
+
+func TestOrderLineItemUpdate_RequiresArg(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order-line-item", "update", "--body", `{"description":"x"}`})
+	err := root.Execute()
+
+	assert.Error(t, err)
 }

@@ -40,7 +40,7 @@ func TestCancel_WithPolicy(t *testing.T) {
 	ios, _, out, errOut := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
 	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "cancel", "A-S001", "--policy", "EndOfCurrentTerm"})
+	root.SetArgs([]string{"subscription", "cancel", "A-S001", "--policy", "EndOfCurrentTerm", "--confirm"})
 	require.NoError(t, root.Execute())
 	assert.Contains(t, out.String(), "true")
 	assert.Contains(t, errOut.String(), "cancelled")
@@ -56,7 +56,7 @@ func TestCancel_WithBody(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
 	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "cancel", "A-S001", "--body", `{"cancellationPolicy":"EndOfCurrentTerm"}`})
+	root.SetArgs([]string{"subscription", "cancel", "A-S001", "--body", `{"cancellationPolicy":"EndOfCurrentTerm"}`, "--confirm"})
 	require.NoError(t, root.Execute())
 }
 
@@ -74,7 +74,7 @@ func TestCancel_SpecificDateRequiresEffectiveDate(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")
 	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "cancel", "A-S001", "--policy", "SpecificDate"})
+	root.SetArgs([]string{"subscription", "cancel", "A-S001", "--policy", "SpecificDate", "--confirm"})
 	err := root.Execute()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--effective-date is required")

@@ -103,7 +103,11 @@ zr api /v1/orders -X POST --body @order.json
 
 **Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. Default output is a formatted table.
 
-**Read-only mode**: `--read-only` (or `ZR_READ_ONLY=true`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
+**Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
+
+**Destructive operations**: irreversible commands require an explicit `--confirm` flag. This includes `account/contact/order/subscription/usage/fulfillment/fulfillment-item ... delete`, `order cancel`, `order revert`, `subscription cancel`, and `contact scrub`.
+
+**Interrupts**: pressing Ctrl-C (SIGINT/SIGTERM) cancels any in-flight request and aborts retry backoff. Mutating requests (POST/PATCH) carry an `Idempotency-Key` header so a network retry cannot create a duplicate order, payment, or refund.
 
 ## Shell Completion
 

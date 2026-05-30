@@ -1,4 +1,4 @@
-package paymentmethodscascading
+package get
 
 import (
 	"encoding/json"
@@ -19,23 +19,24 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "")
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdPaymentMethodsCascading(f))
-	root.AddCommand(acct)
+	oli := &cobra.Command{Use: "order-line-item"}
+	oli.AddCommand(NewCmdGet(f))
+	root.AddCommand(oli)
 	return root
 }
 
-func TestPaymentMethodsCascading_Detail(t *testing.T) {
+func TestOrderLineItemGet_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/accounts/A001/payment-methods/cascading", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/v1/order-line-items/OLI-001", r.URL.Path)
 		w.WriteHeader(200)
-		// Cascading config response
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":                       true,
-			"paymentMethodId":               "pm-parent",
-			"paymentMethodCascadingConsent": true,
-			"paymentMethodType":             "CreditCard",
-			"creditCardMaskNumber":          "****9999",
+			"success":     true,
+			"id":          "OLI-001",
+			"itemName":    "Widget",
+			"itemNumber":  "OLI-N-001",
+			"orderNumber": "O-00000001",
+			"quantity":    2,
 		})
 	}))
 	defer server.Close()
@@ -45,11 +46,22 @@ func TestPaymentMethodsCascading_Detail(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "payment-methods-cascading", "A001"})
+	root.SetArgs([]string{"order-line-item", "get", "OLI-001"})
 	err := root.Execute()
 
 	require.NoError(t, err)
-	output := out.String()
-	assert.Contains(t, output, "pm-parent")
-	assert.Contains(t, output, "CreditCard")
+	assert.Contains(t, out.String(), "OLI-001")
+	assert.Contains(t, out.String(), "Widget")
+}
+
+func TestOrderLineItemGet_RequiresArg(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order-line-item", "get"})
+	err := root.Execute()
+
+	assert.Error(t, err)
 }

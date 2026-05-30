@@ -1,4 +1,4 @@
-package paymentmethodscascading
+package balance
 
 import (
 	"encoding/json"
@@ -19,23 +19,24 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "")
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdPaymentMethodsCascading(f))
-	root.AddCommand(acct)
+	commitment := &cobra.Command{Use: "commitment"}
+	commitment.AddCommand(NewCmdBalance(f))
+	root.AddCommand(commitment)
 	return root
 }
 
-func TestPaymentMethodsCascading_Detail(t *testing.T) {
+func TestCommitmentBalance_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/accounts/A001/payment-methods/cascading", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/v1/commitments/CMT-00000001/balance", r.URL.Path)
 		w.WriteHeader(200)
-		// Cascading config response
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":                       true,
-			"paymentMethodId":               "pm-parent",
-			"paymentMethodCascadingConsent": true,
-			"paymentMethodType":             "CreditCard",
-			"creditCardMaskNumber":          "****9999",
+			"success":         true,
+			"commitmentKey":   "CMT-00000001",
+			"totalAmount":     1000.0,
+			"consumedAmount":  250.0,
+			"remainingAmount": 750.0,
+			"currency":        "USD",
 		})
 	}))
 	defer server.Close()
@@ -45,11 +46,22 @@ func TestPaymentMethodsCascading_Detail(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "payment-methods-cascading", "A001"})
+	root.SetArgs([]string{"commitment", "balance", "CMT-00000001"})
 	err := root.Execute()
 
 	require.NoError(t, err)
-	output := out.String()
-	assert.Contains(t, output, "pm-parent")
-	assert.Contains(t, output, "CreditCard")
+	assert.Contains(t, out.String(), "CMT-00000001")
+	assert.Contains(t, out.String(), "remainingAmount")
+}
+
+func TestCommitmentBalance_RequiresArg(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"commitment", "balance"})
+	err := root.Execute()
+
+	assert.Error(t, err)
 }

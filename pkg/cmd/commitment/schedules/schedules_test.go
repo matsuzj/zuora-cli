@@ -1,4 +1,4 @@
-package revert
+package schedules
 
 import (
 	"encoding/json"
@@ -19,46 +19,52 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "")
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
-	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdRevert(f))
-	root.AddCommand(order)
+	commitment := &cobra.Command{Use: "commitment"}
+	commitment.AddCommand(NewCmdSchedules(f))
+	root.AddCommand(commitment)
 	return root
 }
 
-func TestOrderRevert_Success(t *testing.T) {
+func TestCommitmentSchedules_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/orders/O-00000001/revert", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/v1/commitments/CMT-00000001/schedules", r.URL.Path)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"orderNumber": "O-00000001",
+			"success": true,
+			"schedules": []map[string]interface{}{
+				{
+					"scheduleNumber": "SCH-00000001",
+					"startDate":      "2026-01-01",
+					"endDate":        "2026-12-31",
+					"amount":         1000,
+				},
+			},
 		})
 	}))
 	defer server.Close()
 
-	ios, _, out, errOut := iostreams.Test()
+	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`, "--confirm"})
+	root.SetArgs([]string{"commitment", "schedules", "CMT-00000001"})
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 reverted.")
+	assert.Contains(t, out.String(), "SCH-00000001")
+	assert.Contains(t, out.String(), "schedules")
 }
 
-func TestOrderRevert_RequiresBody(t *testing.T) {
+func TestCommitmentSchedules_RequiresArg(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001"})
+	root.SetArgs([]string{"commitment", "schedules"})
 	err := root.Execute()
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
 }

@@ -1,4 +1,4 @@
-package revert
+package previewasync
 
 import (
 	"encoding/json"
@@ -20,19 +20,21 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
 	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdRevert(f))
+	order.AddCommand(NewCmdPreviewAsync(f))
 	root.AddCommand(order)
 	return root
 }
 
-func TestOrderRevert_Success(t *testing.T) {
+func TestOrderPreviewAsync_Success(t *testing.T) {
+	var gotBody map[string]interface{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/orders/O-00000001/revert", r.URL.Path)
+		assert.Equal(t, "/v1/async/orders/preview", r.URL.Path)
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"orderNumber": "O-00000001",
+			"success": true,
+			"jobId":   "JOB-00000001",
 		})
 	}))
 	defer server.Close()
@@ -42,21 +44,22 @@ func TestOrderRevert_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`, "--confirm"})
+	root.SetArgs([]string{"order", "preview-async", "--body", `{"orderDate":"2024-01-01"}`})
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 reverted.")
+	assert.Equal(t, "2024-01-01", gotBody["orderDate"])
+	assert.Contains(t, out.String(), "JOB-00000001")
+	assert.Contains(t, errOut.String(), "Async order preview started. Job ID: JOB-00000001")
 }
 
-func TestOrderRevert_RequiresBody(t *testing.T) {
+func TestOrderPreviewAsync_RequiresBody(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001"})
+	root.SetArgs([]string{"order", "preview-async"})
 	err := root.Execute()
 
 	assert.Error(t, err)

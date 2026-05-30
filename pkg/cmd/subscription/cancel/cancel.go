@@ -2,9 +2,9 @@
 package cancel
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"bytes"
 	"io"
 	"net/url"
 
@@ -19,6 +19,7 @@ type cancelOptions struct {
 	Body          string
 	Policy        string
 	EffectiveDate string
+	Confirm       bool
 }
 
 // NewCmdCancel creates the subscription cancel command.
@@ -44,6 +45,9 @@ Examples:
 			if opts.Body == "" && opts.Policy == "SpecificDate" && opts.EffectiveDate == "" {
 				return fmt.Errorf("--effective-date is required when --policy is SpecificDate")
 			}
+			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
+				return err
+			}
 			return runCancel(cmd, f, opts, args[0])
 		},
 	}
@@ -51,6 +55,7 @@ Examples:
 	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Cancellation policy (EndOfCurrentTerm, EndOfLastInvoicePeriod, SpecificDate)")
 	cmd.Flags().StringVar(&opts.EffectiveDate, "effective-date", "", "Cancellation date (required for SpecificDate, YYYY-MM-DD)")
+	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the cancellation")
 
 	return cmd
 }

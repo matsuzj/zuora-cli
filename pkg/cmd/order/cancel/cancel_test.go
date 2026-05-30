@@ -1,4 +1,4 @@
-package revert
+package cancel
 
 import (
 	"encoding/json"
@@ -20,19 +20,20 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
 	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdRevert(f))
+	order.AddCommand(NewCmdCancel(f))
 	root.AddCommand(order)
 	return root
 }
 
-func TestOrderRevert_Success(t *testing.T) {
+func TestOrderCancel_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/orders/O-00000001/revert", r.URL.Path)
+		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "/v1/orders/O-00000001/cancel", r.URL.Path)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":     true,
 			"orderNumber": "O-00000001",
+			"status":      "Cancelled",
 		})
 	}))
 	defer server.Close()
@@ -42,23 +43,31 @@ func TestOrderRevert_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`, "--confirm"})
+	root.SetArgs([]string{"order", "cancel", "O-00000001", "--confirm"})
 	err := root.Execute()
 
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 reverted.")
+	assert.Contains(t, errOut.String(), "Order O-00000001 cancelled.")
 }
 
-func TestOrderRevert_RequiresBody(t *testing.T) {
+func TestOrderCancel_RequiresConfirm(t *testing.T) {
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
 	ios, _, _, _ := iostreams.Test()
 	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001"})
+	root.SetArgs([]string{"order", "cancel", "O-00000001"})
 	err := root.Execute()
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), "irreversible")
+	assert.False(t, called, "no HTTP request should be made when --confirm is omitted")
 }

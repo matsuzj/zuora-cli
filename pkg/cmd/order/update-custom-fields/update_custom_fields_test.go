@@ -1,7 +1,8 @@
-package scrub
+package updatecustomfields
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,16 +20,22 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "")
 	root.PersistentFlags().String("jq", "", "")
 	root.PersistentFlags().String("template", "", "")
-	sub := &cobra.Command{Use: "contact"}
-	sub.AddCommand(NewCmdScrub(f))
-	root.AddCommand(sub)
+	order := &cobra.Command{Use: "order"}
+	order.AddCommand(NewCmdUpdateCustomFields(f))
+	root.AddCommand(order)
 	return root
 }
 
-func TestContactScrub_Success(t *testing.T) {
+func TestOrderUpdateCustomFields_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
-		assert.Equal(t, "/v1/contacts/c-123/scrub", r.URL.Path)
+		assert.Equal(t, "/v1/orders/O-00000001/customFields", r.URL.Path)
+
+		raw, _ := io.ReadAll(r.Body)
+		var sent map[string]interface{}
+		require.NoError(t, json.Unmarshal(raw, &sent))
+		assert.Equal(t, "value", sent["cf_MyField__c"])
+
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
@@ -40,16 +47,26 @@ func TestContactScrub_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "scrub", "c-123", "--confirm"})
+	root.SetArgs([]string{"order", "update-custom-fields", "O-00000001", "--body", `{"cf_MyField__c":"value"}`})
 	require.NoError(t, root.Execute())
 	assert.Contains(t, out.String(), "true")
-	assert.Contains(t, errOut.String(), "Contact c-123 scrubbed.")
+	assert.Contains(t, errOut.String(), "Custom fields updated for order O-00000001.")
 }
 
-func TestContactScrub_RequiresArgs(t *testing.T) {
+func TestOrderUpdateCustomFields_RequiresBody(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")
 	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "scrub"})
+	root.SetArgs([]string{"order", "update-custom-fields", "O-00000001"})
+	err := root.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--body is required")
+}
+
+func TestOrderUpdateCustomFields_RequiresArgs(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order", "update-custom-fields"})
 	assert.Error(t, root.Execute())
 }

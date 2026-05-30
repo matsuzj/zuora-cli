@@ -12,7 +12,7 @@ import (
 
 // Factory provides shared dependencies to all commands.
 type Factory struct {
-	IOStreams   *iostreams.IOStreams
+	IOStreams  *iostreams.IOStreams
 	Config     func() (config.Config, error)
 	HttpClient func() (*api.Client, error)
 	AuthToken  func() (string, error)

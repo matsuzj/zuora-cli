@@ -2,9 +2,9 @@
 package suspend
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"bytes"
 	"io"
 	"net/url"
 

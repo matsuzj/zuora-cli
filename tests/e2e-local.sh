@@ -200,13 +200,19 @@ else
 fi
 
 echo "  Testing: auth token (isolated)"
-AT_OUT=$(zr auth token 2>&1); AT_RC=$?
-if [ "$AT_RC" -eq 0 ] && [ -n "$AT_OUT" ]; then
-  pass "auth token → returned a token (rc=0)"
-elif [ "$AT_RC" -ne 0 ] && echo "$AT_OUT" | grep -qiE "auth|login|credential|environment|token"; then
-  pass "auth token → clean error without credentials (rc=$AT_RC)"
+# SECURITY: `auth token` prints the bearer token on stdout. Never store that
+# value in a variable (it could later be echoed into the log). Capture only its
+# byte length + exit code; on the error path the message (stderr) is not secret.
+AT_LEN=$(zr auth token 2>/dev/null | wc -c | tr -d ' '); AT_RC=${PIPESTATUS[0]}
+if [ "$AT_RC" -eq 0 ] && [ "${AT_LEN:-0}" -gt 1 ]; then
+  pass "auth token → returned a non-empty token (${AT_LEN} bytes, value not logged)"
 else
-  fail "auth token → unexpected: rc=$AT_RC $(echo "$AT_OUT" | head -1)"
+  AT_ERR=$(zr auth token 2>&1 >/dev/null)   # stderr only; stdout (token) discarded
+  if [ "$AT_RC" -ne 0 ] && printf '%s' "$AT_ERR" | grep -qiE "auth|login|credential|environment|token"; then
+    pass "auth token → clean error without credentials (rc=$AT_RC)"
+  else
+    fail "auth token → unexpected: rc=$AT_RC (token value intentionally not shown)"
+  fi
 fi
 
 # ─────────────────────────────────────────

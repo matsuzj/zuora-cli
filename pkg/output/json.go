@@ -22,6 +22,11 @@ func decodeJSONPreservingNumbers(data []byte) (interface{}, error) {
 	if err := dec.Decode(&v); err != nil {
 		return nil, err
 	}
+	// Reject trailing garbage after the first value, so "{...} junk" is not
+	// silently accepted as valid (matches strict json.Unmarshal behavior).
+	if dec.More() {
+		return nil, fmt.Errorf("unexpected trailing data after JSON value")
+	}
 	return v, nil
 }
 
@@ -35,14 +40,15 @@ func PrintRawOrJSON(ios *iostreams.IOStreams, data []byte) error {
 	}
 	var v json.RawMessage
 	if err := json.Unmarshal(data, &v); err != nil {
-		// Not JSON — pass the body through verbatim.
-		fmt.Fprintln(ios.Out, string(data))
-		return nil
+		// Not JSON — pass the body through verbatim (no added newline), so a
+		// binary or exact-byte body redirected from `zr api` is not corrupted.
+		_, werr := ios.Out.Write(data)
+		return werr
 	}
 	pretty, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		fmt.Fprintln(ios.Out, string(data))
-		return nil
+		_, werr := ios.Out.Write(data)
+		return werr
 	}
 	fmt.Fprintln(ios.Out, string(pretty))
 	return nil

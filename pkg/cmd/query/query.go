@@ -118,7 +118,11 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 		tmpName := tmp.Name()
 		outWriter = tmp
 		defer func() {
-			tmp.Close()
+			// A failed flush/close must abort the rename so a truncated temp
+			// file never replaces the user's existing export.
+			if cerr := tmp.Close(); cerr != nil && retErr == nil {
+				retErr = cerr
+			}
 			if retErr == nil {
 				retErr = os.Rename(tmpName, opts.Export)
 			}

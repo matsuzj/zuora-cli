@@ -49,6 +49,18 @@ func (ts *TokenSource) Token(envName string) (string, error) {
 	return ts.Refresh(envName)
 }
 
+// ForceRefresh fetches a new token unconditionally (bypassing the cache) while
+// still serializing per environment via the same single-flight lock as Token,
+// so a forced refresh (e.g. after a 401) cannot stampede the OAuth endpoint
+// alongside concurrent callers.
+func (ts *TokenSource) ForceRefresh(envName string) (string, error) {
+	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
+	mu := muAny.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+	return ts.Refresh(envName)
+}
+
 // Refresh fetches a new token from the OAuth endpoint.
 func (ts *TokenSource) Refresh(envName string) (string, error) {
 	clientID, clientSecret, err := ts.Creds.Get(envName)

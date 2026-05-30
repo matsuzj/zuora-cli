@@ -42,11 +42,9 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 	skipBackoff := false
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		// Honor cancellation before each attempt.
+		// Honor cancellation before each attempt. Return the cancellation error
+		// (not a stale prior API error) so Ctrl-C is classified as cancellation.
 		if err := ctx.Err(); err != nil {
-			if lastErr != nil {
-				return nil, lastErr
-			}
 			return nil, err
 		}
 
@@ -55,9 +53,6 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				backoff := time.Duration(1<<(attempt-1)) * time.Second
 				jitter := time.Duration(rand.Int64N(int64(backoff / 2)))
 				if err := c.sleep(ctx, backoff+jitter); err != nil {
-					if lastErr != nil {
-						return nil, lastErr
-					}
 					return nil, err
 				}
 			}

@@ -57,11 +57,12 @@ func New() *Factory {
 		if err != nil {
 			return nil, err
 		}
-		// refreshToken forces a token refresh (bypasses cache)
+		// refreshToken forces a token refresh (bypasses cache) while still
+		// sharing the per-environment single-flight lock.
 		refreshToken := func() (string, error) {
 			creds := auth.NewCredentialStore()
 			ts := &auth.TokenSource{Config: cfg, Creds: creds}
-			return ts.Refresh(cfg.ActiveEnvironment())
+			return ts.ForceRefresh(cfg.ActiveEnvironment())
 		}
 		return api.NewClient(
 			api.WithBaseURL(env.BaseURL),

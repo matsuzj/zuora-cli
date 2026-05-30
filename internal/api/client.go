@@ -144,6 +144,28 @@ func (c *Client) SetContext(ctx context.Context) {
 	}
 }
 
+// checkHost refuses a request whose absolute URL targets a host other than
+// the configured base URL. Relative paths (resolved against baseURL) and
+// same-host absolute URLs (e.g. a pagination nextPage) are allowed; a
+// cross-host absolute URL is rejected so the bearer token is never sent off-host.
+func (c *Client) checkHost(fullURL string) error {
+	target, err := url.Parse(fullURL)
+	if err != nil {
+		return fmt.Errorf("invalid request URL: %w", err)
+	}
+	if target.Host == "" {
+		return nil // relative — already rooted at the configured base URL
+	}
+	base, err := url.Parse(c.baseURL)
+	if err != nil || base.Host == "" {
+		return nil // no configured host to compare against
+	}
+	if !strings.EqualFold(target.Host, base.Host) {
+		return fmt.Errorf("refusing to send credentials to %q: not the configured environment host %q", target.Host, base.Host)
+	}
+	return nil
+}
+
 // Do performs an HTTP request.
 func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, error) {
 	if c.readOnly && !isReadOnlyAllowed(method, path) {
@@ -153,6 +175,13 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 	rc := newRequestConfig(opts)
 
 	fullURL := c.buildURL(path, rc.query)
+
+	// Never send credentials to a host other than the configured environment
+	// host (e.g. a stray `zr api https://attacker/...`), which would leak the
+	// bearer token off-host.
+	if err := c.checkHost(fullURL); err != nil {
+		return nil, err
+	}
 
 	var bodyReader io.Reader
 	if rc.body != nil {

@@ -3,7 +3,7 @@ package output
 import (
 	"encoding/csv"
 	"io"
-	"strconv"
+	"regexp"
 )
 
 // PrintCSV writes data as CSV, neutralizing spreadsheet formula injection.
@@ -56,9 +56,14 @@ func sanitizeCSVField(s string) string {
 	return s
 }
 
-// isNumeric reports whether s is a plain numeric literal (so a leading sign is
-// data, not the start of a formula).
+// isNumeric reports whether s is a plain decimal numeric literal, so a leading
+// sign is data rather than the start of a formula. It deliberately rejects the
+// Go-only forms strconv.ParseFloat accepts (Inf, NaN, hex/0x..p exponents,
+// underscores), since those still begin with a spreadsheet formula trigger.
 func isNumeric(s string) bool {
-	_, err := strconv.ParseFloat(s, 64)
-	return err == nil
+	return decimalNumberRE.MatchString(s)
 }
+
+// decimalNumberRE matches an optional sign, integer/decimal digits, and an
+// optional base-10 exponent — nothing else.
+var decimalNumberRE = regexp.MustCompile(`^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$`)

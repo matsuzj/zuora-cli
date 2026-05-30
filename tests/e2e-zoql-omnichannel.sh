@@ -170,6 +170,37 @@ else
 fi
 
 # ─────────────────────────────────────────
+header "Step 6: Read-only mode (ZR_READ_ONLY)"
+# ─────────────────────────────────────────
+
+# 6a: a write (non-allowlisted POST) must be BLOCKED in read-only mode
+echo "  Testing: ZR_READ_ONLY=1 blocks account create"
+RO_WRITE=$(ZR_READ_ONLY=1 $ZR account create --body '{"name":"ro-smoke"}' 2>&1) || true
+if echo "$RO_WRITE" | grep -qi "read-only"; then
+  pass "read-only → account create blocked"
+else
+  fail "read-only → account create NOT blocked: $(echo "$RO_WRITE" | head -1)"
+fi
+
+# 6b: a non-recognized-falsy value must FAIL CLOSED (still read-only)
+echo "  Testing: ZR_READ_ONLY=yes also blocks writes (fail-safe)"
+RO_WRITE2=$(ZR_READ_ONLY=yes $ZR account create --body '{"name":"ro-smoke"}' 2>&1) || true
+if echo "$RO_WRITE2" | grep -qi "read-only"; then
+  pass "read-only → ZR_READ_ONLY=yes blocks writes (fail-safe)"
+else
+  fail "read-only → ZR_READ_ONLY=yes did NOT block: $(echo "$RO_WRITE2" | head -1)"
+fi
+
+# 6c: an allowlisted read (ZOQL query) must still WORK in read-only mode
+echo "  Testing: ZR_READ_ONLY=1 still allows ZOQL query"
+RO_READ=$(ZR_READ_ONLY=1 $ZR query "SELECT Id FROM Product" --json 2>/dev/null) || true
+if echo "$RO_READ" | jq -e '.' >/dev/null 2>&1; then
+  pass "read-only → ZOQL query allowed"
+else
+  fail "read-only → ZOQL query unexpectedly blocked: $(echo "$RO_READ" | head -1)"
+fi
+
+# ─────────────────────────────────────────
 header "Summary"
 # ─────────────────────────────────────────
 echo ""

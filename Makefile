@@ -7,7 +7,7 @@ LDFLAGS := -s -w \
 	-X github.com/matsuzj/zuora-cli/internal/build.Commit=$(COMMIT) \
 	-X github.com/matsuzj/zuora-cli/internal/build.Date=$(DATE)
 
-.PHONY: build test lint clean fmt check
+.PHONY: build test e2e lint clean fmt check
 
 build:
 	mkdir -p bin
@@ -15,6 +15,10 @@ build:
 
 test:
 	go test -race -count=1 ./...
+
+# E2E suites hit a real Zuora tenant — requires `zr auth login` first.
+e2e: build
+	./tests/run-all.sh
 
 lint:
 	go vet ./...

@@ -4,6 +4,7 @@ package root
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -71,47 +72,38 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 				}
 			}
 
-			// --zuora-version override
-			if zv, _ := cmd.Flags().GetString("zuora-version"); zv != "" {
-				origHttpClient := f.HttpClient
-				f.HttpClient = func() (*api.Client, error) {
-					client, err := origHttpClient()
-					if err != nil {
-						return nil, err
-					}
-					client.SetZuoraVersion(zv)
-					return client, nil
-				}
-			}
+			zv, _ := cmd.Flags().GetString("zuora-version")
+			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			// --verbose override
-			if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
-				origHttpClient := f.HttpClient
-				f.HttpClient = func() (*api.Client, error) {
-					client, err := origHttpClient()
-					if err != nil {
-						return nil, err
-					}
-					client.SetVerbose(f.IOStreams.ErrOut)
-					return client, nil
-				}
-			}
-
-			// --read-only override (flag takes precedence over env var)
+			// --read-only flag takes precedence over the ZR_READ_ONLY env var.
 			readOnly, _ := cmd.Flags().GetBool("read-only")
-			if !readOnly && !cmd.Flags().Changed("read-only") {
-				readOnly = os.Getenv("ZR_READ_ONLY") == "true"
+			if !cmd.Flags().Changed("read-only") {
+				readOnly = envReadOnly()
 			}
-			if readOnly {
-				origHttpClient := f.HttpClient
-				f.HttpClient = func() (*api.Client, error) {
-					client, err := origHttpClient()
-					if err != nil {
-						return nil, err
-					}
-					client.SetReadOnly(true)
-					return client, nil
+
+			// Apply all client overrides (context, version, verbose, read-only)
+			// in a single wrapper captured from the original once, so the
+			// overrides are not stacked cumulatively across invocations.
+			ctx := cmd.Context()
+			origHttpClient := f.HttpClient
+			f.HttpClient = func() (*api.Client, error) {
+				client, err := origHttpClient()
+				if err != nil {
+					return nil, err
 				}
+				if ctx != nil {
+					client.SetContext(ctx)
+				}
+				if zv != "" {
+					client.SetZuoraVersion(zv)
+				}
+				if verbose {
+					client.SetVerbose(f.IOStreams.ErrOut)
+				}
+				if readOnly {
+					client.SetReadOnly(true)
+				}
+				return client, nil
 			}
 
 			return nil
@@ -163,6 +155,24 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(aliascmd.NewCmdAlias(f))
 
 	return cmd
+}
+
+// envReadOnly reports whether ZR_READ_ONLY requests read-only mode. It accepts
+// the conventional truthy/falsy spellings and, critically, fails safe: a
+// non-empty but unrecognized value enables read-only rather than silently
+// allowing writes.
+func envReadOnly() bool {
+	v := strings.TrimSpace(os.Getenv("ZR_READ_ONLY"))
+	if v == "" {
+		return false
+	}
+	switch strings.ToLower(v) {
+	case "0", "f", "false", "no", "n", "off":
+		return false
+	default:
+		// "1", "t", "true", "yes", "y", "on", and anything unrecognized.
+		return true
+	}
 }
 
 // envOverrideConfig wraps a Config to override ActiveEnvironment() without mutating the original.

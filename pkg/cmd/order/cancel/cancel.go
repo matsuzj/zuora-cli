@@ -8,24 +8,34 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdCancel creates the order cancel command.
 func NewCmdCancel(f *factory.Factory) *cobra.Command {
+	var confirm bool
+
 	cmd := &cobra.Command{
 		Use:   "cancel <order-number>",
 		Short: "Cancel an order",
 		Long: `Cancel a Zuora order.
 
+This action is irreversible. Use --confirm to proceed.
+
 Examples:
-  zr order cancel O-00000001`,
+  zr order cancel O-00000001 --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
+			}
 			return runCancel(cmd, f, args[0])
 		},
 	}
+
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the cancellation")
 	return cmd
 }
 

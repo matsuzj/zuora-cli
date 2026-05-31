@@ -2,11 +2,38 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
 )
+
+// zuoraVersionPattern matches Zuora's date-style API version (e.g. 2025-08-12).
+var zuoraVersionPattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+
+// ValidateBaseURL ensures a configured environment URL is an absolute http(s)
+// URL with a host, so a blank or malformed value fails clearly at config time
+// rather than as an opaque error when a request (carrying the secret) is sent.
+func ValidateBaseURL(raw string) error {
+	if strings.TrimSpace(raw) == "" {
+		return fmt.Errorf("base URL is required")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid base URL %q: %w", raw, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid base URL %q: must be http or https", raw)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("invalid base URL %q: missing host", raw)
+	}
+	return nil
+}
 
 // configData represents config.yml.
 type configData struct {
@@ -83,8 +110,8 @@ func (fc *fileConfig) load() error {
 
 func (fc *fileConfig) ActiveEnvironment() string { return fc.cfg.ActiveEnvironment }
 func (fc *fileConfig) ZuoraVersion() string      { return fc.cfg.ZuoraVersion }
-func (fc *fileConfig) DefaultOutput() string      { return fc.cfg.DefaultOutput }
-func (fc *fileConfig) ConfigDir() string          { return fc.dir }
+func (fc *fileConfig) DefaultOutput() string     { return fc.cfg.DefaultOutput }
+func (fc *fileConfig) ConfigDir() string         { return fc.dir }
 
 func (fc *fileConfig) SetActiveEnvironment(name string) error {
 	if _, ok := fc.envs.Environments[name]; !ok {
@@ -95,6 +122,9 @@ func (fc *fileConfig) SetActiveEnvironment(name string) error {
 }
 
 func (fc *fileConfig) SetZuoraVersion(v string) error {
+	if !zuoraVersionPattern.MatchString(v) {
+		return fmt.Errorf("invalid Zuora version %q (expected YYYY-MM-DD)", v)
+	}
 	fc.cfg.ZuoraVersion = v
 	return nil
 }
@@ -122,6 +152,15 @@ func (fc *fileConfig) Environments() map[string]*Environment {
 }
 
 func (fc *fileConfig) AddEnvironment(name string, env *Environment) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("environment name is required")
+	}
+	if env == nil {
+		return fmt.Errorf("environment is required")
+	}
+	if err := ValidateBaseURL(env.BaseURL); err != nil {
+		return err
+	}
 	fc.envs.Environments[name] = env
 	return nil
 }
@@ -135,6 +174,8 @@ func (fc *fileConfig) RemoveEnvironment(name string) error {
 }
 
 func (fc *fileConfig) Token(envName string) (*TokenEntry, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 	t, ok := fc.toks.Tokens[envName]
 	if !ok {
 		return nil, nil
@@ -157,6 +198,8 @@ func (fc *fileConfig) RemoveToken(envName string) error {
 }
 
 func (fc *fileConfig) Save() error {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 	if err := os.MkdirAll(fc.dir, 0700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
@@ -180,10 +223,37 @@ func readYAML(path string, v interface{}) error {
 	return yaml.Unmarshal(data, v)
 }
 
+// writeYAML writes v as YAML to path via a temp file (mode 0600) in the same
+// directory followed by an atomic rename, so a crash, disk-full, or concurrent
+// writer cannot leave a truncated secret file: a reader sees either the old or
+// the new complete file. (The parent directory is not fsync'd, so a power loss
+// immediately after rename may lose the rename itself — acceptable for a token
+// cache, which would just trigger a re-login.)
 func writeYAML(path string, v interface{}) error {
 	data, err := yaml.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0600)
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".zr-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // no-op once renamed
+	if err := tmp.Chmod(0600); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }

@@ -31,11 +31,11 @@ func TestPaymentMethodsCascading_Detail(t *testing.T) {
 		w.WriteHeader(200)
 		// Cascading config response
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":                        true,
-			"paymentMethodId":                "pm-parent",
-			"paymentMethodCascadingConsent":   true,
-			"paymentMethodType":              "CreditCard",
-			"creditCardMaskNumber":           "****9999",
+			"success":                       true,
+			"paymentMethodId":               "pm-parent",
+			"paymentMethodCascadingConsent": true,
+			"paymentMethodType":             "CreditCard",
+			"creditCardMaskNumber":          "****9999",
 		})
 	}))
 	defer server.Close()

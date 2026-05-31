@@ -11,6 +11,7 @@ PASS=0
 FAIL=0
 SKIP=0
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+TODAY=$(date +%Y-%m-%d)  # local order date used by suspend/resume/renew steps
 RATE_PLAN_ID="4c6059a8d8899f453ffa0637451d0003"  # Backlog-スタータープラン(月払い)
 
 # Log directory
@@ -21,6 +22,11 @@ LOG_FILE="$LOG_DIR/e2e-subscription-write-${TIMESTAMP}.log"
 
 # Tee all output to log file (preserving terminal colors in terminal, stripping in file)
 exec > >(tee >(sed 's/\x1b\[[0-9;]*m//g' > "$LOG_FILE")) 2>&1
+LOG_TEE_PID=$!
+# Drain the tee/sed log pipeline on exit (sed block-buffers to a file;
+# without a clean EOF + wait the tail of the log is silently truncated).
+_drain_log() { exec 1>&- 2>&-; wait "$LOG_TEE_PID" 2>/dev/null || true; }
+trap _drain_log EXIT
 
 green()  { printf "\033[32m%s\033[0m\n" "$1"; }
 red()    { printf "\033[31m%s\033[0m\n" "$1"; }
@@ -35,10 +41,12 @@ header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-if $ZR auth status 2>&1 | grep -q "Environment:"; then
+# auth status always exits 0 and prints "Token: valid|expired"; key on a valid
+# token so an expired session fails fast rather than passing on the env label.
+if $ZR auth status 2>&1 | grep -qE "Token:[[:space:]]+valid"; then
   pass "Auth OK"
 else
-  fail "Auth failed"
+  fail "Auth failed (token not valid)"
   exit 1
 fi
 
@@ -261,10 +269,25 @@ else
   fail "cancel validation → unexpected: $CANCEL_ERR2"
 fi
 
-# 6c: Actual cancel with --body (Orders tenant requires orderDate)
+# 6c: cancel without --confirm (irreversible guard)
+echo "  Testing: cancel without --confirm"
+CANCEL_NOCONFIRM=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm 2>&1) || true
+if echo "$CANCEL_NOCONFIRM" | grep -q "\-\-confirm"; then
+  pass "cancel validation → requires --confirm"
+else
+  fail "cancel validation → unexpected: $CANCEL_NOCONFIRM"
+fi
+
+# 6d: Actual cancel with --body (Orders tenant requires orderDate)
 echo "  Testing: cancel $SUB_A --body (with orderDate for Orders tenant)"
-TODAY=$(date +%Y-%m-%d)
-CANCEL_OUT=$($ZR subscription cancel "$SUB_A" --body "{\"cancellationPolicy\":\"EndOfCurrentTerm\",\"orderDate\":\"$TODAY\"}" --json 2>/dev/null) || true
+# orderDate must be >= the subscription contractEffectiveDate. The apac-sandbox
+# clock can be a day ahead of local time near midnight, so derive the date
+# from the subscription itself (fallback: local today). Build the JSON with
+# printf to avoid shell quote-collapsing, and keep stderr so errors show.
+CANCEL_DATE=$($ZR subscription get "$SUB_A" --json 2>/dev/null | jq -r '.contractEffectiveDate // empty' 2>/dev/null)
+[ -z "$CANCEL_DATE" ] && CANCEL_DATE=$(date +%Y-%m-%d)
+CANCEL_BODY=$(printf '{"cancellationPolicy":"EndOfCurrentTerm","orderDate":"%s"}' "$CANCEL_DATE")
+CANCEL_OUT=$($ZR subscription cancel "$SUB_A" --body "$CANCEL_BODY" --confirm --json 2>&1) || true
 CANCEL_SUCCESS=$(echo "$CANCEL_OUT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$CANCEL_SUCCESS" = "true" ]; then
@@ -276,7 +299,7 @@ fi
 # 6d: Verify cancel with --policy only sends correct payload (dry check, not on SUB_B)
 # NOTE: We do NOT cancel SUB_B here — it is reserved for suspend/resume in Step 7-8.
 echo "  Testing: cancel validation with --policy on already-cancelled SUB_A"
-CANCEL_NODATE=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm 2>&1) || true
+CANCEL_NODATE=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm --confirm 2>&1) || true
 if echo "$CANCEL_NODATE" | grep -qi "error\|オーダー日\|キャンセル済み"; then
   pass "cancel --policy on cancelled sub → correctly rejected"
 else
@@ -539,6 +562,46 @@ elif echo "$DEL_OUT" | grep -qi "error\|cannot\|draft\|invalid"; then
   pass "subscription delete → correctly rejected (non-Draft subscription)"
 else
   fail "subscription delete → unexpected: $(echo "$DEL_OUT" | head -3)"
+fi
+
+# ─────────────────────────────────────────
+header "Step 13.5: subscription metrics / versions (live reads)"
+# ─────────────────────────────────────────
+
+echo "  Testing: subscription metrics without --subscription-numbers"
+SM_ERR=$($ZR subscription metrics 2>&1); SM_RC=$?
+if [ "$SM_RC" -ne 0 ] && echo "$SM_ERR" | grep -qF 'required flag(s) "subscription-numbers"'; then
+  pass "subscription metrics validation → requires --subscription-numbers"
+else
+  fail "subscription metrics validation → rc=$SM_RC: $(echo "$SM_ERR" | head -1)"
+fi
+
+echo "  Testing: subscription metrics --subscription-numbers $SUB_C"
+SM_OUT=$($ZR subscription metrics --subscription-numbers "$SUB_C" --json 2>&1); SM_RC2=$?
+if [ "$SM_RC2" -eq 0 ] && echo "$SM_OUT" | jq -e '.subscriptionMetrics' >/dev/null 2>&1; then
+  pass "subscription metrics → returned .subscriptionMetrics"
+elif echo "$SM_OUT" | grep -qF "Zuora API error"; then
+  skip "subscription metrics → $(echo "$SM_OUT" | head -1)"
+else
+  fail "subscription metrics → rc=$SM_RC2: $(echo "$SM_OUT" | head -1)"
+fi
+
+echo "  Testing: subscription versions with 1 arg"
+SV_ERR=$($ZR subscription versions "$SUB_C" 2>&1); SV_RC=$?
+if [ "$SV_RC" -ne 0 ] && echo "$SV_ERR" | grep -qF "accepts 2 arg(s), received 1"; then
+  pass "subscription versions validation → requires 2 args"
+else
+  fail "subscription versions validation → rc=$SV_RC: $(echo "$SV_ERR" | head -1)"
+fi
+
+echo "  Testing: subscription versions $SUB_C 1"
+SV_OUT=$($ZR subscription versions "$SUB_C" 1 --json 2>&1); SV_RC2=$?
+if [ "$SV_RC2" -eq 0 ] && echo "$SV_OUT" | jq -e '.subscriptionNumber // .id // .subscription' >/dev/null 2>&1; then
+  pass "subscription versions → returned version data"
+elif [ "$SV_RC2" -ne 0 ] && echo "$SV_OUT" | grep -qF "Zuora API error"; then
+  skip "subscription versions → $(echo "$SV_OUT" | head -1)"
+else
+  fail "subscription versions → rc=$SV_RC2: $(echo "$SV_OUT" | head -1)"
 fi
 
 # ─────────────────────────────────────────

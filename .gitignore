@@ -28,3 +28,4 @@ Thumbs.db
 
 # E2E test logs
 tests/logs/
+/zr

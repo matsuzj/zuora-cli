@@ -2,8 +2,8 @@
 package orderlineitem
 
 import (
-	bulkupdate "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item/bulk-update"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	bulkupdate "github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item/bulk-update"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item/get"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/order-line-item/update"
 	"github.com/spf13/cobra"

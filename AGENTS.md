@@ -33,11 +33,12 @@ Follow Conventional Commits:
 
 ## Testing
 
-- Run `go test -race ./...` before committing
+- Run `go test -race -count=1 ./...` (or `task test`) before committing — CI uses `-count=1` to bypass the test cache
 - Tests must pass with `-race` flag
-- Use `testify/assert` for assertions
+- Use `testify` for assertions (`require` for fatal checks, `assert` for non-fatal)
 - Use `iostreams.Test()` for testing command output
 - Use `httptest.NewServer` for HTTP mocking
+- E2E suites (`tests/e2e-*.sh`) hit a LIVE tenant via `./tests/run-all.sh` — need `zr auth login` first; some checks skip on the sandbox (see `docs/e2e-test-skips.md`)
 
 ## Architecture
 
@@ -49,7 +50,11 @@ Follow Conventional Commits:
 
 ## Build & Run
 
-- `task build` or `make build` — Build binary
-- `task test` or `make test` — Run tests
-- `task lint` or `make lint` — Run linters
-- Binary output: `./bin/zr`
+- `task build` or `make build` — Build binary (output: `./bin/zr`)
+- `task test` or `make test` — Run tests (`go test -race -count=1 ./...`)
+- `task lint` or `make lint` — Run linters (go vet + staticcheck)
+- `task fmt` or `make fmt` — `gofmt -w .` (run before pushing)
+- `task check` or `make check` — lint + test (pre-commit gate)
+- `task e2e` or `make e2e` — run E2E suites against a LIVE authenticated tenant
+- Requires Go 1.26.1 (see `go.mod`)
+- CI (`.github/workflows/ci.yml`) additionally enforces `gofmt -l .` and `go mod verify`, which `task lint`/`task check` do not — so run `task fmt` before pushing or CI fails on formatting

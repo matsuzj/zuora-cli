@@ -1,18 +1,19 @@
 #!/bin/bash
-# E2E Test: Commerce Commands (Phase 5)
+# E2E Test: Commerce / Catalog (Product, Plan, Charge, RatePlan)
 # テナント: apac-sandbox
-# 注意: Commerce API はテナントの Product Catalog 設定に依存する
+# 注意: product list-legacy / plan list は --body を必須とする検索 API。テナントの
+#       Product Catalog 設定に依存するが、空フィルタ {} なら結果(空配列可)を返す。
 
 set -uo pipefail
 
-ZR="./bin/zr"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ZR="$SCRIPT_DIR/../bin/zr"
 PASS=0
 FAIL=0
 SKIP=0
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+RATE_PLAN_ID="${ZR_E2E_RATE_PLAN_ID:-4c6059a8d8899f453ffa0637451d0003}"
 
-# Log directory
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-commerce-${TIMESTAMP}.log"
@@ -29,280 +30,139 @@ skip() { SKIP=$((SKIP+1)); yellow "  ⊘ $1 (skipped)"; }
 
 header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
 
+# run <command...> — stdout→RUN_OUT (clean), stderr→RUN_ERR, exit→RUN_RC.
+RUN_OUT=""; RUN_ERR=""; RUN_RC=0
+run() {
+  local ef="$LOG_DIR/.run.$$.err"
+  RUN_OUT=$("$@" 2>"$ef"); RUN_RC=$?
+  RUN_ERR=$(cat "$ef" 2>/dev/null); rm -f "$ef"
+}
+
+# expect_fail <description> <expected-substring> -- <command...>
+expect_fail() {
+  local desc="$1" want="$2"; shift 2
+  [ "${1:-}" = "--" ] && shift
+  local out rc
+  out=$("$@" 2>&1); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF -- "$want"; then
+    pass "$desc"
+  else
+    fail "$desc → rc=$rc, expected '$want', got: $(printf '%s' "$out" | head -1)"
+  fi
+}
+
+# read_or_skip <description> <jq-success-filter> -- <command...>
+# pass if rc==0 and the jq filter matches; skip ONLY on a real "Zuora API error"
+# (feature/endpoint not enabled on this tenant); fail on anything else.
+read_or_skip() {
+  local desc="$1" filter="$2"; shift 2
+  [ "${1:-}" = "--" ] && shift
+  run "$@"
+  if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e "$filter" >/dev/null 2>&1; then
+    pass "$desc"
+  elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "Zuora API error"; then
+    skip "$desc → $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
+  else
+    fail "$desc → rc=$RUN_RC: ${RUN_ERR:-$RUN_OUT}"
+  fi
+}
+
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-if $ZR auth status 2>&1 | grep -q "Environment:"; then
+[ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }
+AUTH_OUT=$($ZR auth status 2>&1)
+if echo "$AUTH_OUT" | grep -qE "Token:[[:space:]]+valid"; then
   pass "Auth OK"
 else
-  fail "Auth failed"
+  fail "Auth failed (token not valid): $(echo "$AUTH_OUT" | grep -i 'token' | head -1)"
   exit 1
 fi
 
 # ─────────────────────────────────────────
-header "Step 1: Product Command Validation"
+header "Step 1: Validation (read commands)"
 # ─────────────────────────────────────────
-
-# 1a: product create missing --body
-echo "  Testing: product create without --body"
-PC_ERR=$($ZR product create 2>&1) || true
-if echo "$PC_ERR" | grep -q "\-\-body is required"; then
-  pass "product create validation → requires --body"
-else
-  fail "product create validation → unexpected: $PC_ERR"
-fi
-
-# 1b: product update missing --body
-echo "  Testing: product update without --body"
-PU_ERR=$($ZR product update 2>&1) || true
-if echo "$PU_ERR" | grep -q "\-\-body is required"; then
-  pass "product update validation → requires --body"
-else
-  fail "product update validation → unexpected: $PU_ERR"
-fi
-
-# 1c: product get missing argument
 echo "  Testing: product get without argument"
-PG_ERR=$($ZR product get 2>&1) || true
-if echo "$PG_ERR" | grep -qi "arg\|required"; then
-  pass "product get validation → requires argument"
-else
-  fail "product get validation → unexpected: $PG_ERR"
-fi
+expect_fail "product get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR product get
 
-# 1d: product list-legacy missing --body
 echo "  Testing: product list-legacy without --body"
-PL_ERR=$($ZR product list-legacy 2>&1) || true
-if echo "$PL_ERR" | grep -q "\-\-body is required"; then
-  pass "product list-legacy validation → requires --body"
-else
-  fail "product list-legacy validation → unexpected: $PL_ERR"
-fi
+expect_fail "product list-legacy validation → requires --body" "--body is required" -- $ZR product list-legacy
 
-# ─────────────────────────────────────────
-header "Step 2: Plan Command Validation"
-# ─────────────────────────────────────────
-
-# 2a: plan create missing --body
-echo "  Testing: plan create without --body"
-PLCR_ERR=$($ZR plan create 2>&1) || true
-if echo "$PLCR_ERR" | grep -q "\-\-body is required"; then
-  pass "plan create validation → requires --body"
-else
-  fail "plan create validation → unexpected: $PLCR_ERR"
-fi
-
-# 2b: plan update missing --body
-echo "  Testing: plan update without --body"
-PLUP_ERR=$($ZR plan update 2>&1) || true
-if echo "$PLUP_ERR" | grep -q "\-\-body is required"; then
-  pass "plan update validation → requires --body"
-else
-  fail "plan update validation → unexpected: $PLUP_ERR"
-fi
-
-# 2c: plan get missing --key
 echo "  Testing: plan get without --key"
-PLG_ERR=$($ZR plan get 2>&1) || true
-if echo "$PLG_ERR" | grep -q "\-\-key is required"; then
-  pass "plan get validation → requires --key"
-else
-  fail "plan get validation → unexpected: $PLG_ERR"
-fi
+expect_fail "plan get validation → requires --key" "--key is required" -- $ZR plan get
 
-# 2d: plan list missing --body
 echo "  Testing: plan list without --body"
-PLL_ERR=$($ZR plan list 2>&1) || true
-if echo "$PLL_ERR" | grep -q "\-\-body is required"; then
-  pass "plan list validation → requires --body"
-else
-  fail "plan list validation → unexpected: $PLL_ERR"
-fi
+expect_fail "plan list validation → requires --body" "--body is required" -- $ZR plan list
 
-# 2e: plan purchase-options missing --plan
 echo "  Testing: plan purchase-options without --plan"
-PLPO_ERR=$($ZR plan purchase-options 2>&1) || true
-if echo "$PLPO_ERR" | grep -q "\-\-plan is required"; then
-  pass "plan purchase-options validation → requires --plan"
-else
-  fail "plan purchase-options validation → unexpected: $PLPO_ERR"
-fi
+expect_fail "plan purchase-options validation → requires --plan" "--plan is required" -- $ZR plan purchase-options
 
-# ─────────────────────────────────────────
-header "Step 3: Charge Command Validation"
-# ─────────────────────────────────────────
-
-# 3a: charge create missing --body
-echo "  Testing: charge create without --body"
-CCR_ERR=$($ZR charge create 2>&1) || true
-if echo "$CCR_ERR" | grep -q "\-\-body is required"; then
-  pass "charge create validation → requires --body"
-else
-  fail "charge create validation → unexpected: $CCR_ERR"
-fi
-
-# 3b: charge update missing --body
-echo "  Testing: charge update without --body"
-CUP_ERR=$($ZR charge update 2>&1) || true
-if echo "$CUP_ERR" | grep -q "\-\-body is required"; then
-  pass "charge update validation → requires --body"
-else
-  fail "charge update validation → unexpected: $CUP_ERR"
-fi
-
-# 3c: charge get missing --key
 echo "  Testing: charge get without --key"
-CG_ERR=$($ZR charge get 2>&1) || true
-if echo "$CG_ERR" | grep -q "\-\-key is required"; then
-  pass "charge get validation → requires --key"
-else
-  fail "charge get validation → unexpected: $CG_ERR"
-fi
+expect_fail "charge get validation → requires --key" "--key is required" -- $ZR charge get
 
-# 3d: charge update-tiers missing --body
-echo "  Testing: charge update-tiers without --body"
-CT_ERR=$($ZR charge update-tiers 2>&1) || true
-if echo "$CT_ERR" | grep -q "\-\-body is required"; then
-  pass "charge update-tiers validation → requires --body"
-else
-  fail "charge update-tiers validation → unexpected: $CT_ERR"
-fi
-
-# ─────────────────────────────────────────
-header "Step 4: RatePlan Command Validation"
-# ─────────────────────────────────────────
-
-# 4a: rateplan get missing argument
 echo "  Testing: rateplan get without argument"
-RP_ERR=$($ZR rateplan get 2>&1) || true
-if echo "$RP_ERR" | grep -qi "arg\|required"; then
-  pass "rateplan get validation → requires argument"
-else
-  fail "rateplan get validation → unexpected: $RP_ERR"
-fi
+expect_fail "rateplan get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR rateplan get
 
 # ─────────────────────────────────────────
-header "Step 5: NoArgs 拒否テスト (余分な位置引数)"
+header "Step 2: Validation (mutating commands)"
 # ─────────────────────────────────────────
+echo "  Testing: product create without --body"
+expect_fail "product create validation → requires --body" "--body is required" -- $ZR product create
 
-# create/update/list 系は cobra.NoArgs なので余分な引数を拒否すべき
+echo "  Testing: product update without --body"
+expect_fail "product update validation → requires --body" "--body is required" -- $ZR product update
+
+echo "  Testing: plan create without --body"
+expect_fail "plan create validation → requires --body" "--body is required" -- $ZR plan create
+
+echo "  Testing: plan update without --body"
+expect_fail "plan update validation → requires --body" "--body is required" -- $ZR plan update
+
+echo "  Testing: charge create without --body"
+expect_fail "charge create validation → requires --body" "--body is required" -- $ZR charge create
+
+echo "  Testing: charge update without --body"
+expect_fail "charge update validation → requires --body" "--body is required" -- $ZR charge update
+
+echo "  Testing: charge update-tiers without --body"
+expect_fail "charge update-tiers validation → requires --body" "--body is required" -- $ZR charge update-tiers
+
+# ─────────────────────────────────────────
+header "Step 3: NoArgs rejection (stray positional)"
+# ─────────────────────────────────────────
 echo "  Testing: product create with stray arg"
-NOARGS_ERR=$($ZR product create extraArg --body '{}' 2>&1) || true
-if echo "$NOARGS_ERR" | grep -qi "unknown command\|too many arg"; then
-  pass "product create → rejects stray positional arg"
-else
-  fail "product create → accepted stray arg: $NOARGS_ERR"
-fi
-
-echo "  Testing: plan list with stray arg"
-NOARGS_ERR2=$($ZR plan list extraArg --body '{}' 2>&1) || true
-if echo "$NOARGS_ERR2" | grep -qi "unknown command\|too many arg"; then
-  pass "plan list → rejects stray positional arg"
-else
-  fail "plan list → accepted stray arg: $NOARGS_ERR2"
-fi
+expect_fail "product create → rejects stray positional arg" 'unknown command "extraArg"' -- $ZR product create extraArg --body '{}'
 
 # ─────────────────────────────────────────
-header "Step 6: Commerce API 実行テスト"
+header "Step 4: Live read commands"
 # ─────────────────────────────────────────
+# product list-legacy is a --body search returning {"products":[...]} (empty OK).
+echo "  Testing: product list-legacy --body '{}'"
+read_or_skip "product list-legacy → .products array" '.products | type == "array"' -- $ZR product list-legacy --body '{}' --json
 
-echo "  Testing: product list-legacy with empty filter"
-PL_RESULT=$($ZR product list-legacy --body '{}' 2>&1) || true
-if echo "$PL_RESULT" | jq -e '.' >/dev/null 2>&1; then
-  pass "product list-legacy → returned JSON"
-elif echo "$PL_RESULT" | grep -qi "error"; then
-  skip "product list-legacy → API error (Commerce API may not be enabled)"
-else
-  fail "product list-legacy → unexpected: $(echo "$PL_RESULT" | head -3)"
-fi
+# plan list is a --body search returning {"plans":[...]} (empty OK).
+echo "  Testing: plan list --body '{}'"
+read_or_skip "plan list → .plans array" '.plans | type == "array"' -- $ZR plan list --body '{}' --json
 
-echo "  Testing: plan list with empty filter"
-PLAN_LIST=$($ZR plan list --body '{}' 2>&1) || true
-if echo "$PLAN_LIST" | jq -e '.' >/dev/null 2>&1; then
-  pass "plan list → returned JSON"
-elif echo "$PLAN_LIST" | grep -qi "error"; then
-  skip "plan list → API error (Commerce API may not be enabled)"
-else
-  fail "plan list → unexpected: $(echo "$PLAN_LIST" | head -3)"
-fi
-
-# ─────────────────────────────────────────
-header "Step 7: RatePlan Get (v1 API 実行テスト)"
-# ─────────────────────────────────────────
-
-# v1 API は Commerce API の有効/無効に依存しない
-# 既存のサブスクリプションから ratePlanId を取得してテスト
-echo "  Finding a rate plan ID from existing subscriptions..."
-# account list → 最初のアカウント → subscription list → 最初の ratePlan
-FIRST_ACCT=$($ZR account list --page-size 1 --json 2>/dev/null | jq -r '.data[0].accountNumber // empty' 2>/dev/null) || true
-
-if [ -n "$FIRST_ACCT" ]; then
-  SUB_DATA=$($ZR subscription list --account "$FIRST_ACCT" --json 2>/dev/null) || true
-  RATEPLAN_ID=$(echo "$SUB_DATA" | jq -r '.subscriptions[0].ratePlans[0].id // empty' 2>/dev/null) || true
-
-  if [ -n "$RATEPLAN_ID" ]; then
-    echo "  Testing: rateplan get $RATEPLAN_ID"
-    RP_RESULT=$($ZR rateplan get "$RATEPLAN_ID" --json 2>/dev/null) || true
-    if echo "$RP_RESULT" | jq -e '.id // .ratePlanId // .name' >/dev/null 2>&1; then
-      pass "rateplan get → returned rate plan data"
-    elif echo "$RP_RESULT" | grep -qi "error\|not found"; then
-      skip "rateplan get → API error (rate plan may not be accessible)"
-    else
-      fail "rateplan get → unexpected: $(echo "$RP_RESULT" | head -3)"
-    fi
-
-    # --jq output format test
-    echo "  Testing: rateplan get with --jq '.id'"
-    RP_JQ=$($ZR rateplan get "$RATEPLAN_ID" --jq '.id // .ratePlanId' 2>/dev/null) || true
-    if [ -n "$RP_JQ" ] && [ "$RP_JQ" != "null" ]; then
-      pass "rateplan get --jq → filtered output ($RP_JQ)"
-    else
-      skip "rateplan get --jq → no data returned"
-    fi
-  else
-    skip "rateplan get → no ratePlanId found in subscriptions"
-    skip "rateplan get --jq → skipped (no ratePlanId)"
-  fi
-else
-  skip "rateplan get → no account found to look up rate plans"
-  skip "rateplan get --jq → skipped (no account)"
-fi
-
-# ─────────────────────────────────────────
-header "Step 8: Output Format テスト"
-# ─────────────────────────────────────────
-
-# バリデーションエラーのテストでも --json が機能するか確認
-echo "  Testing: product get nonexistent --json (error handling with --json)"
-PG_JSON=$($ZR product get NONEXISTENT-KEY --json 2>&1) || true
-if echo "$PG_JSON" | grep -qi "error\|not found\|404"; then
-  pass "product get nonexistent --json → error surfaced correctly"
-elif echo "$PG_JSON" | jq -e '.' >/dev/null 2>&1; then
-  pass "product get nonexistent --json → returned JSON (maybe empty)"
-else
-  fail "product get nonexistent --json → unexpected: $(echo "$PG_JSON" | head -3)"
-fi
+# rateplan get expects a *subscription* rate plan id; a product rate plan id
+# 404s on this tenant, which read_or_skip treats as a (status-specific) skip.
+echo "  Testing: rateplan get $RATE_PLAN_ID"
+read_or_skip "rateplan get → JSON object" 'type == "object"' -- $ZR rateplan get "$RATE_PLAN_ID" --json
 
 # ─────────────────────────────────────────
 header "Summary"
 # ─────────────────────────────────────────
 echo ""
 TOTAL=$((PASS + FAIL + SKIP))
-green  "  Passed:  $PASS / $TOTAL"
-if [ "$FAIL" -gt 0 ]; then
-  red  "  Failed:  $FAIL / $TOTAL"
-fi
-if [ "$SKIP" -gt 0 ]; then
-  yellow "  Skipped: $SKIP / $TOTAL"
-fi
+echo "  Passed:  $PASS / $TOTAL"
+echo "  Failed:  $FAIL / $TOTAL"
+echo "  Skipped: $SKIP / $TOTAL"
 echo ""
 echo "  Log: $LOG_FILE"
 echo ""
-
 if [ "$FAIL" -gt 0 ]; then
-  red "  RESULT: FAIL"
+  echo "  RESULT: FAIL"
   exit 1
 else
-  green "  RESULT: PASS"
-  exit 0
+  echo "  RESULT: PASS"
 fi

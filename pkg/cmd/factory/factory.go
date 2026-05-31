@@ -2,6 +2,7 @@
 package factory
 
 import (
+	"context"
 	"sync"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -12,10 +13,10 @@ import (
 
 // Factory provides shared dependencies to all commands.
 type Factory struct {
-	IOStreams   *iostreams.IOStreams
+	IOStreams  *iostreams.IOStreams
 	Config     func() (config.Config, error)
 	HttpClient func() (*api.Client, error)
-	AuthToken  func() (string, error)
+	AuthToken  func(context.Context) (string, error)
 }
 
 // New creates a Factory with real (system) dependencies.
@@ -37,14 +38,14 @@ func New() *Factory {
 	}
 
 	// Lazy auth token
-	f.AuthToken = func() (string, error) {
+	f.AuthToken = func(ctx context.Context) (string, error) {
 		cfg, err := f.Config()
 		if err != nil {
 			return "", err
 		}
 		creds := auth.NewCredentialStore()
 		ts := &auth.TokenSource{Config: cfg, Creds: creds}
-		return ts.Token(cfg.ActiveEnvironment())
+		return ts.TokenContext(ctx, cfg.ActiveEnvironment())
 	}
 
 	// Lazy HTTP client
@@ -57,11 +58,12 @@ func New() *Factory {
 		if err != nil {
 			return nil, err
 		}
-		// refreshToken forces a token refresh (bypasses cache)
-		refreshToken := func() (string, error) {
+		// refreshToken forces a token refresh (bypasses cache) while still
+		// sharing the per-environment single-flight lock.
+		refreshToken := func(ctx context.Context) (string, error) {
 			creds := auth.NewCredentialStore()
 			ts := &auth.TokenSource{Config: cfg, Creds: creds}
-			return ts.Refresh(cfg.ActiveEnvironment())
+			return ts.ForceRefreshContext(ctx, cfg.ActiveEnvironment())
 		}
 		return api.NewClient(
 			api.WithBaseURL(env.BaseURL),

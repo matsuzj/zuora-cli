@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,18 +12,25 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/matsuzj/zuora-cli/internal/build"
 )
 
 // Client is an HTTP client for Zuora APIs.
 type Client struct {
 	baseURL       string
 	httpClient    *http.Client
-	tokenSource   func() (string, error)
-	refreshToken  func() (string, error) // force refresh, bypassing cache
+	tokenSource   func(context.Context) (string, error)
+	refreshToken  func(context.Context) (string, error) // force refresh, bypassing cache
 	zuoraVersion  string
+	userAgent     string
 	verbose       bool
 	verboseWriter io.Writer
 	readOnly      bool
+	ctx           context.Context
+	// sleep waits for d or until the context is cancelled; it is a seam so
+	// tests can run the retry loop without real backoff delays.
+	sleep func(ctx context.Context, d time.Duration) error
 }
 
 // ClientOption configures the Client.
@@ -31,13 +41,14 @@ func WithBaseURL(u string) ClientOption {
 	return func(c *Client) { c.baseURL = strings.TrimRight(u, "/") }
 }
 
-// WithTokenSource sets the token provider for authentication.
-func WithTokenSource(fn func() (string, error)) ClientOption {
+// WithTokenSource sets the token provider for authentication. The provider
+// receives a context so a token fetch can be cancelled (e.g. Ctrl-C).
+func WithTokenSource(fn func(context.Context) (string, error)) ClientOption {
 	return func(c *Client) { c.tokenSource = fn }
 }
 
 // WithRefreshToken sets the force-refresh token provider (bypasses cache).
-func WithRefreshToken(fn func() (string, error)) ClientOption {
+func WithRefreshToken(fn func(context.Context) (string, error)) ClientOption {
 	return func(c *Client) { c.refreshToken = fn }
 }
 
@@ -61,15 +72,61 @@ func WithReadOnly() ClientOption {
 	return func(c *Client) { c.readOnly = true }
 }
 
+// WithContext sets the base context used for all requests, so cancellation
+// (e.g. Ctrl-C) propagates to in-flight requests and retry backoff.
+func WithContext(ctx context.Context) ClientOption {
+	return func(c *Client) { c.ctx = ctx }
+}
+
+// WithUserAgent overrides the User-Agent header.
+func WithUserAgent(ua string) ClientOption {
+	return func(c *Client) { c.userAgent = ua }
+}
+
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
 		httpClient: &http.Client{Timeout: 120 * time.Second},
+		userAgent:  "zuora-cli/" + build.Version,
+		ctx:        context.Background(),
+		sleep:      sleepWithContext,
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
+	if c.ctx == nil {
+		c.ctx = context.Background()
+	}
+	if c.sleep == nil {
+		c.sleep = sleepWithContext
+	}
 	return c
+}
+
+// sleepWithContext waits for d or until ctx is cancelled, whichever comes first.
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return ctx.Err()
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+// newIdempotencyKey returns a random hex key for safely retrying mutations.
+func newIdempotencyKey() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// Fall back to a time-based key; collisions are acceptable here because
+		// the key only needs to be stable across retries of one request.
+		return fmt.Sprintf("zr-%d", time.Now().UnixNano())
+	}
+	return "zr-" + hex.EncodeToString(b[:])
 }
 
 // SetZuoraVersion overrides the Zuora-Version header.
@@ -81,6 +138,35 @@ func (c *Client) SetVerbose(w io.Writer) { c.verbose = true; c.verboseWriter = w
 // SetReadOnly enables or disables read-only mode.
 func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
 
+// SetContext sets the base context used for all requests.
+func (c *Client) SetContext(ctx context.Context) {
+	if ctx != nil {
+		c.ctx = ctx
+	}
+}
+
+// checkHost refuses a request whose absolute URL targets a host other than
+// the configured base URL. Relative paths (resolved against baseURL) and
+// same-host absolute URLs (e.g. a pagination nextPage) are allowed; a
+// cross-host absolute URL is rejected so the bearer token is never sent off-host.
+func (c *Client) checkHost(fullURL string) error {
+	target, err := url.Parse(fullURL)
+	if err != nil {
+		return fmt.Errorf("invalid request URL: %w", err)
+	}
+	if target.Host == "" {
+		return nil // relative — already rooted at the configured base URL
+	}
+	base, err := url.Parse(c.baseURL)
+	if err != nil || base.Host == "" {
+		return nil // no configured host to compare against
+	}
+	if !strings.EqualFold(target.Host, base.Host) {
+		return fmt.Errorf("refusing to send credentials to %q: not the configured environment host %q", target.Host, base.Host)
+	}
+	return nil
+}
+
 // Do performs an HTTP request.
 func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, error) {
 	if c.readOnly && !isReadOnlyAllowed(method, path) {
@@ -91,19 +177,30 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 
 	fullURL := c.buildURL(path, rc.query)
 
+	// Never send credentials to a host other than the configured environment
+	// host (e.g. a stray `zr api https://attacker/...`), which would leak the
+	// bearer token off-host.
+	if err := c.checkHost(fullURL); err != nil {
+		return nil, err
+	}
+
 	var bodyReader io.Reader
 	if rc.body != nil {
 		bodyReader = rc.body
 	}
 
-	req, err := http.NewRequest(method, fullURL, bodyReader)
+	ctx := c.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
 	// Auth header
 	if c.tokenSource != nil {
-		token, err := c.tokenSource()
+		token, err := c.tokenSource(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -111,6 +208,9 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 	}
 
 	// Standard headers
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
 	if c.zuoraVersion != "" {
 		req.Header.Set("Zuora-Version", c.zuoraVersion)
 	}
@@ -118,7 +218,16 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	// Custom headers
+	// Idempotency-Key for mutating methods so any retry (429/401/5xx) is
+	// deduplicated server-side, preventing duplicate orders/payments/refunds.
+	// The key is stable across retries because it is set once on the request.
+	if method == http.MethodPost || method == http.MethodPatch {
+		if req.Header.Get("Idempotency-Key") == "" {
+			req.Header.Set("Idempotency-Key", newIdempotencyKey())
+		}
+	}
+
+	// Custom headers (caller may override the above, e.g. multipart Content-Type)
 	for k, v := range rc.headers {
 		req.Header.Set(k, v)
 	}

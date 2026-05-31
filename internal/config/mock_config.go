@@ -4,11 +4,11 @@ import "fmt"
 
 // MockConfig is an in-memory Config implementation for testing.
 type MockConfig struct {
-	Cfg          configData
-	Envs         map[string]*Environment
-	Toks         map[string]*TokenEntry
-	Dir          string
-	SaveError    error
+	Cfg           configData
+	Envs          map[string]*Environment
+	Toks          map[string]*TokenEntry
+	Dir           string
+	SaveError     error
 	SaveCallCount int
 }
 
@@ -26,12 +26,12 @@ func NewMockConfig() *MockConfig {
 	}
 }
 
-func (m *MockConfig) ActiveEnvironment() string              { return m.Cfg.ActiveEnvironment }
-func (m *MockConfig) ZuoraVersion() string                   { return m.Cfg.ZuoraVersion }
-func (m *MockConfig) DefaultOutput() string                  { return m.Cfg.DefaultOutput }
-func (m *MockConfig) ConfigDir() string                      { return m.Dir }
-func (m *MockConfig) SetZuoraVersion(v string) error         { m.Cfg.ZuoraVersion = v; return nil }
-func (m *MockConfig) Environments() map[string]*Environment  { return m.Envs }
+func (m *MockConfig) ActiveEnvironment() string             { return m.Cfg.ActiveEnvironment }
+func (m *MockConfig) ZuoraVersion() string                  { return m.Cfg.ZuoraVersion }
+func (m *MockConfig) DefaultOutput() string                 { return m.Cfg.DefaultOutput }
+func (m *MockConfig) ConfigDir() string                     { return m.Dir }
+func (m *MockConfig) SetZuoraVersion(v string) error        { m.Cfg.ZuoraVersion = v; return nil }
+func (m *MockConfig) Environments() map[string]*Environment { return m.Envs }
 
 func (m *MockConfig) SetActiveEnvironment(name string) error {
 	if _, ok := m.Envs[name]; !ok {

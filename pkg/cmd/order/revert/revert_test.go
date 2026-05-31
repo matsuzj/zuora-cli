@@ -42,7 +42,7 @@ func TestOrderRevert_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`})
+	root.SetArgs([]string{"order", "revert", "O-00000001", "--body", `{"orderDate":"2026-01-01"}`, "--confirm"})
 	err := root.Execute()
 
 	require.NoError(t, err)

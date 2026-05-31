@@ -1,7 +1,6 @@
 package output
 
 import (
-	"encoding/json"
 	"fmt"
 	"text/template"
 
@@ -15,8 +14,8 @@ func PrintTemplate(ios *iostreams.IOStreams, data []byte, tmpl string) error {
 		return fmt.Errorf("parsing template: %w", err)
 	}
 
-	var v interface{}
-	if err := json.Unmarshal(data, &v); err != nil {
+	v, err := decodeJSONPreservingNumbers(data)
+	if err != nil {
 		return fmt.Errorf("parsing JSON for template: %w", err)
 	}
 

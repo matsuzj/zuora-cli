@@ -16,6 +16,7 @@ import (
 // NewCmdRevert creates the order revert command.
 func NewCmdRevert(f *factory.Factory) *cobra.Command {
 	var body string
+	var confirm bool
 
 	cmd := &cobra.Command{
 		Use:   "revert <order-number>",
@@ -23,20 +24,25 @@ func NewCmdRevert(f *factory.Factory) *cobra.Command {
 		Long: `Revert a Zuora order.
 
 Requires --body with a JSON payload containing the orderDate.
+This action is irreversible. Use --confirm to proceed.
 
 Examples:
-  zr order revert O-00000001 --body '{"orderDate":"2026-01-01"}'
-  zr order revert O-00000001 --body @revert.json`,
+  zr order revert O-00000001 --body '{"orderDate":"2026-01-01"}' --confirm
+  zr order revert O-00000001 --body @revert.json --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")
+			}
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
 			}
 			return runRevert(cmd, f, args[0], body)
 		},
 	}
 
 	cmd.Flags().StringVarP(&body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the revert")
 	return cmd
 }
 

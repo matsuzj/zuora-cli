@@ -40,7 +40,7 @@ func TestContactScrub_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "scrub", "c-123"})
+	root.SetArgs([]string{"contact", "scrub", "c-123", "--confirm"})
 	require.NoError(t, root.Execute())
 	assert.Contains(t, out.String(), "true")
 	assert.Contains(t, errOut.String(), "Contact c-123 scrubbed.")

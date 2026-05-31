@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/alias"
@@ -18,9 +21,13 @@ func main() {
 	// Resolve aliases: expand os.Args before Cobra dispatch
 	expandAliases()
 
+	// Cancel in-flight requests and retry backoff on Ctrl-C / SIGTERM.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	rootCmd := root.NewCmdRoot(f)
 
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Error: %s\n", err)
 		os.Exit(exitCode(err))
 	}

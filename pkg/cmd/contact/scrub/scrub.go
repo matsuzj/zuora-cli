@@ -8,26 +8,35 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdScrub creates the contact scrub command.
 func NewCmdScrub(f *factory.Factory) *cobra.Command {
+	var confirm bool
+
 	cmd := &cobra.Command{
 		Use:   "scrub <contact-id>",
 		Short: "Scrub personal data from a contact",
 		Long: `Scrub (anonymize) personal data from a Zuora contact.
 
 This replaces personal fields with anonymized values for data privacy compliance.
+This action is irreversible. Use --confirm to proceed.
 
 Examples:
-  zr contact scrub 8aca822f12345`,
+  zr contact scrub 8aca822f12345 --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
+			}
 			return runScrub(cmd, f, args[0])
 		},
 	}
+
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the scrub")
 	return cmd
 }
 

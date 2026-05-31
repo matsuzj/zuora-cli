@@ -1,0 +1,285 @@
+package api
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// noSleep replaces the backoff seam so retry tests run instantly while still
+// honoring context cancellation.
+func noSleep(ctx context.Context, _ time.Duration) error {
+	return ctx.Err()
+}
+
+func newNoSleepClient(opts ...ClientOption) *Client {
+	base := []ClientOption{func(c *Client) { c.sleep = noSleep }}
+	return NewClient(append(base, opts...)...)
+}
+
+func TestRetry_GET_5xx_Retries(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(500)
+		w.Write([]byte(`{"message":"boom"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+	assert.Equal(t, int32(maxRetries+1), atomic.LoadInt32(&calls), "GET 5xx should retry up to maxRetries")
+}
+
+func TestRetry_POST_5xx_NotRetried(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(500)
+		w.Write([]byte(`{"message":"boom"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Post("/v1/accounts", strings.NewReader(`{}`))
+	require.Error(t, err)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "POST 5xx must NOT be retried (no duplicate mutation)")
+}
+
+func TestRetry_PATCH_5xx_NotRetried(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(503)
+		w.Write([]byte(`{"message":"boom"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Patch("/v1/accounts/1", strings.NewReader(`{}`))
+	require.Error(t, err)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "PATCH 5xx must NOT be retried")
+}
+
+func TestRetry_PUT_5xx_Retries(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(500)
+		w.Write([]byte(`{"message":"boom"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Put("/v1/accounts/1", strings.NewReader(`{}`))
+	require.Error(t, err)
+	assert.Equal(t, int32(maxRetries+1), atomic.LoadInt32(&calls), "PUT is idempotent and should retry on 5xx")
+}
+
+func TestRetry_5xx_PreservesZuoraError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(503)
+		w.Write([]byte(`{"reasons":[{"code":"SERVICE_DOWN","message":"maintenance window"}]}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, "SERVICE_DOWN", apiErr.Code, "exhausted retry must surface Zuora's real error code")
+	assert.Contains(t, apiErr.Message, "maintenance window")
+}
+
+func TestRetry_POST_TransportError_NotRetried(t *testing.T) {
+	// Closed server -> transport error on connect.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := srv.URL
+	srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(url))
+	_, err := c.Post("/v1/accounts", strings.NewReader(`{}`))
+	require.Error(t, err, "POST transport error must surface immediately, not be retried")
+}
+
+func TestRetry_429_RetriesAndSucceeds(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&calls, 1)
+		if n == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(429)
+			w.Write([]byte(`{"message":"slow down"}`))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	resp, err := c.Get("/v1/test")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, int32(2), atomic.LoadInt32(&calls), "one 429 then one success = exactly 2 calls")
+}
+
+func TestRetry_POST_429_SendsIdempotencyKeyStableAcrossRetries(t *testing.T) {
+	var keys []string
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		keys = append(keys, r.Header.Get("Idempotency-Key"))
+		n := atomic.AddInt32(&calls, 1)
+		if n == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(429)
+			w.Write([]byte(`{}`))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Post("/v1/accounts", strings.NewReader(`{"a":1}`))
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+	assert.NotEmpty(t, keys[0], "POST must carry an Idempotency-Key so a 429 replay is deduplicated server-side")
+	assert.Equal(t, keys[0], keys[1], "Idempotency-Key must be stable across retries")
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	// Numeric seconds.
+	d, ok := parseRetryAfter("120")
+	assert.True(t, ok)
+	assert.Equal(t, 120*time.Second, d)
+
+	// Negative clamps to zero.
+	d, ok = parseRetryAfter("-5")
+	assert.True(t, ok)
+	assert.Equal(t, time.Duration(0), d)
+
+	// HTTP-date form must be honored (the regression that was silently lost).
+	future := time.Now().Add(90 * time.Second).UTC().Format(http.TimeFormat)
+	d, ok = parseRetryAfter(future)
+	assert.True(t, ok, "an HTTP-date Retry-After must be parsed, not ignored")
+	assert.Greater(t, d, 30*time.Second)
+
+	// Past date clamps to zero.
+	past := time.Now().Add(-time.Hour).UTC().Format(http.TimeFormat)
+	d, ok = parseRetryAfter(past)
+	assert.True(t, ok)
+	assert.Equal(t, time.Duration(0), d)
+
+	// Empty / garbage -> not usable.
+	_, ok = parseRetryAfter("")
+	assert.False(t, ok)
+	_, ok = parseRetryAfter("soon")
+	assert.False(t, ok)
+}
+
+func TestRetry_POST_401Refresh_KeepsIdempotencyKeyStable(t *testing.T) {
+	var keys []string
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		keys = append(keys, r.Header.Get("Idempotency-Key"))
+		n := atomic.AddInt32(&calls, 1)
+		if n == 1 {
+			w.WriteHeader(401)
+			w.Write([]byte(`{}`))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(
+		WithBaseURL(srv.URL),
+		WithHTTPClient(srv.Client()),
+		WithTokenSource(func(context.Context) (string, error) { return "t1", nil }),
+		WithRefreshToken(func(context.Context) (string, error) { return "t2", nil }),
+	)
+	_, err := c.Post("/v1/accounts", strings.NewReader(`{"a":1}`))
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+	assert.NotEmpty(t, keys[0])
+	assert.Equal(t, keys[0], keys[1], "Idempotency-Key must stay stable across a 401-refresh resend, not be regenerated")
+}
+
+func TestRetry_BodyReplayedOnRetry(t *testing.T) {
+	var bodies []string
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(b))
+		n := atomic.AddInt32(&calls, 1)
+		if n == 1 {
+			w.WriteHeader(500)
+			w.Write([]byte(`{}`))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	// PUT is idempotent so it retries; the body must be replayed intact.
+	_, err := c.Put("/v1/accounts/1", strings.NewReader(`{"name":"x"}`))
+	require.NoError(t, err)
+	require.Len(t, bodies, 2)
+	assert.Equal(t, `{"name":"x"}`, bodies[0])
+	assert.Equal(t, `{"name":"x"}`, bodies[1], "retried request must resend the full body, not an empty one")
+}
+
+func TestRetry_401_RefreshError_Aborts(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(401)
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(
+		WithBaseURL(srv.URL),
+		WithHTTPClient(srv.Client()),
+		WithTokenSource(func(context.Context) (string, error) { return "tok", nil }),
+		WithRefreshToken(func(context.Context) (string, error) { return "", assertErr{} }),
+	)
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "a failed refresh must abort, not loop")
+}
+
+func TestRetry_ContextCancelled_StopsImmediately(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(500)
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // already cancelled
+	c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()), WithContext(ctx))
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+}
+
+type assertErr struct{}
+
+func (assertErr) Error() string { return "refresh failed" }

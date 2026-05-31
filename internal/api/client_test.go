@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,7 +24,7 @@ func TestClient_BearerTokenInjection(t *testing.T) {
 
 	client := NewClient(
 		WithBaseURL(server.URL),
-		WithTokenSource(func() (string, error) { return "test-token", nil }),
+		WithTokenSource(func(context.Context) (string, error) { return "test-token", nil }),
 	)
 
 	resp, err := client.Get("/v1/test")
@@ -185,7 +186,7 @@ func TestClient_401_TokenRefresh(t *testing.T) {
 	tokenCallCount := 0
 	client := NewClient(
 		WithBaseURL(server.URL),
-		WithTokenSource(func() (string, error) {
+		WithTokenSource(func(context.Context) (string, error) {
 			tokenCallCount++
 			if tokenCallCount > 1 {
 				return "refreshed-token", nil
@@ -210,7 +211,7 @@ func TestClient_Verbose(t *testing.T) {
 	client := NewClient(
 		WithBaseURL(server.URL),
 		WithVerbose(&buf),
-		WithTokenSource(func() (string, error) { return "secret-token", nil }),
+		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
 	)
 
 	_, err := client.Get("/v1/test")

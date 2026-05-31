@@ -1,16 +1,23 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 )
+
+// refreshLocks serializes token refreshes per environment so concurrent callers
+// do not each POST to the OAuth endpoint; the second caller observes the token
+// the first one cached.
+var refreshLocks sync.Map // envName -> *sync.Mutex
 
 // TokenSource manages OAuth 2.0 token acquisition and caching.
 type TokenSource struct {
@@ -22,6 +29,12 @@ type TokenSource struct {
 // Token returns a valid access token for the given environment.
 // If a cached token is still valid, it is returned. Otherwise, a new token is fetched.
 func (ts *TokenSource) Token(envName string) (string, error) {
+	return ts.TokenContext(context.Background(), envName)
+}
+
+// TokenContext is Token with a context so a token fetch can be cancelled
+// (e.g. Ctrl-C) before the actual API request begins.
+func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string, error) {
 	cached, err := ts.Config.Token(envName)
 	if err != nil {
 		return "", err
@@ -29,11 +42,44 @@ func (ts *TokenSource) Token(envName string) (string, error) {
 	if cached.IsValid() {
 		return cached.AccessToken, nil
 	}
-	return ts.Refresh(envName)
+
+	// Serialize refreshes per environment to avoid duplicate token requests.
+	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
+	mu := muAny.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Re-check: another goroutine may have refreshed while we waited.
+	if cached, err := ts.Config.Token(envName); err == nil && cached.IsValid() {
+		return cached.AccessToken, nil
+	}
+	return ts.refresh(ctx, envName)
 }
 
-// Refresh fetches a new token from the OAuth endpoint.
+// ForceRefresh fetches a new token unconditionally (bypassing the cache) while
+// still serializing per environment via the same single-flight lock as Token,
+// so a forced refresh (e.g. after a 401) cannot stampede the OAuth endpoint
+// alongside concurrent callers.
+func (ts *TokenSource) ForceRefresh(envName string) (string, error) {
+	return ts.ForceRefreshContext(context.Background(), envName)
+}
+
+// ForceRefreshContext is ForceRefresh with a cancellable context.
+func (ts *TokenSource) ForceRefreshContext(ctx context.Context, envName string) (string, error) {
+	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
+	mu := muAny.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+	return ts.refresh(ctx, envName)
+}
+
+// Refresh fetches a new token from the OAuth endpoint (without cancellation).
 func (ts *TokenSource) Refresh(envName string) (string, error) {
+	return ts.refresh(context.Background(), envName)
+}
+
+// refresh fetches a new token from the OAuth endpoint using the given context.
+func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, error) {
 	clientID, clientSecret, err := ts.Creds.Get(envName)
 	if err != nil {
 		return "", err
@@ -42,6 +88,12 @@ func (ts *TokenSource) Refresh(envName string) (string, error) {
 	env, err := ts.Config.Environment(envName)
 	if err != nil {
 		return "", err
+	}
+	if err := config.ValidateBaseURL(env.BaseURL); err != nil {
+		return "", &AuthError{
+			Message: fmt.Sprintf("environment %q has an invalid base URL: %v", envName, err),
+			Hint:    "Check your environment configuration.",
+		}
 	}
 
 	tokenURL := env.BaseURL + "/oauth/token"
@@ -56,7 +108,13 @@ func (ts *TokenSource) Refresh(envName string) (string, error) {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
 
-	resp, err := httpClient.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(body.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(body.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("creating token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("connecting to %s: %w", tokenURL, err)
 	}

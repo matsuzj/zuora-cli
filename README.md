@@ -60,22 +60,22 @@ zr api /v1/orders -X POST --body @order.json
 
 | Command | Description |
 |---------|-------------|
-| `account` | Account CRUD + summary + payment methods |
+| `account` | Account CRUD + summary + payment-methods (default/cascading) + set-cascading |
 | `subscription` | Subscription CRUD + lifecycle (cancel/suspend/resume/renew) + ChangeLog |
 | `order` | Order CRUD + lifecycle (activate/cancel/revert) + async operations |
 | `order-action` | Update order actions |
 | `order-line-item` | Order line item CRUD + bulk update |
 | `contact` | Contact CRUD + transfer + scrub + snapshot |
 | `signup` | Create account + payment method + subscription in one call |
-| `product` | Commerce Product CRUD |
-| `plan` | Commerce Plan CRUD + purchase-options |
+| `product` | Commerce Product create/get/update + list-legacy |
+| `plan` | Commerce Plan create/get/list/update + purchase-options |
 | `charge` | Commerce Charge CRUD + tiers update |
 | `rateplan` | Get rate plan (v1 API) |
-| `invoice` | Invoice list + get + items + files + email |
+| `invoice` | Invoice list + get + items + files + email + usage-rate-detail |
 | `payment` | Payment list + get + create + apply + refund |
 | `usage` | Usage record CRUD + CSV upload |
-| `meter` | Meter run + debug + summary + audit trail |
-| `ramp` | Ramp get + metrics |
+| `meter` | Meter run + debug + status + summary + audit |
+| `ramp` | Ramp get/get-by-subscription + metrics/metrics-by-order/metrics-by-subscription |
 | `commitment` | Commitment list + get + periods + balance + schedules |
 | `fulfillment` | Fulfillment CRUD |
 | `fulfillment-item` | Fulfillment item CRUD |
@@ -105,7 +105,7 @@ zr api /v1/orders -X POST --body @order.json
 
 **Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
 
-**Destructive operations**: irreversible commands require an explicit `--confirm` flag. This includes `account/contact/order/subscription/usage/fulfillment/fulfillment-item ... delete`, `order cancel`, `order revert`, `subscription cancel`, and `contact scrub`.
+**Destructive operations**: irreversible commands require an explicit `--confirm` flag. This includes `delete` for `account` / `contact` / `order` / `order-line-item` / `subscription` / `usage` / `fulfillment` / `fulfillment-item` / `omnichannel`, plus `order cancel`, `order revert`, `subscription cancel`, `contact scrub`, and `prepaid reverse-rollover`.
 
 **Interrupts**: pressing Ctrl-C (SIGINT/SIGTERM) cancels any in-flight request and aborts retry backoff. Mutating requests (POST/PATCH) carry an `Idempotency-Key` header so a network retry cannot create a duplicate order, payment, or refund.
 
@@ -156,7 +156,13 @@ Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/
 task build          # outputs ./bin/zr
 task test           # go test -race -count=1 ./...
 task lint           # go vet + staticcheck
+task fmt            # gofmt -w .
+task check          # lint + test (pre-commit gate)
 ```
+
+CI additionally enforces a `gofmt -l .` formatting gate and `go mod verify`, which
+`task lint`/`task check` do not run — so run `task fmt` (or `gofmt -w .`) before
+pushing, or CI will fail on formatting even when local checks pass.
 
 End-to-end suites (run the real binary against a live Zuora tenant) live in
 `tests/e2e-*.sh`; run them with `./tests/run-all.sh` after `zr auth login`. Some

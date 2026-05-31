@@ -158,6 +158,11 @@ task test           # go test -race -count=1 ./...
 task lint           # go vet + staticcheck
 ```
 
+End-to-end suites (run the real binary against a live Zuora tenant) live in
+`tests/e2e-*.sh`; run them with `./tests/run-all.sh` after `zr auth login`. Some
+checks legitimately skip on the sandbox tenant — see
+[docs/e2e-test-skips.md](docs/e2e-test-skips.md) for each skip and its cause.
+
 ## License
 
 MIT

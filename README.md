@@ -109,6 +109,167 @@ zr api /v1/orders -X POST --body @order.json
 
 **Interrupts**: pressing Ctrl-C (SIGINT/SIGTERM) cancels any in-flight request and aborts retry backoff. Mutating requests (POST/PATCH) carry an `Idempotency-Key` header so a network retry cannot create a duplicate order, payment, or refund.
 
+## Authentication
+
+`zr` authenticates with Zuora using the OAuth 2.0 **client credentials** grant.
+Create an OAuth client in your Zuora tenant to obtain a **Client ID** and **Client
+Secret**, then provide them in one of three ways — resolved in this order:
+
+1. `--client-id` / `--client-secret` flags
+2. `ZR_CLIENT_ID` / `ZR_CLIENT_SECRET` environment variables
+3. Interactive prompts (only when stdin is a terminal)
+
+Authentication always targets the **active environment** (see
+[Configuration](#configuration)); override it for a single command with
+`-e/--env <name>`.
+
+### Interactive login
+
+```bash
+zr auth login                    # prompts for Client ID and Client Secret
+zr auth login -e us-production   # log in to a specific environment
+```
+
+Credentials are validated by fetching a token first (invalid credentials are
+never stored), then saved to your OS keyring, scoped per environment. The Client
+Secret prompt is masked.
+
+### Login with flags
+
+```bash
+zr auth login --client-id <id> --client-secret <secret>
+zr auth login --client-id <id> --client-secret <secret> -e us-production
+```
+
+Handy for scripted setup. As with interactive login, valid credentials are
+persisted to the keyring.
+
+### Login with environment variables (headless / CI)
+
+On systems without an OS keyring (CI runners, containers, headless servers), set
+the credentials as environment variables. When **both** are set they take
+precedence over the keyring, and you do **not** need to run `zr auth login` at all
+— any command obtains and caches an access token on demand:
+
+```bash
+export ZR_CLIENT_ID=your_client_id
+export ZR_CLIENT_SECRET=your_client_secret
+
+zr account list                  # authenticates automatically
+zr -e us-production account list # same credentials, different environment
+zr auth token                    # print the access token for use in other tools
+```
+
+Notes:
+
+- **Both** variables must be set — a single one is ignored and falls back to the
+  keyring / prompts.
+- Env-var credentials are **not** environment-specific: the same Client ID/Secret
+  are used for whichever environment you target via `-e/--env` or
+  `active_environment`. (Keyring credentials, by contrast, are stored per
+  environment.) Make sure the credentials are valid for the environment you select.
+- You can still run `zr auth login` with the env vars set — it skips the prompts
+  and additionally tries to copy the credentials into the keyring.
+
+### Other auth commands
+
+```bash
+zr auth status   # active env, base URL, credential source (keyring vs env vars), token validity
+zr auth token    # print the current access token (refreshes if expired) — for scripts
+zr auth logout   # remove keyring credentials and the cached token for the active env
+```
+
+`zr auth logout` does **not** unset `ZR_CLIENT_ID`/`ZR_CLIENT_SECRET`; unset those
+yourself to fully de-authenticate.
+
+## Configuration
+
+`zr` stores its configuration as YAML files under a per-user config directory. By
+default this is `~/.config/zr/`; set `XDG_CONFIG_HOME` to relocate it (the files
+then live under `$XDG_CONFIG_HOME/zr/`). The directory and its files are created
+automatically on first write (e.g. `zr auth login` or `zr config set`) with
+`0700`/`0600` permissions — you do not need to create them by hand.
+
+### Config directory layout
+
+```
+~/.config/zr/                 # or $XDG_CONFIG_HOME/zr/
+├── config.yml                # active environment, API version, default output
+├── environments.yml          # custom / overridden environment definitions
+├── tokens.yml                # cached OAuth access tokens (managed by `zr auth`)
+└── aliases.yml               # command aliases (see Aliases below)
+```
+
+Missing files are fine — built-in defaults apply. A file that exists but is
+malformed is reported as an error rather than silently ignored.
+
+### `config.yml`
+
+```yaml
+active_environment: sandbox   # default: sandbox
+zuora_version: "2025-08-12"   # default API version header (YYYY-MM-DD)
+default_output: table         # table | json (default: table)
+```
+
+Manage these values with the `config` command (which writes the file for you):
+
+```bash
+zr config list                          # show all current values
+zr config get active_environment        # read a single value
+zr config set default_output json       # write a value
+zr config set zuora_version 2025-08-12
+zr config env us-production             # switch the active environment
+```
+
+### `environments.yml`
+
+Built-in environments (`sandbox`, `apac-sandbox`, `us-production`,
+`us-production-cloud2`, `eu-production`, `apac-production`) are available without
+any configuration. To add or override one, edit `environments.yml`:
+
+```yaml
+environments:
+  my-tenant:
+    base_url: https://rest.na.zuora.com   # absolute http(s) URL, required
+```
+
+Select an environment per-invocation with `-e/--env <name>`, or persistently with
+`zr config set active_environment <name>` / `zr config env <name>`.
+
+### Credentials
+
+Client credentials are **not** stored in the config directory. By default they
+live in the OS keyring (`zr auth login`), or are read from `ZR_CLIENT_ID` /
+`ZR_CLIENT_SECRET`. See [Authentication](#authentication) for details. Cached
+OAuth access tokens (`tokens.yml`) are written automatically and are safe to
+delete — they will be re-fetched on the next request.
+
+### Precedence
+
+For each setting, values are resolved highest-to-lowest:
+
+**command-line flag** > **environment variable** > **config file** > **built-in default**
+
+| Setting | Flag | Env var | Config file key |
+|---------|------|---------|-----------------|
+| Environment | `-e, --env` | — | `config.yml: active_environment` |
+| API version | `--zuora-version` | — | `config.yml: zuora_version` |
+| Output format | `--json` / `--template` | — | `config.yml: default_output` |
+| Read-only | `--read-only` | `ZR_READ_ONLY` | — |
+| Credentials | `--client-id` / `--client-secret` | `ZR_CLIENT_ID` / `ZR_CLIENT_SECRET` | OS keyring |
+| Config dir | — | `XDG_CONFIG_HOME` | — |
+
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `ZR_CLIENT_ID` | OAuth client ID (with `ZR_CLIENT_SECRET`, overrides the keyring) |
+| `ZR_CLIENT_SECRET` | OAuth client secret |
+| `ZR_READ_ONLY` | Block write operations — truthy values enable it; fails closed (see [Read-only mode](#global-flags) and [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md)) |
+| `XDG_CONFIG_HOME` | Relocate the config directory (defaults to `~/.config`) |
+| `NO_COLOR` | Disable colored output when set (any value) |
+| `PAGER` | Pager command for long output (default: `less`); `LESS` / `LV` tune the respective pagers |
+
 ## Shell Completion
 
 ```bash

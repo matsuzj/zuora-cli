@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -48,23 +49,16 @@ func runVersions(cmd *cobra.Command, f *factory.Factory, key, version string) er
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Subscription Number", Value: getString(raw, "subscriptionNumber")},
-		{Key: "Version", Value: getString(raw, "version")},
-		{Key: "Name", Value: getString(raw, "name")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Term Type", Value: getString(raw, "termType")},
-		{Key: "Term Start Date", Value: getString(raw, "termStartDate")},
-		{Key: "Term End Date", Value: getString(raw, "termEndDate")},
-		{Key: "Contract Effective Date", Value: getString(raw, "contractEffectiveDate")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+		{Key: "Version", Value: cmdutil.GetString(raw, "version")},
+		{Key: "Name", Value: cmdutil.GetString(raw, "name")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Term Type", Value: cmdutil.GetString(raw, "termType")},
+		{Key: "Term Start Date", Value: cmdutil.GetString(raw, "termStartDate")},
+		{Key: "Term End Date", Value: cmdutil.GetString(raw, "termEndDate")},
+		{Key: "Contract Effective Date", Value: cmdutil.GetString(raw, "contractEffectiveDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

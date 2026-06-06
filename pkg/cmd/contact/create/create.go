@@ -60,23 +60,16 @@ func runCreate(cmd *cobra.Command, f *factory.Factory, body string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Contact ID", Value: getString(raw, "id")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Contact ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
 		return err
 	}
 
-	if id := getString(raw, "id"); id != "" {
+	if id := cmdutil.GetString(raw, "id"); id != "" {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Contact %s created.\n", id)
 	}
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

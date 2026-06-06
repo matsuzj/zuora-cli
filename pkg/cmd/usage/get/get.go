@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -49,25 +50,18 @@ func runGet(cmd *cobra.Command, f *factory.Factory, id string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "Id")},
-		{Key: "Account ID", Value: getString(raw, "AccountId")},
-		{Key: "Quantity", Value: getString(raw, "Quantity")},
-		{Key: "Start Date", Value: getString(raw, "StartDateTime")},
-		{Key: "End Date", Value: getString(raw, "EndDateTime")},
-		{Key: "UOM", Value: getString(raw, "UOM")},
-		{Key: "Status", Value: getString(raw, "Status")},
-		{Key: "Subscription ID", Value: getString(raw, "SubscriptionId")},
-		{Key: "Charge ID", Value: getString(raw, "ChargeId")},
-		{Key: "Created Date", Value: getString(raw, "CreatedDate")},
-		{Key: "Updated Date", Value: getString(raw, "UpdatedDate")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "Id")},
+		{Key: "Account ID", Value: cmdutil.GetString(raw, "AccountId")},
+		{Key: "Quantity", Value: cmdutil.GetString(raw, "Quantity")},
+		{Key: "Start Date", Value: cmdutil.GetString(raw, "StartDateTime")},
+		{Key: "End Date", Value: cmdutil.GetString(raw, "EndDateTime")},
+		{Key: "UOM", Value: cmdutil.GetString(raw, "UOM")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "Status")},
+		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "SubscriptionId")},
+		{Key: "Charge ID", Value: cmdutil.GetString(raw, "ChargeId")},
+		{Key: "Created Date", Value: cmdutil.GetString(raw, "CreatedDate")},
+		{Key: "Updated Date", Value: cmdutil.GetString(raw, "UpdatedDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

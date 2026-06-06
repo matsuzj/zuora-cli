@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -48,10 +49,10 @@ func runPost(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Invoice Number", Value: getString(raw, "invoiceNumber")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Invoice Number", Value: cmdutil.GetString(raw, "invoiceNumber")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -60,11 +61,4 @@ func runPost(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Invoice %s posted.\n", invoiceID)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

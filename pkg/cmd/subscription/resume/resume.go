@@ -108,18 +108,11 @@ func runResume(cmd *cobra.Command, f *factory.Factory, opts *resumeOptions, key 
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
 		return err
 	}
 	fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s resumed.\n", key)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

@@ -64,7 +64,7 @@ func runUpdateCustomFields(cmd *cobra.Command, f *factory.Factory, num, ver, bod
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -73,11 +73,4 @@ func runUpdateCustomFields(cmd *cobra.Command, f *factory.Factory, num, ver, bod
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Custom fields updated.\n")
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

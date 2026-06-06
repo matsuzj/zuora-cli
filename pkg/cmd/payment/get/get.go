@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -50,29 +50,16 @@ func runGet(cmd *cobra.Command, f *factory.Factory, paymentID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Payment Number", Value: getString(raw, "paymentNumber")},
-		{Key: "Effective Date", Value: getString(raw, "effectiveDate")},
-		{Key: "Amount", Value: getString(raw, "amount")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Type", Value: getString(raw, "type")},
-		{Key: "Account ID", Value: getString(raw, "accountId")},
-		{Key: "Gateway State", Value: getString(raw, "gatewayState")},
-		{Key: "Created Date", Value: getString(raw, "createdDate")},
+		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+		{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
+		{Key: "Effective Date", Value: cmdutil.GetDecimal(raw, "effectiveDate")},
+		{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+		{Key: "Type", Value: cmdutil.GetDecimal(raw, "type")},
+		{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
+		{Key: "Gateway State", Value: cmdutil.GetDecimal(raw, "gatewayState")},
+		{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return ""
-	}
-	// JSON numbers decode to float64; format without scientific notation so
-	// monetary amounts (e.g. 1000000) render as "1000000", not "1e+06".
-	if f, ok := v.(float64); ok {
-		return strconv.FormatFloat(f, 'f', -1, 64)
-	}
-	return fmt.Sprintf("%v", v)
 }

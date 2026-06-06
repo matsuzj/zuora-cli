@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -87,16 +88,9 @@ func runAudit(cmd *cobra.Command, opts *auditOptions, meterID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Meter ID", Value: getString(raw, "meterId")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

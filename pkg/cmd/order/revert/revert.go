@@ -70,8 +70,8 @@ func runRevert(cmd *cobra.Command, f *factory.Factory, orderNumber, body string)
 	}
 
 	fields := []output.DetailField{
-		{Key: "Order Number", Value: getString(raw, "orderNumber")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -80,11 +80,4 @@ func runRevert(cmd *cobra.Command, f *factory.Factory, orderNumber, body string)
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Order %s reverted.\n", orderNumber)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

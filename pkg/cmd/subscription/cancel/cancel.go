@@ -99,8 +99,8 @@ func runCancel(cmd *cobra.Command, f *factory.Factory, opts *cancelOptions, key 
 	}
 
 	fields := []output.DetailField{
-		{Key: "Subscription ID", Value: getString(raw, "subscriptionId")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -109,11 +109,4 @@ func runCancel(cmd *cobra.Command, f *factory.Factory, opts *cancelOptions, key 
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s cancelled.\n", key)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

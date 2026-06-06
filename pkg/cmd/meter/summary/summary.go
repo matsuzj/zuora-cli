@@ -98,17 +98,10 @@ func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error 
 	}
 
 	fields := []output.DetailField{
-		{Key: "Meter ID", Value: getString(raw, "meterId")},
-		{Key: "Run Type", Value: getString(raw, "runType")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
+		{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

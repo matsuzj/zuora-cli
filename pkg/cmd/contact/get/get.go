@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -48,25 +49,18 @@ func runGet(cmd *cobra.Command, f *factory.Factory, id string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "First Name", Value: getString(raw, "firstName")},
-		{Key: "Last Name", Value: getString(raw, "lastName")},
-		{Key: "Email", Value: getString(raw, "workEmail")},
-		{Key: "Phone", Value: getString(raw, "workPhone")},
-		{Key: "Country", Value: getString(raw, "country")},
-		{Key: "State", Value: getString(raw, "state")},
-		{Key: "City", Value: getString(raw, "city")},
-		{Key: "Address 1", Value: getString(raw, "address1")},
-		{Key: "Postal Code", Value: getString(raw, "postalCode")},
-		{Key: "Account ID", Value: getString(raw, "accountId")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "First Name", Value: cmdutil.GetString(raw, "firstName")},
+		{Key: "Last Name", Value: cmdutil.GetString(raw, "lastName")},
+		{Key: "Email", Value: cmdutil.GetString(raw, "workEmail")},
+		{Key: "Phone", Value: cmdutil.GetString(raw, "workPhone")},
+		{Key: "Country", Value: cmdutil.GetString(raw, "country")},
+		{Key: "State", Value: cmdutil.GetString(raw, "state")},
+		{Key: "City", Value: cmdutil.GetString(raw, "city")},
+		{Key: "Address 1", Value: cmdutil.GetString(raw, "address1")},
+		{Key: "Postal Code", Value: cmdutil.GetString(raw, "postalCode")},
+		{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

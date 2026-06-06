@@ -58,10 +58,10 @@ func runCancel(cmd *cobra.Command, f *factory.Factory, billRunID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Bill Run Number", Value: getString(raw, "billRunNumber")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Bill Run Number", Value: cmdutil.GetString(raw, "billRunNumber")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -70,11 +70,4 @@ func runCancel(cmd *cobra.Command, f *factory.Factory, billRunID string) error {
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Bill run %s cancelled.\n", billRunID)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

@@ -68,7 +68,7 @@ func runSetCascading(cmd *cobra.Command, opts *setCascadingOptions, key string) 
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -77,11 +77,4 @@ func runSetCascading(cmd *cobra.Command, opts *setCascadingOptions, key string) 
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Cascading payment methods updated for account %s.\n", key)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

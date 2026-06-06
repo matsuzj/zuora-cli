@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -70,11 +69,11 @@ func runApply(cmd *cobra.Command, opts *applyOptions, paymentID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Payment Number", Value: getString(raw, "paymentNumber")},
-		{Key: "Amount", Value: getString(raw, "amount")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+		{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
+		{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+		{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -83,17 +82,4 @@ func runApply(cmd *cobra.Command, opts *applyOptions, paymentID string) error {
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Payment %s applied.\n", paymentID)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return ""
-	}
-	// JSON numbers decode to float64; format without scientific notation so
-	// monetary amounts (e.g. 1000000) render as "1000000", not "1e+06".
-	if f, ok := v.(float64); ok {
-		return strconv.FormatFloat(f, 'f', -1, 64)
-	}
-	return fmt.Sprintf("%v", v)
 }

@@ -69,8 +69,8 @@ func runUpdate(cmd *cobra.Command, opts *updateOptions, fulfillmentKey string) e
 	}
 
 	fields := []output.DetailField{
-		{Key: "Key", Value: getString(raw, "key")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Key", Value: cmdutil.GetString(raw, "key")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -79,11 +79,4 @@ func runUpdate(cmd *cobra.Command, opts *updateOptions, fulfillmentKey string) e
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment %s updated.\n", fulfillmentKey)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

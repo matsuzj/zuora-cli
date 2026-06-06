@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,7 +27,9 @@ func TestClient_HTTPSBase_SameHostHTTP_Refused(t *testing.T) {
 }
 
 // A cross-host redirect from the configured host must NOT be followed, so the
-// request (body, Idempotency-Key, entity ids) never reaches the other host.
+// request (body, Idempotency-Key, entity ids) never reaches the other host. The
+// refusal must also fail fast — a deterministic policy rejection must not be
+// retried as if it were a transient transport error.
 func TestClient_CrossHostRedirect_Refused(t *testing.T) {
 	var attackerHit bool
 	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +39,9 @@ func TestClient_CrossHostRedirect_Refused(t *testing.T) {
 	}))
 	defer attacker.Close()
 
+	var originHits int32
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&originHits, 1)
 		http.Redirect(w, r, attacker.URL+"/v1/accounts", http.StatusTemporaryRedirect)
 	}))
 	defer origin.Close()
@@ -48,6 +53,9 @@ func TestClient_CrossHostRedirect_Refused(t *testing.T) {
 	_, err := c.Get("/v1/accounts")
 	require.Error(t, err)
 	assert.False(t, attackerHit, "a cross-host redirect must not be followed to the other host")
+	assert.ErrorIs(t, err, errRedirectRefused, "the refusal must carry the no-retry sentinel")
+	assert.Equal(t, int32(1), atomic.LoadInt32(&originHits),
+		"a blocked redirect must fail fast (origin hit once), not retried as a transient error")
 }
 
 // PUT must NOT carry an Idempotency-Key: Zuora rejects PUT requests that include

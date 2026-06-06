@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"math/rand/v2"
 	"net/http"
@@ -67,6 +68,13 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
+			// A blocked redirect (off-host / cleartext downgrade) is a
+			// deterministic policy rejection, not a transient transport error:
+			// surface it immediately rather than retrying it (and without the
+			// misleading SafeToRetry hint the POST/PATCH branch would add).
+			if errors.Is(err, errRedirectRefused) {
+				return nil, err
+			}
 			// Only retry transport errors for idempotent methods. For POST/PATCH
 			// the request may have reached the server, so we do not auto-retry;
 			// the caller can safely re-run (the request carries an

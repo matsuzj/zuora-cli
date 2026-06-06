@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,11 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/build"
 )
+
+// errRedirectRefused marks a redirect that CheckRedirect blocked (off-host or a
+// cleartext downgrade). It is a deterministic policy rejection, so doWithRetry
+// surfaces it immediately instead of retrying it like a transient transport error.
+var errRedirectRefused = errors.New("redirect refused for credential safety")
 
 // Client is an HTTP client for Zuora APIs.
 type Client struct {
@@ -109,9 +115,14 @@ func NewClient(opts ...ClientOption) *Client {
 	if c.httpClient != nil && c.httpClient.CheckRedirect == nil {
 		c.httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
-				return fmt.Errorf("stopped after 10 redirects")
+				return fmt.Errorf("%w: stopped after 10 redirects", errRedirectRefused)
 			}
-			return c.checkHost(req.URL.String())
+			if err := c.checkHost(req.URL.String()); err != nil {
+				// Wrap with the sentinel so doWithRetry fails fast instead of
+				// retrying this deterministic policy rejection.
+				return fmt.Errorf("%w: %v", errRedirectRefused, err)
+			}
+			return nil
 		}
 	}
 	return c

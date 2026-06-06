@@ -120,6 +120,7 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().Bool("json", false, "Output as JSON")
 	cmd.PersistentFlags().String("jq", "", "Filter JSON output with a jq expression")
 	cmd.PersistentFlags().String("template", "", "Format output with a Go template")
+	cmd.PersistentFlags().Bool("csv", false, "Output as CSV")
 	cmd.PersistentFlags().String("zuora-version", "", "Override Zuora API version header")
 	cmd.PersistentFlags().Bool("verbose", false, "Enable verbose/debug output")
 	cmd.PersistentFlags().Bool("read-only", false, "Block write operations (POST/PUT/DELETE/PATCH)")

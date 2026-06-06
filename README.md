@@ -96,12 +96,13 @@ zr api /v1/orders -X POST --body @order.json
     --json                 Output as JSON
     --jq <expr>            Filter JSON output with a jq expression
     --template <tmpl>      Format output with a Go template
+    --csv                  Output as CSV (list/table commands)
     --zuora-version <ver>  Override Zuora API version header
     --verbose              Enable debug output
     --read-only            Block write operations (POST/PUT/DELETE/PATCH)
 ```
 
-**Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. Default output is a formatted table.
+**Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. `--csv` renders list/table output as CSV (and detail output as a `Field,Value` table) with spreadsheet formula-injection sanitization; `--json` / `--jq` / `--template` take precedence over it. Default output is a formatted table.
 
 **Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
 

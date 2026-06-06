@@ -68,3 +68,38 @@ func TestUsageDelete_RequiresArg(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestUsageDelete_BodyResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"Id":"u-1"}`))
+	}))
+	defer server.Close()
+
+	ios, _, out, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"usage", "delete", "u-1", "--confirm"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), "u-1")
+	assert.Contains(t, errOut.String(), "Usage record u-1 deleted.")
+}
+
+func TestUsageDelete_UnparseableBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("not json"))
+	}))
+	defer server.Close()
+
+	ios, _, _, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"usage", "delete", "u-1", "--confirm"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parse")
+	assert.Contains(t, errOut.String(), "Unexpected response")
+}

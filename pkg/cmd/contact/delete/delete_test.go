@@ -54,3 +54,48 @@ func TestContactDelete_RequiresConfirm(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--confirm")
 }
+
+func TestContactDelete_EmptyBodyJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"contact", "delete", "c-1", "--confirm", "--json"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), `"success": true`)
+}
+
+func TestContactDelete_BodyMissingSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	ios, _, _, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"contact", "delete", "c-1", "--confirm"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, errOut.String(), "deleted")
+}
+
+func TestContactDelete_UnparseableBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("not json"))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"contact", "delete", "c-1", "--confirm"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing response")
+}

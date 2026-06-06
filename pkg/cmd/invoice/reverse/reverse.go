@@ -1,0 +1,80 @@
+// Package reverse implements the "zr invoice reverse" command.
+package reverse
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/url"
+
+	"github.com/matsuzj/zuora-cli/internal/api"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
+	"github.com/matsuzj/zuora-cli/pkg/output"
+	"github.com/spf13/cobra"
+)
+
+// NewCmdReverse creates the invoice reverse command.
+func NewCmdReverse(f *factory.Factory) *cobra.Command {
+	var confirm bool
+
+	cmd := &cobra.Command{
+		Use:   "reverse <invoice-id>",
+		Short: "Reverse a posted invoice",
+		Long: `Reverse a posted Zuora invoice.
+
+This action is irreversible. Use --confirm to proceed.
+
+Examples:
+  zr invoice reverse 2c92c0f8... --confirm`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
+			}
+			return runReverse(cmd, f, args[0])
+		},
+	}
+
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the reversal")
+	return cmd
+}
+
+func runReverse(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
+	client, err := f.HttpClient()
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Put(fmt.Sprintf("/v1/invoices/%s/reverse", url.PathEscape(invoiceID)), nil, api.WithCheckSuccess())
+	if err != nil {
+		return err
+	}
+
+	fmtOpts := output.FromCmd(cmd)
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(resp.Body, &raw); err != nil {
+		return fmt.Errorf("parsing response: %w", err)
+	}
+
+	fields := []output.DetailField{
+		{Key: "ID", Value: getString(raw, "id")},
+		{Key: "Invoice Number", Value: getString(raw, "invoiceNumber")},
+		{Key: "Status", Value: getString(raw, "status")},
+		{Key: "Success", Value: getString(raw, "success")},
+	}
+
+	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(f.IOStreams.ErrOut, "Invoice %s reversed.\n", invoiceID)
+	return nil
+}
+
+func getString(m map[string]interface{}, key string) string {
+	if v, ok := m[key]; ok && v != nil {
+		return fmt.Sprintf("%v", v)
+	}
+	return ""
+}

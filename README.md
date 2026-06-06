@@ -72,6 +72,8 @@ zr api /v1/orders -X POST --body @order.json
 | `charge` | Commerce Charge CRUD + tiers update |
 | `rateplan` | Get rate plan (v1 API) |
 | `invoice` | Invoice list + get + items + files + email + usage-rate-detail |
+| `creditmemo` | Credit memo list + get (filter by account/status) |
+| `debitmemo` | Debit memo list + get (filter by account/status) |
 | `payment` | Payment list + get + create + apply + refund |
 | `usage` | Usage record CRUD + CSV upload |
 | `meter` | Meter run + debug + status + summary + audit |

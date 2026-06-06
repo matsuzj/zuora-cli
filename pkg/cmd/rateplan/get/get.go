@@ -49,16 +49,19 @@ func runGet(cmd *cobra.Command, f *factory.Factory, ratePlanID string) error {
 		return fmt.Errorf("parsing response: %w", err)
 	}
 
+	// GET /v1/rateplans/{id} returns a SUBSCRIPTION rate plan. Its real fields
+	// (verified live) are id/ratePlanName/productId/productName/productSku/
+	// productRatePlanId/subscriptionId/subscriptionVersion — NOT the product-
+	// catalog fields (name/status/description/effective*Date) this previously read.
 	fields := []output.DetailField{
 		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
-		{Key: "Name", Value: cmdutil.GetString(raw, "name")},
+		{Key: "Rate Plan Name", Value: cmdutil.GetString(raw, "ratePlanName")},
 		{Key: "Product ID", Value: cmdutil.GetString(raw, "productId")},
 		{Key: "Product Name", Value: cmdutil.GetString(raw, "productName")},
-		{Key: "Product Rate Plan Number", Value: cmdutil.GetString(raw, "productRatePlanNumber")},
-		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-		{Key: "Description", Value: cmdutil.GetString(raw, "description")},
-		{Key: "Effective Start Date", Value: cmdutil.GetString(raw, "effectiveStartDate")},
-		{Key: "Effective End Date", Value: cmdutil.GetString(raw, "effectiveEndDate")},
+		{Key: "Product SKU", Value: cmdutil.GetString(raw, "productSku")},
+		{Key: "Product Rate Plan ID", Value: cmdutil.GetString(raw, "productRatePlanId")},
+		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+		{Key: "Subscription Version", Value: cmdutil.GetString(raw, "subscriptionVersion")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)

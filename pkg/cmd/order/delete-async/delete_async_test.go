@@ -42,7 +42,7 @@ func TestOrderDeleteAsync_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "delete-async", "O-00000001"})
+	root.SetArgs([]string{"order", "delete-async", "O-00000001", "--confirm"})
 	err := root.Execute()
 
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func TestOrderDeleteAsync_SuccessFalse(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "delete-async", "O-00000002"})
+	root.SetArgs([]string{"order", "delete-async", "O-00000002", "--confirm"})
 	err := root.Execute()
 
 	assert.Error(t, err)
@@ -87,4 +87,17 @@ func TestOrderDeleteAsync_RequiresArg(t *testing.T) {
 	err := root.Execute()
 
 	assert.Error(t, err)
+}
+
+func TestOrderDeleteAsync_RequiresConfirm(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order", "delete-async", "O-00000001"})
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--confirm")
 }

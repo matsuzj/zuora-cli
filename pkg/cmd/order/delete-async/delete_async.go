@@ -15,18 +15,27 @@ import (
 
 // NewCmdDeleteAsync creates the order delete-async command.
 func NewCmdDeleteAsync(f *factory.Factory) *cobra.Command {
+	var confirm bool
+
 	cmd := &cobra.Command{
 		Use:   "delete-async <order-number>",
 		Short: "Delete an order asynchronously",
 		Long: `Delete a Zuora order asynchronously. Returns a job ID.
 
+This action is irreversible. Use --confirm to proceed.
+
 Examples:
-  zr order delete-async O-00000001`,
+  zr order delete-async O-00000001 --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
+			}
 			return runDeleteAsync(cmd, f, args[0])
 		},
 	}
+
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the deletion")
 	return cmd
 }
 

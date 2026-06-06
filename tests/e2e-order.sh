@@ -272,7 +272,7 @@ PREVIEW_BODY=$(cat <<EOF
 {
   "existingAccountNumber": "$ACCT_NUM",
   "orderDate": "$(date +%Y-%m-%d)",
-  "previewOptions": {"previewThroughType": "SpecificDate", "specificPreviewThroughDate": "$(date -v+1m +%Y-%m-%d 2>/dev/null || date -d '+1 month' +%Y-%m-%d)"},
+  "previewOptions": {"previewThruType": "SpecificDate", "specificPreviewThruDate": "$(date -v+1m +%Y-%m-%d 2>/dev/null || date -d '+1 month' +%Y-%m-%d)", "previewTypes": ["BillingDocs"]},
   "subscriptions": [
     {
       "orderActions": [
@@ -300,10 +300,10 @@ EOF
 )
 echo "  Testing: order preview"
 run $ZR order preview --body "$PREVIEW_BODY" --json
-if echo "$RUN_OUT" | jq -e '.' >/dev/null 2>&1; then
-  pass "order preview → returned JSON"
+if echo "$RUN_OUT" | jq -e '.success == true' >/dev/null 2>&1; then
+  pass "order preview → success ($(echo "$RUN_OUT" | jq -r '.previewResult.invoices | length // 0') invoice(s))"
 elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "Zuora API error"; then
-  # Tenant/account/rate-plan-specific rejection — narrow, status-specific skip
+  # Account/rate-plan-specific rejection — narrow, status-specific skip
   # (not a blanket 'grep -qi error' that would also swallow a CLI bug).
   skip "order preview → Zuora API error: $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
 else

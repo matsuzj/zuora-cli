@@ -10,6 +10,14 @@ This document catalogs every skip, its exact cause, and whether it points at a
 real gap. It is generated from observed live runs — each skip below was
 reproduced directly against the tenant with the error code recorded.
 
+**Recently resolved (test-input fixes, not tenant gaps):**
+- `order preview` — the 400 (`58740021`) was a misspelled `previewOptions` body:
+  the fields are `previewThruType` / `specificPreviewThruDate` (not
+  `...Through...`), plus a `previewTypes` array. Body corrected; asserts success.
+- `rateplan get` — the 404 (`50000040`) was passing a *product* rate-plan id; the
+  endpoint resolves a *subscription* rate-plan id. The test now derives a real one
+  via ZOQL (`SELECT Id FROM RatePlan`) and asserts success.
+
 ## How skips work in these suites
 
 - **Skips are status-specific, never blanket.** A check only skips on a precise,
@@ -22,16 +30,14 @@ reproduced directly against the tenant with the error code recorded.
   suite hard-fails at Step 0 (`zr auth status` must show `Token: valid`). Run
   `zr auth login` first. Only `e2e-local.sh` is offline and needs no auth.
 
-## Current skips (9 total)
+## Current skips (7 total)
 
 | Suite | Check | Category | Signal | Why |
 |---|---|---|---|---|
-| order | `order preview` | request-body shape | HTTP 400, code 58740021 | Tenant rejects the v1 preview params (`previewThroughType,specificPreviewThroughDate`); Orders tenant wants a different shape. **Fixable test body** (see below). |
 | contact-signup | `contact delete verify` | eventual-consistency | record still returned after retries | Zuora read-after-delete is not immediately consistent. |
 | contact-signup | `signup` (live) | request-body shape | HTTP 400, code 69030021 | Tenant rejects the test body (`subscribeToRatePlans` invalid for this tenant's Sign-Up shape). **Fixable test body** (see below). |
 | commerce | `product list-legacy` | tenant-config | HTTP 404, "no Route matched" | Legacy Commerce Product Catalog API not enabled on this tenant. |
 | commerce | `plan list` | tenant-config | HTTP 404, "no Route matched" | `/v1/rateplans` (Commerce catalog) not routed on this tenant. |
-| commerce | `rateplan get` | request-input | HTTP 404, code 50000040 | Test passes a **product** rate-plan id, but the endpoint resolves a **subscription** rate-plan id; no match → 404. **Fixable test input** (see below). |
 | subscription-write | `subscription preview-change` | tenant-config | "invalid parameter" | Orders tenant expects a different body shape; the v1 preview params are rejected. |
 | invoice-payment | `payment get` | sandbox-environment | no payment id available | No payment gateway configured on sandbox, so no payment exists to fetch. |
 | ramp-commitment | `commitment list` | sandbox-environment | HTTP 404, code 50000040 | `/v1/commitments` endpoint does not exist on this tenant. |
@@ -74,15 +80,6 @@ corresponding argument validation (missing `--body`/arg) is still asserted
 green; only the live happy-path is skipped and could pass once the input is
 corrected.
 
-- **`rateplan get`** — HTTP 404 `50000040`:
-  *"IDまたはsubscriptionRatePlanNumberによるサブスクリプション料金プランが見つかりません"*.
-  The test passes a **product** rate-plan id, but `rateplan get` resolves a
-  **subscription** rate-plan id — no match. Needs a real subscription
-  rate-plan id from a created subscription.
-- **`order preview` (live)** — HTTP 400 `58740021`:
-  *"無効なパラメータ： 「previewThroughType,specificPreviewThroughDate」"*.
-  The Orders tenant rejects the v1-style `previewOptions` params used by the
-  test body.
 - **`signup` (live)** — HTTP 400 `69030021`:
   *"無効なパラメータ： 「subscribeToRatePlans」"*.
   The Sign-Up body's `subscriptionData.subscribeToRatePlans` shape isn't
@@ -99,4 +96,4 @@ task build            # or: make build  (produces ./bin/zr)
 
 `tests/logs/` (git-ignored) holds the per-run logs; each suite prints a
 `Passed / Failed / Skipped` summary and a final `RESULT:` line. The latest full
-run: **9/9 suites pass — 233 passed, 0 failed, 9 skipped.**
+run: **9/9 suites pass — 235 passed, 0 failed, 7 skipped.**

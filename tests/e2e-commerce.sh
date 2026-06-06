@@ -144,10 +144,17 @@ read_or_skip "product list-legacy → .products array" '.products | type == "arr
 echo "  Testing: plan list --body '{}'"
 read_or_skip "plan list → .plans array" '.plans | type == "array"' -- $ZR plan list --body '{}' --json
 
-# rateplan get expects a *subscription* rate plan id; a product rate plan id
-# 404s on this tenant, which read_or_skip treats as a (status-specific) skip.
-echo "  Testing: rateplan get $RATE_PLAN_ID"
-read_or_skip "rateplan get → JSON object" 'type == "object"' -- $ZR rateplan get "$RATE_PLAN_ID" --json
+# rateplan get resolves a *subscription* rate plan id (v1 /v1/rateplans/{id}),
+# not a product rate plan id — passing the latter 404s. Derive a real
+# subscription rate plan id from the tenant via ZOQL; skip only if the tenant
+# genuinely has none.
+SUB_RP_ID=$($ZR query "SELECT Id FROM RatePlan" --jq '.records[0].Id // ""' 2>/dev/null | tr -d '"')
+if [ -n "$SUB_RP_ID" ]; then
+  echo "  Testing: rateplan get $SUB_RP_ID (subscription rate plan)"
+  read_or_skip "rateplan get → JSON object" 'type == "object" and .success == true' -- $ZR rateplan get "$SUB_RP_ID" --json
+else
+  skip "rateplan get → no subscription rate plan available in tenant"
+fi
 
 # ─────────────────────────────────────────
 header "Summary"

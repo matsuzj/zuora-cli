@@ -26,6 +26,7 @@ type FormatOptions struct {
 	JSON     bool
 	JQ       string
 	Template string
+	CSV      bool
 }
 
 // FromCmd reads FormatOptions from cobra command flags.
@@ -33,7 +34,8 @@ func FromCmd(cmd *cobra.Command) FormatOptions {
 	jsonFlag, _ := cmd.Flags().GetBool("json")
 	jq, _ := cmd.Flags().GetString("jq")
 	tmpl, _ := cmd.Flags().GetString("template")
-	return FormatOptions{JSON: jsonFlag, JQ: jq, Template: tmpl}
+	csvFlag, _ := cmd.Flags().GetBool("csv")
+	return FormatOptions{JSON: jsonFlag, JQ: jq, Template: tmpl, CSV: csvFlag}
 }
 
 // Render outputs data in the appropriate format for table commands.
@@ -46,6 +48,9 @@ func Render(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, rows [
 	}
 	if opts.Template != "" {
 		return PrintTemplate(ios, rawJSON, opts.Template)
+	}
+	if opts.CSV {
+		return PrintCSV(ios.Out, rows, cols)
 	}
 	w := io.Writer(ios.Out)
 	if pager, err := StartPager(ios); err != nil {
@@ -68,6 +73,13 @@ func RenderDetail(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, 
 	}
 	if opts.Template != "" {
 		return PrintTemplate(ios, rawJSON, opts.Template)
+	}
+	if opts.CSV {
+		rows := make([][]string, len(fields))
+		for i, f := range fields {
+			rows[i] = []string{f.Key, f.Value}
+		}
+		return PrintCSV(ios.Out, rows, []Column{{Header: "Field"}, {Header: "Value"}})
 	}
 	return PrintDetail(ios, fields)
 }

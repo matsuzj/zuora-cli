@@ -10,6 +10,11 @@ This document catalogs every skip, its exact cause, and whether it points at a
 real gap. It is generated from observed live runs — each skip below was
 reproduced directly against the tenant with the error code recorded.
 
+**Recently resolved:** `order preview` no longer skips. The 400 (`58740021`) was
+a misspelled `previewOptions` body, not a tenant limitation — the fields are
+`previewThruType` / `specificPreviewThruDate` (not `...Through...`), plus a
+`previewTypes` array. The test body is corrected and now asserts success.
+
 ## How skips work in these suites
 
 - **Skips are status-specific, never blanket.** A check only skips on a precise,
@@ -22,11 +27,10 @@ reproduced directly against the tenant with the error code recorded.
   suite hard-fails at Step 0 (`zr auth status` must show `Token: valid`). Run
   `zr auth login` first. Only `e2e-local.sh` is offline and needs no auth.
 
-## Current skips (9 total)
+## Current skips (8 total)
 
 | Suite | Check | Category | Signal | Why |
 |---|---|---|---|---|
-| order | `order preview` | request-body shape | HTTP 400, code 58740021 | Tenant rejects the v1 preview params (`previewThroughType,specificPreviewThroughDate`); Orders tenant wants a different shape. **Fixable test body** (see below). |
 | contact-signup | `contact delete verify` | eventual-consistency | record still returned after retries | Zuora read-after-delete is not immediately consistent. |
 | contact-signup | `signup` (live) | request-body shape | HTTP 400, code 69030021 | Tenant rejects the test body (`subscribeToRatePlans` invalid for this tenant's Sign-Up shape). **Fixable test body** (see below). |
 | commerce | `product list-legacy` | tenant-config | HTTP 404, "no Route matched" | Legacy Commerce Product Catalog API not enabled on this tenant. |
@@ -79,10 +83,6 @@ corrected.
   The test passes a **product** rate-plan id, but `rateplan get` resolves a
   **subscription** rate-plan id — no match. Needs a real subscription
   rate-plan id from a created subscription.
-- **`order preview` (live)** — HTTP 400 `58740021`:
-  *"無効なパラメータ： 「previewThroughType,specificPreviewThroughDate」"*.
-  The Orders tenant rejects the v1-style `previewOptions` params used by the
-  test body.
 - **`signup` (live)** — HTTP 400 `69030021`:
   *"無効なパラメータ： 「subscribeToRatePlans」"*.
   The Sign-Up body's `subscriptionData.subscribeToRatePlans` shape isn't

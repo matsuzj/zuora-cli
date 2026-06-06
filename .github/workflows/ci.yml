@@ -13,9 +13,9 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -58,6 +58,26 @@ jobs:
             echo "FAIL: coverage ${total}% is below the 73.0% threshold"
             exit 1
           fi
+
+      - name: Build
+        run: mkdir -p bin && go build -o bin/zr ./cmd/zr/
+
+  # Compile and race-test the darwin binary that Homebrew ships — the ubuntu
+  # `test` job never builds it. Kept lighter than `test`: the gofmt/vet/
+  # staticcheck/govulncheck/coverage steps are OS-independent, so duplicating
+  # them on a ~10x-cost macOS runner would add no signal.
+  macos:
+    name: Test (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test -race -count=1 -timeout=120s ./...
 
       - name: Build
         run: mkdir -p bin && go build -o bin/zr ./cmd/zr/

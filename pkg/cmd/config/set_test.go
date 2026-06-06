@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -59,4 +60,38 @@ func TestConfigSet_DefaultOutput_Invalid(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid output format")
 	assert.Equal(t, 0, cfg.SaveCallCount, "a failed set must not persist")
+}
+
+// TestConfigSet_SaveError covers the branch where the value is accepted but
+// persisting it fails: the error must propagate (Save was still attempted).
+func TestConfigSet_SaveError(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	cfg.SaveError = fmt.Errorf("disk full")
+	f := factory.NewTestFactory(ios, cfg, "", "")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"config", "set", "default_output", "json"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "disk full")
+	assert.Equal(t, 1, cfg.SaveCallCount, "Save must have been attempted before the error")
+}
+
+// TestConfigSet_ConfigError covers the early return when the factory cannot
+// load the configuration at all.
+func TestConfigSet_ConfigError(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	f := &factory.Factory{
+		IOStreams: ios,
+		Config: func() (config.Config, error) {
+			return nil, fmt.Errorf("cannot load config")
+		},
+	}
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"config", "set", "default_output", "json"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot load config")
 }

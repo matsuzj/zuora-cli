@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -50,7 +51,7 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, key string) error {
 		return err
 	}
 
-	resp, err := client.Delete(fmt.Sprintf("/v1/accounts/%s", url.PathEscape(key)))
+	resp, err := client.Delete(fmt.Sprintf("/v1/accounts/%s", url.PathEscape(key)), api.WithCheckSuccess())
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, key string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: fmt.Sprintf("%v", raw["success"])},
+		{Key: "Success", Value: getString(raw, "success")},
 	}
 	if jobID, ok := raw["jobId"].(string); ok {
 		fields = append(fields, output.DetailField{Key: "Job ID", Value: jobID})
@@ -90,4 +91,11 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, key string) error {
 		fields = append(fields, output.DetailField{Key: "Job Status", Value: jobStatus})
 	}
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+}
+
+func getString(m map[string]interface{}, key string) string {
+	if v, ok := m[key]; ok && v != nil {
+		return fmt.Sprintf("%v", v)
+	}
+	return ""
 }

@@ -92,6 +92,25 @@ func TestAccountDelete_BodyResponse(t *testing.T) {
 	assert.Contains(t, out.String(), "Pending")
 }
 
+func TestAccountDelete_AsyncRejection(t *testing.T) {
+	// Async account delete returns HTTP 200 {"success":false} when the account
+	// cannot be deleted (e.g. active subscriptions). This must be a non-zero exit,
+	// not a silent success.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":false,"reasons":[{"message":"account has active subscriptions"}]}`))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"account", "delete", "A001", "--confirm"})
+	err := root.Execute()
+	require.Error(t, err)
+}
+
 func TestAccountDelete_UnparseableBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -52,18 +53,11 @@ func runGet(cmd *cobra.Command, f *factory.Factory, subscriptionKey string) erro
 	}
 
 	fields := []output.DetailField{
-		{Key: "Subscription Key", Value: getString(raw, "subscriptionKey")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Channel", Value: getString(raw, "channel")},
-		{Key: "Created Date", Value: getString(raw, "createdDate")},
+		{Key: "Subscription Key", Value: cmdutil.GetString(raw, "subscriptionKey")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Channel", Value: cmdutil.GetString(raw, "channel")},
+		{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -50,20 +51,13 @@ func runSnapshot(cmd *cobra.Command, f *factory.Factory, id string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "First Name", Value: getString(raw, "firstName")},
-		{Key: "Last Name", Value: getString(raw, "lastName")},
-		{Key: "Email", Value: getString(raw, "workEmail")},
-		{Key: "Country", Value: getString(raw, "country")},
-		{Key: "Contact ID", Value: getString(raw, "contactId")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "First Name", Value: cmdutil.GetString(raw, "firstName")},
+		{Key: "Last Name", Value: cmdutil.GetString(raw, "lastName")},
+		{Key: "Email", Value: cmdutil.GetString(raw, "workEmail")},
+		{Key: "Country", Value: cmdutil.GetString(raw, "country")},
+		{Key: "Contact ID", Value: cmdutil.GetString(raw, "contactId")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

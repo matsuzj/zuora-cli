@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -50,34 +50,21 @@ func runGet(cmd *cobra.Command, f *factory.Factory, creditMemoID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Number", Value: getString(raw, "number")},
-		{Key: "Credit Memo Date", Value: getString(raw, "creditMemoDate")},
-		{Key: "Amount", Value: getString(raw, "amount")},
-		{Key: "Applied Amount", Value: getString(raw, "appliedAmount")},
-		{Key: "Refund Amount", Value: getString(raw, "refundAmount")},
-		{Key: "Balance", Value: getString(raw, "balance")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Currency", Value: getString(raw, "currency")},
-		{Key: "Reason Code", Value: getString(raw, "reasonCode")},
-		{Key: "Referred Invoice ID", Value: getString(raw, "referredInvoiceId")},
-		{Key: "Account ID", Value: getString(raw, "accountId")},
-		{Key: "Account Number", Value: getString(raw, "accountNumber")},
-		{Key: "Created Date", Value: getString(raw, "createdDate")},
+		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+		{Key: "Number", Value: cmdutil.GetDecimal(raw, "number")},
+		{Key: "Credit Memo Date", Value: cmdutil.GetDecimal(raw, "creditMemoDate")},
+		{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+		{Key: "Applied Amount", Value: cmdutil.GetDecimal(raw, "appliedAmount")},
+		{Key: "Refund Amount", Value: cmdutil.GetDecimal(raw, "refundAmount")},
+		{Key: "Balance", Value: cmdutil.GetDecimal(raw, "balance")},
+		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+		{Key: "Currency", Value: cmdutil.GetDecimal(raw, "currency")},
+		{Key: "Reason Code", Value: cmdutil.GetDecimal(raw, "reasonCode")},
+		{Key: "Referred Invoice ID", Value: cmdutil.GetDecimal(raw, "referredInvoiceId")},
+		{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
+		{Key: "Account Number", Value: cmdutil.GetDecimal(raw, "accountNumber")},
+		{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return ""
-	}
-	// JSON numbers decode to float64; format without scientific notation so
-	// monetary amounts (e.g. 1000000) render as "1000000", not "1e+06".
-	if f, ok := v.(float64); ok {
-		return strconv.FormatFloat(f, 'f', -1, 64)
-	}
-	return fmt.Sprintf("%v", v)
 }

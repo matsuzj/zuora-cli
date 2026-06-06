@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -50,8 +51,8 @@ func runDebug(cmd *cobra.Command, f *factory.Factory, meterID, version string) e
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
-		{Key: "Message", Value: getString(raw, "message")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+		{Key: "Message", Value: cmdutil.GetString(raw, "message")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -60,11 +61,4 @@ func runDebug(cmd *cobra.Command, f *factory.Factory, meterID, version string) e
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Meter debug started.\n")
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

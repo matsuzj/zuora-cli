@@ -61,7 +61,7 @@ func runUpdateTriggerDates(cmd *cobra.Command, f *factory.Factory, orderNumber, 
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -70,11 +70,4 @@ func runUpdateTriggerDates(cmd *cobra.Command, f *factory.Factory, orderNumber, 
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Trigger dates updated for order %s.\n", orderNumber)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

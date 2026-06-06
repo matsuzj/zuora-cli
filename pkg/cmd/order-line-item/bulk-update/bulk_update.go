@@ -62,7 +62,7 @@ func runBulkUpdate(cmd *cobra.Command, f *factory.Factory, body string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -71,11 +71,4 @@ func runBulkUpdate(cmd *cobra.Command, f *factory.Factory, body string) error {
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Order line items bulk updated.\n")
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -49,20 +50,13 @@ func runCascading(cmd *cobra.Command, f *factory.Factory, key string) error {
 
 	// This endpoint returns the cascading payment method configuration
 	fields := []output.DetailField{
-		{Key: "Payment Method ID", Value: getString(raw, "paymentMethodId")},
-		{Key: "Cascading Consent", Value: getString(raw, "paymentMethodCascadingConsent")},
-		{Key: "Payment Method Type", Value: getString(raw, "paymentMethodType")},
-		{Key: "Payment Method Number", Value: getString(raw, "paymentMethodNumber")},
-		{Key: "Credit Card Type", Value: getString(raw, "creditCardType")},
-		{Key: "Credit Card Number", Value: getString(raw, "creditCardMaskNumber")},
+		{Key: "Payment Method ID", Value: cmdutil.GetString(raw, "paymentMethodId")},
+		{Key: "Cascading Consent", Value: cmdutil.GetString(raw, "paymentMethodCascadingConsent")},
+		{Key: "Payment Method Type", Value: cmdutil.GetString(raw, "paymentMethodType")},
+		{Key: "Payment Method Number", Value: cmdutil.GetString(raw, "paymentMethodNumber")},
+		{Key: "Credit Card Type", Value: cmdutil.GetString(raw, "creditCardType")},
+		{Key: "Credit Card Number", Value: cmdutil.GetString(raw, "creditCardMaskNumber")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

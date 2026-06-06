@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -48,9 +49,9 @@ func runActivate(cmd *cobra.Command, f *factory.Factory, orderNumber string) err
 	}
 
 	fields := []output.DetailField{
-		{Key: "Order Number", Value: getString(raw, "orderNumber")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -59,11 +60,4 @@ func runActivate(cmd *cobra.Command, f *factory.Factory, orderNumber string) err
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Order %s activated.\n", orderNumber)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

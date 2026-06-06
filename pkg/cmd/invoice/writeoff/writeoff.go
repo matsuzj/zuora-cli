@@ -81,12 +81,12 @@ func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) er
 	// A successful write-off returns the generated credit memo, nested under
 	// "creditMemo". Surface its id when present; the full object is in --json.
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 	if cm, ok := raw["creditMemo"].(map[string]interface{}); ok {
 		fields = append(fields,
-			output.DetailField{Key: "Credit Memo ID", Value: getString(cm, "id")},
-			output.DetailField{Key: "Credit Memo Number", Value: getString(cm, "memoNumber")},
+			output.DetailField{Key: "Credit Memo ID", Value: cmdutil.GetString(cm, "id")},
+			output.DetailField{Key: "Credit Memo Number", Value: cmdutil.GetString(cm, "memoNumber")},
 		)
 	}
 
@@ -96,11 +96,4 @@ func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) er
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Invoice %s written off.\n", invoiceID)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -82,8 +83,8 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, id string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "Id")},
-		{Key: "Success", Value: getString(raw, "Success")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "Id")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "Success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -92,11 +93,4 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, id string) error {
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Usage record %s deleted.\n", id)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

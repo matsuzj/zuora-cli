@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -54,12 +55,12 @@ func runSummary(cmd *cobra.Command, f *factory.Factory, key string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(basicInfo, "id")},
-		{Key: "Name", Value: getString(basicInfo, "name")},
-		{Key: "Account Number", Value: getString(basicInfo, "accountNumber")},
-		{Key: "Status", Value: getString(basicInfo, "status")},
+		{Key: "ID", Value: cmdutil.GetString(basicInfo, "id")},
+		{Key: "Name", Value: cmdutil.GetString(basicInfo, "name")},
+		{Key: "Account Number", Value: cmdutil.GetString(basicInfo, "accountNumber")},
+		{Key: "Status", Value: cmdutil.GetString(basicInfo, "status")},
 		{Key: "Balance", Value: getNumber(basicInfo, "balance")},
-		{Key: "Currency", Value: getString(basicInfo, "currency")},
+		{Key: "Currency", Value: cmdutil.GetString(basicInfo, "currency")},
 		{Key: "Default Payment Method", Value: getPaymentMethodSummary(basicInfo)},
 	}
 
@@ -83,20 +84,13 @@ func runSummary(cmd *cobra.Command, f *factory.Factory, key string) error {
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
 }
 
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
-}
-
 func getPaymentMethodSummary(basicInfo map[string]interface{}) string {
 	pm, ok := basicInfo["defaultPaymentMethod"].(map[string]interface{})
 	if !ok || pm == nil {
 		return ""
 	}
-	typ := getString(pm, "paymentMethodType")
-	id := getString(pm, "id")
+	typ := cmdutil.GetString(pm, "paymentMethodType")
+	id := cmdutil.GetString(pm, "id")
 	if typ != "" && id != "" {
 		return fmt.Sprintf("%s (%s)", typ, id)
 	}

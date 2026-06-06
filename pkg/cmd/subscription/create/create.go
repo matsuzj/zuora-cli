@@ -60,24 +60,17 @@ func runCreate(cmd *cobra.Command, f *factory.Factory, body string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Subscription ID", Value: getString(raw, "subscriptionId")},
-		{Key: "Subscription Number", Value: getString(raw, "subscriptionNumber")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+		{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
 		return err
 	}
 
-	if num := getString(raw, "subscriptionNumber"); num != "" {
+	if num := cmdutil.GetString(raw, "subscriptionNumber"); num != "" {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s created.\n", num)
 	}
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

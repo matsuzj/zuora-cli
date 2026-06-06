@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -66,28 +67,21 @@ func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(basicInfo, "id")},
-		{Key: "Name", Value: getString(basicInfo, "name")},
-		{Key: "Account Number", Value: getString(basicInfo, "accountNumber")},
-		{Key: "Status", Value: getString(basicInfo, "status")},
+		{Key: "ID", Value: cmdutil.GetString(basicInfo, "id")},
+		{Key: "Name", Value: cmdutil.GetString(basicInfo, "name")},
+		{Key: "Account Number", Value: cmdutil.GetString(basicInfo, "accountNumber")},
+		{Key: "Status", Value: cmdutil.GetString(basicInfo, "status")},
 		{Key: "Balance", Value: getNumber(metrics, "balance")},
-		{Key: "Currency", Value: getString(billing, "currency")},
+		{Key: "Currency", Value: cmdutil.GetString(billing, "currency")},
 		{Key: "Auto Pay", Value: getBool(billing, "autoPay")},
-		{Key: "Payment Term", Value: getString(billing, "paymentTerm")},
+		{Key: "Payment Term", Value: cmdutil.GetString(billing, "paymentTerm")},
 		{Key: "Bill Cycle Day", Value: getInt(billing, "billCycleDay")},
-		{Key: "CRM ID", Value: getString(basicInfo, "crmId")},
-		{Key: "Sales Rep", Value: getString(basicInfo, "salesRep")},
-		{Key: "Batch", Value: getString(basicInfo, "batch")},
+		{Key: "CRM ID", Value: cmdutil.GetString(basicInfo, "crmId")},
+		{Key: "Sales Rep", Value: cmdutil.GetString(basicInfo, "salesRep")},
+		{Key: "Batch", Value: cmdutil.GetString(basicInfo, "batch")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }
 
 func getNumber(m map[string]interface{}, key string) string {

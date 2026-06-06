@@ -9,6 +9,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -63,15 +64,15 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 			return fmt.Errorf("parsing response: %w", err)
 		}
 
-		status := getString(raw, "status")
+		status := cmdutil.GetString(raw, "status")
 
 		fields := []output.DetailField{
-			{Key: "Job ID", Value: getString(raw, "jobId")},
+			{Key: "Job ID", Value: cmdutil.GetString(raw, "jobId")},
 			{Key: "Status", Value: status},
-			{Key: "Result", Value: getString(raw, "result")},
-			{Key: "Order Number", Value: getString(raw, "orderNumber")},
-			{Key: "Account Number", Value: getString(raw, "accountNumber")},
-			{Key: "Success", Value: getString(raw, "success")},
+			{Key: "Result", Value: cmdutil.GetString(raw, "result")},
+			{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+			{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+			{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 		}
 
 		if !opts.Watch || isTerminalStatus(status) {
@@ -90,11 +91,4 @@ func isTerminalStatus(status string) bool {
 		return true
 	}
 	return false
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

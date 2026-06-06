@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -50,29 +50,18 @@ func runGet(cmd *cobra.Command, f *factory.Factory, billRunID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Bill Run Number", Value: getString(raw, "billRunNumber")},
-		{Key: "Name", Value: getString(raw, "name")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Invoice Date", Value: getString(raw, "invoiceDate")},
-		{Key: "Target Date", Value: getString(raw, "targetDate")},
-		{Key: "Auto Post", Value: getString(raw, "autoPost")},
-		{Key: "Auto Email", Value: getString(raw, "autoEmail")},
-		{Key: "Bill Cycle Day", Value: getString(raw, "billCycleDay")},
-		{Key: "Scheduled Execution Time", Value: getString(raw, "scheduledExecutionTime")},
-		{Key: "Created Date", Value: getString(raw, "createdDate")},
+		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+		{Key: "Bill Run Number", Value: cmdutil.GetDecimal(raw, "billRunNumber")},
+		{Key: "Name", Value: cmdutil.GetDecimal(raw, "name")},
+		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+		{Key: "Invoice Date", Value: cmdutil.GetDecimal(raw, "invoiceDate")},
+		{Key: "Target Date", Value: cmdutil.GetDecimal(raw, "targetDate")},
+		{Key: "Auto Post", Value: cmdutil.GetDecimal(raw, "autoPost")},
+		{Key: "Auto Email", Value: cmdutil.GetDecimal(raw, "autoEmail")},
+		{Key: "Bill Cycle Day", Value: cmdutil.GetDecimal(raw, "billCycleDay")},
+		{Key: "Scheduled Execution Time", Value: cmdutil.GetDecimal(raw, "scheduledExecutionTime")},
+		{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return ""
-	}
-	if f, ok := v.(float64); ok {
-		return strconv.FormatFloat(f, 'f', -1, 64)
-	}
-	return fmt.Sprintf("%v", v)
 }

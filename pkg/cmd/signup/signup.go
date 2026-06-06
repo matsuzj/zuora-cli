@@ -63,26 +63,19 @@ func runSignup(cmd *cobra.Command, f *factory.Factory, body string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Account ID", Value: getString(raw, "accountId")},
-		{Key: "Account Number", Value: getString(raw, "accountNumber")},
-		{Key: "Subscription ID", Value: getString(raw, "subscriptionId")},
-		{Key: "Subscription Number", Value: getString(raw, "subscriptionNumber")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+		{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+		{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
 		return err
 	}
 
-	if num := getString(raw, "accountNumber"); num != "" {
+	if num := cmdutil.GetString(raw, "accountNumber"); num != "" {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Sign-up complete. Account %s created.\n", num)
 	}
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

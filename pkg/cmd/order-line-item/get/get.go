@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -49,22 +50,15 @@ func runGet(cmd *cobra.Command, f *factory.Factory, itemID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Item Name", Value: getString(raw, "itemName")},
-		{Key: "Item Number", Value: getString(raw, "itemNumber")},
-		{Key: "Item Type", Value: getString(raw, "itemType")},
-		{Key: "Item State", Value: getString(raw, "itemState")},
-		{Key: "Order Number", Value: getString(raw, "orderNumber")},
-		{Key: "Amount", Value: getString(raw, "amount")},
-		{Key: "Quantity", Value: getString(raw, "quantity")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Item Name", Value: cmdutil.GetString(raw, "itemName")},
+		{Key: "Item Number", Value: cmdutil.GetString(raw, "itemNumber")},
+		{Key: "Item Type", Value: cmdutil.GetString(raw, "itemType")},
+		{Key: "Item State", Value: cmdutil.GetString(raw, "itemState")},
+		{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+		{Key: "Amount", Value: cmdutil.GetString(raw, "amount")},
+		{Key: "Quantity", Value: cmdutil.GetString(raw, "quantity")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

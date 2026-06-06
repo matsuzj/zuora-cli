@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -48,24 +49,17 @@ func runDeleteAsync(cmd *cobra.Command, f *factory.Factory, orderNumber string) 
 	}
 
 	fields := []output.DetailField{
-		{Key: "Job ID", Value: getString(raw, "jobId")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Job ID", Value: cmdutil.GetString(raw, "jobId")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
 		return err
 	}
 
-	if jobID := getString(raw, "jobId"); jobID != "" {
+	if jobID := cmdutil.GetString(raw, "jobId"); jobID != "" {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Async order deletion started. Job ID: %s\n", jobID)
 		fmt.Fprintf(f.IOStreams.ErrOut, "Check status: zr order job-status %s\n", jobID)
 	}
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

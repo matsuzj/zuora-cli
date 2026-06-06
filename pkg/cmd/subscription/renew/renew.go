@@ -70,7 +70,7 @@ func runRenew(cmd *cobra.Command, f *factory.Factory, key, body string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
@@ -79,11 +79,4 @@ func runRenew(cmd *cobra.Command, f *factory.Factory, key, body string) error {
 
 	fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s renewed.\n", key)
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

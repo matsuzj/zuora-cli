@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -50,29 +51,22 @@ func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Subscription Number", Value: getString(raw, "subscriptionNumber")},
-		{Key: "Name", Value: getString(raw, "name")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Account ID", Value: getString(raw, "accountId")},
-		{Key: "Account Number", Value: getString(raw, "accountNumber")},
-		{Key: "Account Name", Value: getString(raw, "accountName")},
-		{Key: "Term Type", Value: getString(raw, "termType")},
-		{Key: "Term Start Date", Value: getString(raw, "termStartDate")},
-		{Key: "Term End Date", Value: getString(raw, "termEndDate")},
-		{Key: "Current Term", Value: getString(raw, "currentTerm")},
-		{Key: "Current Term Period", Value: getString(raw, "currentTermPeriodType")},
-		{Key: "Auto Renew", Value: getString(raw, "autoRenew")},
-		{Key: "Contract Effective Date", Value: getString(raw, "contractEffectiveDate")},
-		{Key: "Service Activation Date", Value: getString(raw, "serviceActivationDate")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+		{Key: "Name", Value: cmdutil.GetString(raw, "name")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+		{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+		{Key: "Account Name", Value: cmdutil.GetString(raw, "accountName")},
+		{Key: "Term Type", Value: cmdutil.GetString(raw, "termType")},
+		{Key: "Term Start Date", Value: cmdutil.GetString(raw, "termStartDate")},
+		{Key: "Term End Date", Value: cmdutil.GetString(raw, "termEndDate")},
+		{Key: "Current Term", Value: cmdutil.GetString(raw, "currentTerm")},
+		{Key: "Current Term Period", Value: cmdutil.GetString(raw, "currentTermPeriodType")},
+		{Key: "Auto Renew", Value: cmdutil.GetString(raw, "autoRenew")},
+		{Key: "Contract Effective Date", Value: cmdutil.GetString(raw, "contractEffectiveDate")},
+		{Key: "Service Activation Date", Value: cmdutil.GetString(raw, "serviceActivationDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

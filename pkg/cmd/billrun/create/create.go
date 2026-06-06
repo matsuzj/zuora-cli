@@ -66,26 +66,18 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Bill Run Number", Value: getString(raw, "billRunNumber")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Success", Value: getString(raw, "success")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Bill Run Number", Value: cmdutil.GetString(raw, "billRunNumber")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
 		return err
 	}
 
-	if id := getString(raw, "id"); id != "" {
+	if id := cmdutil.GetString(raw, "id"); id != "" {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Bill run %s created.\n", id)
 	}
 	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return ""
-	}
-	return fmt.Sprintf("%v", v)
 }

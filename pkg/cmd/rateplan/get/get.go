@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -49,23 +50,16 @@ func runGet(cmd *cobra.Command, f *factory.Factory, ratePlanID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "ID", Value: getString(raw, "id")},
-		{Key: "Name", Value: getString(raw, "name")},
-		{Key: "Product ID", Value: getString(raw, "productId")},
-		{Key: "Product Name", Value: getString(raw, "productName")},
-		{Key: "Product Rate Plan Number", Value: getString(raw, "productRatePlanNumber")},
-		{Key: "Status", Value: getString(raw, "status")},
-		{Key: "Description", Value: getString(raw, "description")},
-		{Key: "Effective Start Date", Value: getString(raw, "effectiveStartDate")},
-		{Key: "Effective End Date", Value: getString(raw, "effectiveEndDate")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Name", Value: cmdutil.GetString(raw, "name")},
+		{Key: "Product ID", Value: cmdutil.GetString(raw, "productId")},
+		{Key: "Product Name", Value: cmdutil.GetString(raw, "productName")},
+		{Key: "Product Rate Plan Number", Value: cmdutil.GetString(raw, "productRatePlanNumber")},
+		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+		{Key: "Description", Value: cmdutil.GetString(raw, "description")},
+		{Key: "Effective Start Date", Value: cmdutil.GetString(raw, "effectiveStartDate")},
+		{Key: "Effective End Date", Value: cmdutil.GetString(raw, "effectiveEndDate")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

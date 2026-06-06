@@ -70,7 +70,7 @@ func TestRetry_PATCH_5xx_NotRetried(t *testing.T) {
 	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "PATCH 5xx must NOT be retried")
 }
 
-func TestRetry_PUT_5xx_Retries(t *testing.T) {
+func TestRetry_PUT_5xx_NotRetried(t *testing.T) {
 	var calls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&calls, 1)
@@ -82,7 +82,12 @@ func TestRetry_PUT_5xx_Retries(t *testing.T) {
 	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
 	_, err := c.Put("/v1/accounts/1", strings.NewReader(`{}`))
 	require.Error(t, err)
-	assert.Equal(t, int32(maxRetries+1), atomic.LoadInt32(&calls), "PUT is idempotent and should retry on 5xx")
+	// PUT carries no Idempotency-Key (Zuora rejects it) and Zuora's PUTs are
+	// often non-idempotent actions, so a 5xx must NOT auto-retry (double-apply).
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "PUT 5xx must NOT be retried")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.False(t, apiErr.SafeToRetry, "a keyless PUT must not be advertised as safe-to-retry")
 }
 
 func TestRetry_5xx_PreservesZuoraError(t *testing.T) {
@@ -226,7 +231,7 @@ func TestRetry_BodyReplayedOnRetry(t *testing.T) {
 		bodies = append(bodies, string(b))
 		n := atomic.AddInt32(&calls, 1)
 		if n == 1 {
-			w.WriteHeader(500)
+			w.WriteHeader(http.StatusTooManyRequests) // 429 is retried for any method
 			w.Write([]byte(`{}`))
 			return
 		}
@@ -236,7 +241,8 @@ func TestRetry_BodyReplayedOnRetry(t *testing.T) {
 	defer srv.Close()
 
 	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
-	// PUT is idempotent so it retries; the body must be replayed intact.
+	// A 429 is retried for any method (it was rate-limited, not processed); the
+	// body must be replayed intact on the retried request.
 	_, err := c.Put("/v1/accounts/1", strings.NewReader(`{"name":"x"}`))
 	require.NoError(t, err)
 	require.Len(t, bodies, 2)

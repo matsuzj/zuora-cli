@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"math/rand/v2"
 	"net/http"
@@ -17,10 +18,22 @@ const (
 	maxRetryAfter = 60 * time.Second
 )
 
-// isIdempotent returns true for HTTP methods that are safe to retry on 5xx.
-// Per Zuora API docs, PUT is idempotent (Idempotency-Key is only for POST/PATCH).
+// isIdempotent returns true for HTTP methods that are safe to auto-retry on a
+// 5xx/transport error. PUT is EXCLUDED: Zuora exposes non-idempotent action
+// endpoints as PUT (invoice post/reverse/writeoff, order activate/cancel,
+// subscription suspend/resume, payment apply) and rejects an Idempotency-Key on
+// PUT (HTTP 400), so a retried PUT that already succeeded server-side could
+// double-apply. GET/HEAD/OPTIONS/DELETE are naturally idempotent.
 func isIdempotent(method string) bool {
-	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions || method == http.MethodPut || method == http.MethodDelete
+	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions || method == http.MethodDelete
+}
+
+// carriesIdempotencyKey reports whether Do attaches an Idempotency-Key to the
+// method (POST/PATCH). Only these are safe to re-run after a non-retried
+// failure: the key deduplicates a server-side success. PUT carries no key, so a
+// failed PUT must NOT be advertised as safe-to-retry.
+func carriesIdempotencyKey(method string) bool {
+	return method == http.MethodPost || method == http.MethodPatch
 }
 
 func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
@@ -65,15 +78,22 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			// Only retry transport errors for idempotent methods. For POST/PATCH
-			// the request may have reached the server, so we do not auto-retry;
-			// the caller can safely re-run (the request carries an
-			// Idempotency-Key) — surface that guidance.
+			// A blocked redirect (off-host / cleartext downgrade) is a
+			// deterministic policy rejection, not a transient transport error:
+			// surface it immediately rather than retrying it (and without the
+			// misleading SafeToRetry hint the POST/PATCH branch would add).
+			if errors.Is(err, errRedirectRefused) {
+				return nil, err
+			}
+			// Only retry transport errors for idempotent methods. A non-idempotent
+			// method may have reached the server, so we do not auto-retry. Mark it
+			// safe to re-run only when it carries an Idempotency-Key (POST/PATCH);
+			// a keyless PUT could double-apply, so it is NOT advertised as safe.
 			if !isIdempotent(req.Method) {
 				if ctxErr := ctx.Err(); ctxErr != nil {
 					return nil, ctxErr
 				}
-				return nil, &APIError{Message: err.Error(), SafeToRetry: true}
+				return nil, &APIError{Message: err.Error(), SafeToRetry: carriesIdempotencyKey(req.Method)}
 			}
 			lastErr = err
 			continue
@@ -89,7 +109,10 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 					d = maxRetryAfter
 				}
 				if err := c.sleep(ctx, d); err != nil {
-					return nil, lastErr
+					// Cancelled (Ctrl-C) while honoring Retry-After: surface the
+					// cancellation, not a stale "HTTP 429" — matching the backoff
+					// path above and the loop-top context check.
+					return nil, err
 				}
 				skipBackoff = true
 			}
@@ -122,10 +145,11 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 
 		case resp.StatusCode >= 500:
 			// Non-idempotent 5xx: do not auto-retry (the mutation may have been
-			// applied), but mark it safe to re-run thanks to the Idempotency-Key.
+			// applied). Mark safe-to-re-run only for POST/PATCH, which carry an
+			// Idempotency-Key; a keyless PUT could double-apply, so leave it unset.
 			apiErr := readAPIError(resp)
 			if ae, ok := apiErr.(*APIError); ok {
-				ae.SafeToRetry = true
+				ae.SafeToRetry = carriesIdempotencyKey(req.Method)
 			}
 			return nil, apiErr
 

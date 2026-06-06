@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,11 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/build"
 )
+
+// errRedirectRefused marks a redirect that CheckRedirect blocked (off-host or a
+// cleartext downgrade). It is a deterministic policy rejection, so doWithRetry
+// surfaces it immediately instead of retrying it like a transient transport error.
+var errRedirectRefused = errors.New("redirect refused for credential safety")
 
 // Client is an HTTP client for Zuora APIs.
 type Client struct {
@@ -100,6 +106,28 @@ func NewClient(opts ...ClientOption) *Client {
 	if c.sleep == nil {
 		c.sleep = sleepWithContext
 	}
+	// checkHost only validates the initial URL. Without a redirect policy, a 3xx
+	// from the server (or a MITM) would have Go follow it and forward the request
+	// body, Idempotency-Key, and Zuora-Entity-Ids off the configured host. Re-run
+	// checkHost on every hop so redirects cannot carry the request off-host or
+	// downgrade to cleartext. Guard WithHTTPClient callers too (unless they set
+	// their own policy); copy the client first so a client shared across NewClient
+	// instances isn't mutated and each gets a policy bound to ITS own baseURL.
+	if c.httpClient != nil && c.httpClient.CheckRedirect == nil {
+		cp := *c.httpClient
+		cp.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("%w: stopped after 10 redirects", errRedirectRefused)
+			}
+			if err := c.checkHost(req.URL.String()); err != nil {
+				// Wrap with the sentinel so doWithRetry fails fast instead of
+				// retrying this deterministic policy rejection.
+				return fmt.Errorf("%w: %v", errRedirectRefused, err)
+			}
+			return nil
+		}
+		c.httpClient = &cp
+	}
 	return c
 }
 
@@ -164,6 +192,12 @@ func (c *Client) checkHost(fullURL string) error {
 	if !strings.EqualFold(target.Host, base.Host) {
 		return fmt.Errorf("refusing to send credentials to %q: not the configured environment host %q", target.Host, base.Host)
 	}
+	// Refuse a cleartext downgrade: when the configured environment is https, a
+	// same-host http target (e.g. `zr api http://...` or an http nextPage/redirect)
+	// would put the bearer token on the wire in plaintext.
+	if strings.EqualFold(base.Scheme, "https") && strings.EqualFold(target.Scheme, "http") {
+		return fmt.Errorf("refusing to send credentials over cleartext http to %q (configured environment %q is https)", target.Host, base.Host)
+	}
 	return nil
 }
 
@@ -220,7 +254,10 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 
 	// Idempotency-Key for mutating methods so any retry (429/401/5xx) is
 	// deduplicated server-side, preventing duplicate orders/payments/refunds.
-	// The key is stable across retries because it is set once on the request.
+	// PUT is deliberately EXCLUDED: Zuora rejects PUT requests that carry an
+	// Idempotency-Key with "HTTP 400: Request method 'PUT' not supported with
+	// Idempotency-Key header" (verified against a live tenant). The key is stable
+	// across retries because it is set once on the request.
 	if method == http.MethodPost || method == http.MethodPatch {
 		if req.Header.Get("Idempotency-Key") == "" {
 			req.Header.Set("Idempotency-Key", newIdempotencyKey())

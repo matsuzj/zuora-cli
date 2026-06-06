@@ -8,7 +8,10 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/invoice/get"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/invoice/items"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/invoice/list"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/invoice/post"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/invoice/reverse"
 	usageratedetail "github.com/matsuzj/zuora-cli/pkg/cmd/invoice/usage-rate-detail"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/invoice/writeoff"
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +29,9 @@ func NewCmdInvoice(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(files.NewCmdFiles(f))
 	cmd.AddCommand(email.NewCmdEmail(f))
 	cmd.AddCommand(usageratedetail.NewCmdUsageRateDetail(f))
+	cmd.AddCommand(post.NewCmdPost(f))
+	cmd.AddCommand(reverse.NewCmdReverse(f))
+	cmd.AddCommand(writeoff.NewCmdWriteoff(f))
 
 	return cmd
 }

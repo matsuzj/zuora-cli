@@ -110,10 +110,12 @@ func NewClient(opts ...ClientOption) *Client {
 	// from the server (or a MITM) would have Go follow it and forward the request
 	// body, Idempotency-Key, and Zuora-Entity-Ids off the configured host. Re-run
 	// checkHost on every hop so redirects cannot carry the request off-host or
-	// downgrade to cleartext. Set after options so WithHTTPClient callers are
-	// guarded too (unless they deliberately set their own policy).
+	// downgrade to cleartext. Guard WithHTTPClient callers too (unless they set
+	// their own policy); copy the client first so a client shared across NewClient
+	// instances isn't mutated and each gets a policy bound to ITS own baseURL.
 	if c.httpClient != nil && c.httpClient.CheckRedirect == nil {
-		c.httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		cp := *c.httpClient
+		cp.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
 				return fmt.Errorf("%w: stopped after 10 redirects", errRedirectRefused)
 			}
@@ -124,6 +126,7 @@ func NewClient(opts ...ClientOption) *Client {
 			}
 			return nil
 		}
+		c.httpClient = &cp
 	}
 	return c
 }

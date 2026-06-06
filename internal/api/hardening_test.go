@@ -58,6 +58,27 @@ func TestClient_CrossHostRedirect_Refused(t *testing.T) {
 		"a blocked redirect must fail fast (origin hit once), not retried as a transient error")
 }
 
+// A single http.Client shared across NewClient instances with different base
+// URLs must not be mutated, and each client's redirect policy must be bound to
+// ITS OWN base host (not whichever NewClient ran first).
+func TestClient_SharedInjectedClient_PerBaseRedirectPolicy(t *testing.T) {
+	shared := &http.Client{}
+	cA := NewClient(WithBaseURL("https://host-a.example"), WithHTTPClient(shared))
+	cB := NewClient(WithBaseURL("https://host-b.example"), WithHTTPClient(shared))
+
+	assert.Nil(t, shared.CheckRedirect, "the shared injected client must not be mutated")
+	require.NotNil(t, cA.httpClient.CheckRedirect)
+	require.NotNil(t, cB.httpClient.CheckRedirect)
+
+	reqB, _ := http.NewRequest(http.MethodGet, "https://host-b.example/v1/x", nil)
+	// cA is configured for host-a, so a redirect to host-b is cross-host → refused.
+	assert.ErrorIs(t, cA.httpClient.CheckRedirect(reqB, nil), errRedirectRefused,
+		"client A (base host-a) must refuse a redirect to host-b")
+	// cB is configured for host-b, so the same target is same-host → allowed.
+	assert.NoError(t, cB.httpClient.CheckRedirect(reqB, nil),
+		"client B (base host-b) must allow a same-host redirect — policy must use B's own base")
+}
+
 // PUT must NOT carry an Idempotency-Key: Zuora rejects PUT requests that include
 // one ("HTTP 400: Request method 'PUT' not supported with Idempotency-Key
 // header"). POST/PATCH still carry it; this guards against reintroducing the key

@@ -32,13 +32,14 @@ func TestRatePlanGet_Success(t *testing.T) {
 		w.WriteHeader(200)
 		// Real subscription-rate-plan response keys (GET /v1/rateplans/{id}).
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":                "402880e123",
-			"ratePlanName":      "Monthly Plan",
-			"productId":         "prod-001",
-			"productName":       "My Product",
-			"productSku":        "SKU-1",
-			"productRatePlanId": "PRP-001",
-			"subscriptionId":    "sub-001",
+			"id":                  "402880e123",
+			"ratePlanName":        "Monthly Plan",
+			"productId":           "prod-001",
+			"productName":         "My Product",
+			"productSku":          "SKU-1",
+			"productRatePlanId":   "PRP-001",
+			"subscriptionId":      "sub-001",
+			"subscriptionVersion": 99,
 		})
 	}))
 	defer server.Close()
@@ -52,9 +53,16 @@ func TestRatePlanGet_Success(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "402880e123")
-	assert.Contains(t, out.String(), "Monthly Plan")
-	assert.Contains(t, out.String(), "My Product")
+	outStr := out.String()
+	assert.Contains(t, outStr, "402880e123")
+	assert.Contains(t, outStr, "Monthly Plan")
+	assert.Contains(t, outStr, "My Product")
+	// Guard every renamed/new key: each distinctive value only renders if the
+	// command reads the correct subscription-rate-plan key.
+	assert.Contains(t, outStr, "SKU-1")   // productSku
+	assert.Contains(t, outStr, "PRP-001") // productRatePlanId
+	assert.Contains(t, outStr, "sub-001") // subscriptionId
+	assert.Contains(t, outStr, "99")      // subscriptionVersion
 }
 
 func TestRatePlanGet_PathEscape(t *testing.T) {

@@ -64,6 +64,7 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 	if opts.ChargeDetail != "" {
 		reqOpts = append(reqOpts, api.WithQuery("charge-detail", opts.ChargeDetail))
 	}
+	reqOpts = append(reqOpts, api.WithCheckSuccess())
 
 	resp, err := client.Get(fmt.Sprintf("/v1/subscriptions/accounts/%s", url.PathEscape(opts.Account)), reqOpts...)
 	if err != nil {

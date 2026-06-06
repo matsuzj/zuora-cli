@@ -30,13 +30,15 @@ func TestRatePlanGet_Success(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/v1/rateplans/402880e123", r.URL.Path)
 		w.WriteHeader(200)
+		// Real subscription-rate-plan response keys (GET /v1/rateplans/{id}).
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":                    "402880e123",
-			"name":                  "Monthly Plan",
-			"productId":             "prod-001",
-			"productName":           "My Product",
-			"status":                "Active",
-			"productRatePlanNumber": "PRP-001",
+			"id":                "402880e123",
+			"ratePlanName":      "Monthly Plan",
+			"productId":         "prod-001",
+			"productName":       "My Product",
+			"productSku":        "SKU-1",
+			"productRatePlanId": "PRP-001",
+			"subscriptionId":    "sub-001",
 		})
 	}))
 	defer server.Close()

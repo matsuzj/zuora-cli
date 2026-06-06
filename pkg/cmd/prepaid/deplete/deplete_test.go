@@ -47,11 +47,24 @@ func TestPrepaidDeplete_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"prepaid", "deplete", "--body", `{"amount":100,"currency":"USD"}`})
+	root.SetArgs([]string{"prepaid", "deplete", "--body", `{"amount":100,"currency":"USD"}`, "--confirm"})
 	err := root.Execute()
 
 	require.NoError(t, err)
 	assert.Contains(t, errOut.String(), "Prepaid balance depleted.")
+}
+
+func TestPrepaidDeplete_RequiresConfirm(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"prepaid", "deplete", "--body", `{"amount":100}`})
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--confirm")
 }
 
 func TestPrepaidDeplete_RequiresBody(t *testing.T) {
@@ -84,7 +97,7 @@ func TestPrepaidDeplete_SuccessFalse(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"prepaid", "deplete", "--body", `{"bad":"data"}`})
+	root.SetArgs([]string{"prepaid", "deplete", "--body", `{"bad":"data"}`, "--confirm"})
 	err := root.Execute()
 
 	assert.Error(t, err)

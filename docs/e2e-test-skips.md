@@ -99,4 +99,4 @@ task build            # or: make build  (produces ./bin/zr)
 
 `tests/logs/` (git-ignored) holds the per-run logs; each suite prints a
 `Passed / Failed / Skipped` summary and a final `RESULT:` line. The latest full
-run: **9/9 suites pass — 233 passed, 0 failed, 9 skipped.**
+run: **9/9 suites pass — 234 passed, 0 failed, 8 skipped.**

@@ -52,18 +52,24 @@ changelog:
       order: 1
     - title: Others
       order: 999
-brews:
+homebrew_casks:
   - repository:
       owner: matsuzj
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/matsuzj/zuora-cli
     description: "Zuora CLI - Work with Zuora from the command line"
-    license: "MIT"
-    install: |
-      bin.install "zr"
-      bash_completion.install "completions/zr.bash" => "zr"
-      zsh_completion.install "completions/zr.zsh" => "_zr"
-      fish_completion.install "completions/zr.fish"
-    test: |
-      system "#{bin}/zr", "version"
+    binaries:
+      - zr
+    completions:
+      bash: "completions/zr.bash"
+      zsh: "completions/zr.zsh"
+      fish: "completions/zr.fish"
+    # Strip the macOS quarantine flag GateKeeper sets on downloaded binaries,
+    # so `zr` runs without the "unidentified developer" block on first use.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/zr"]
+          end

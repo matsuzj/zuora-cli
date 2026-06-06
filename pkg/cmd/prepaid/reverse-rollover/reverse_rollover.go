@@ -15,6 +15,7 @@ import (
 type reverseRolloverOptions struct {
 	Factory *factory.Factory
 	Body    string
+	Confirm bool
 }
 
 // NewCmdReverseRollover creates the prepaid reverse-rollover command.
@@ -34,11 +35,15 @@ Examples:
 			if opts.Body == "" {
 				return fmt.Errorf("--body is required")
 			}
+			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
+				return err
+			}
 			return runReverseRollover(cmd, opts)
 		},
 	}
 
 	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the reversal (this action is irreversible)")
 
 	return cmd
 }

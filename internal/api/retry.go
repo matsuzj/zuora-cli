@@ -18,7 +18,9 @@ const (
 )
 
 // isIdempotent returns true for HTTP methods that are safe to retry on 5xx.
-// Per Zuora API docs, PUT is idempotent (Idempotency-Key is only for POST/PATCH).
+// PUT is retried but does NOT carry an Idempotency-Key (Zuora rejects PUT+key,
+// HTTP 400). Action-style PUTs (e.g. invoice write-off) therefore keep a small
+// double-apply risk if a successful call's response is lost — a known tradeoff.
 func isIdempotent(method string) bool {
 	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions || method == http.MethodPut || method == http.MethodDelete
 }
@@ -89,7 +91,10 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 					d = maxRetryAfter
 				}
 				if err := c.sleep(ctx, d); err != nil {
-					return nil, lastErr
+					// Cancelled (Ctrl-C) while honoring Retry-After: surface the
+					// cancellation, not a stale "HTTP 429" — matching the backoff
+					// path above and the loop-top context check.
+					return nil, err
 				}
 				skipBackoff = true
 			}

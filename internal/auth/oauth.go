@@ -105,7 +105,15 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 
 	httpClient := ts.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+		httpClient = &http.Client{
+			Timeout: 30 * time.Second,
+			// A correct OAuth token endpoint never redirects. Refuse to follow any
+			// redirect (return the 3xx as-is) so the client_secret in the request
+			// body can never be forwarded to a different (attacker) host.
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(body.Encode()))

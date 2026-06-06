@@ -1,0 +1,104 @@
+package api
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// A same-host http target must be refused when the configured environment is
+// https, so the bearer token is never sent in cleartext (scheme downgrade).
+func TestClient_HTTPSBase_SameHostHTTP_Refused(t *testing.T) {
+	c := NewClient(
+		WithBaseURL("https://rest.zuora.com"),
+		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
+	)
+	_, err := c.Get("http://rest.zuora.com/v1/accounts")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cleartext")
+}
+
+// A cross-host redirect from the configured host must NOT be followed, so the
+// request (body, Idempotency-Key, entity ids) never reaches the other host.
+func TestClient_CrossHostRedirect_Refused(t *testing.T) {
+	var attackerHit bool
+	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attackerHit = true
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer attacker.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, attacker.URL+"/v1/accounts", http.StatusTemporaryRedirect)
+	}))
+	defer origin.Close()
+
+	c := NewClient(
+		WithBaseURL(origin.URL),
+		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
+	)
+	_, err := c.Get("/v1/accounts")
+	require.Error(t, err)
+	assert.False(t, attackerHit, "a cross-host redirect must not be followed to the other host")
+}
+
+// PUT must NOT carry an Idempotency-Key: Zuora rejects PUT requests that include
+// one ("HTTP 400: Request method 'PUT' not supported with Idempotency-Key
+// header"). POST/PATCH still carry it; this guards against reintroducing the key
+// on PUT, which would break every PUT action command. POST is checked too as a
+// positive control.
+func TestClient_PUT_OmitsIdempotencyKey(t *testing.T) {
+	var putKey, postKey string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			putKey = r.Header.Get("Idempotency-Key")
+		} else {
+			postKey = r.Header.Get("Idempotency-Key")
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Put("/v1/test", strings.NewReader(`{}`))
+	require.NoError(t, err)
+	_, err = c.Post("/v1/test", strings.NewReader(`{}`))
+	require.NoError(t, err)
+
+	assert.Empty(t, putKey, "PUT must NOT carry an Idempotency-Key (Zuora rejects it)")
+	assert.True(t, strings.HasPrefix(postKey, "zr-"), "POST still carries the key as a positive control")
+}
+
+// Ctrl-C (context cancellation) while honoring a 429 Retry-After must surface as
+// cancellation, not a stale HTTP 429 API error.
+func TestRetry_429_CancelDuringRetryAfter_ReturnsCancellation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "1")
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`{"message":"rate limited"}`))
+	}))
+	defer srv.Close()
+
+	// Inject a sleep that simulates Ctrl-C firing during the Retry-After wait.
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithHTTPClient(srv.Client()),
+		func(c *Client) {
+			c.sleep = func(context.Context, time.Duration) error { return context.Canceled }
+		},
+	)
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled, "cancellation during Retry-After must surface as cancellation")
+	var apiErr *APIError
+	assert.False(t, errors.As(err, &apiErr), "must not be classified as a Zuora API error")
+}

@@ -11,7 +11,9 @@ import (
 func PrintDetail(ios *iostreams.IOStreams, fields []DetailField) error {
 	w := tabwriter.NewWriter(ios.Out, 0, 0, 2, ' ', 0)
 	for _, f := range fields {
-		fmt.Fprintf(w, "%s:\t%s\n", f.Key, f.Value)
+		// Sanitize like the table path: a hostile/compromised API field value
+		// must not write ANSI/control sequences to the user's terminal.
+		fmt.Fprintf(w, "%s:\t%s\n", sanitizeCell(f.Key), sanitizeCell(f.Value))
 	}
 	return w.Flush()
 }

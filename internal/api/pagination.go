@@ -48,7 +48,14 @@ func (c *Client) DoPaginated(method, path string, opts ...RequestOption) ([]json
 			NextPage string          `json:"nextPage"`
 		}
 		if err := json.Unmarshal(resp.Body, &pageResp); err != nil {
-			// If response is not paginated, return raw body as single element
+			// The body did not fit the {data, nextPage} envelope. Valid JSON that
+			// simply isn't an object (e.g. an endpoint returning a bare array) is
+			// a legitimate non-paginated response — pass it through as a single
+			// element. But genuinely malformed JSON is a real error: surfacing it
+			// beats silently returning a corrupt "page" (especially mid-pagination).
+			if !json.Valid(resp.Body) {
+				return nil, fmt.Errorf("page %d: response is not valid JSON: %w", page+1, err)
+			}
 			allData = append(allData, resp.Body)
 			return allData, nil
 		}

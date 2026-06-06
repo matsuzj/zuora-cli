@@ -122,6 +122,29 @@ func TestContactList_Pagination_JSON(t *testing.T) {
 	assert.Contains(t, out.String(), "c-2")
 }
 
+// TestContactList_SuccessFalse_IsError pins that an action/query returning
+// HTTP 200 with {"success":false} (e.g. invalid ZOQL) surfaces as an error
+// rather than silently printing zero contacts. Guards the WithCheckSuccess wiring.
+func TestContactList_SuccessFalse_IsError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{{"code": "INVALID_FIELD", "message": "invalid query"}},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"contact", "list", "--account-id", "acct-123"})
+	err := root.Execute()
+	require.Error(t, err, "success:false from action/query must surface as an error")
+	assert.Contains(t, err.Error(), "invalid query")
+}
+
 func TestContactList_RequiresAccountID(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")

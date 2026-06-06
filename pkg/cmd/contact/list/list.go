@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -64,7 +65,7 @@ func runList(cmd *cobra.Command, f *factory.Factory, accountID string) error {
 	)
 	body := fmt.Sprintf(`{"queryString":%q}`, zoql)
 
-	resp, err := client.Post("/v1/action/query", strings.NewReader(body))
+	resp, err := client.Post("/v1/action/query", strings.NewReader(body), api.WithCheckSuccess())
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func runList(cmd *cobra.Command, f *factory.Factory, accountID string) error {
 	// Follow ZOQL pagination via queryMore
 	for !result.Done && result.QueryLocator != "" {
 		moreBody := fmt.Sprintf(`{"queryLocator":%q}`, result.QueryLocator)
-		resp, err = client.Post("/v1/action/queryMore", strings.NewReader(moreBody))
+		resp, err = client.Post("/v1/action/queryMore", strings.NewReader(moreBody), api.WithCheckSuccess())
 		if err != nil {
 			return err
 		}

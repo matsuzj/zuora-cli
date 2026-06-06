@@ -12,6 +12,7 @@ import (
 	aliascmd "github.com/matsuzj/zuora-cli/pkg/cmd/alias"
 	apicmd "github.com/matsuzj/zuora-cli/pkg/cmd/api"
 	authcmd "github.com/matsuzj/zuora-cli/pkg/cmd/auth"
+	billruncmd "github.com/matsuzj/zuora-cli/pkg/cmd/billrun"
 	chargecmd "github.com/matsuzj/zuora-cli/pkg/cmd/charge"
 	commitmentcmd "github.com/matsuzj/zuora-cli/pkg/cmd/commitment"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/completion"
@@ -147,6 +148,7 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(invoicecmd.NewCmdInvoice(f))
 	cmd.AddCommand(creditmemocmd.NewCmdCreditMemo(f))
 	cmd.AddCommand(debitmemocmd.NewCmdDebitMemo(f))
+	cmd.AddCommand(billruncmd.NewCmdBillRun(f))
 	cmd.AddCommand(paymentcmd.NewCmdPayment(f))
 	cmd.AddCommand(usagecmd.NewCmdUsage(f))
 	cmd.AddCommand(metercmd.NewCmdMeter(f))

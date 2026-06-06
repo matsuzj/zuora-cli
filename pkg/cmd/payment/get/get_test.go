@@ -58,6 +58,29 @@ func TestPaymentGet_Success(t *testing.T) {
 	assert.Contains(t, out.String(), "Processed")
 }
 
+func TestPaymentGet_LargeAmountNotScientific(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":     "pay-002",
+			"amount": 1234567.89,
+			"status": "Processed",
+		})
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"payment", "get", "pay-002"})
+	require.NoError(t, root.Execute())
+
+	output := out.String()
+	assert.Contains(t, output, "1234567.89", "large amount must render as a plain decimal")
+	assert.NotContains(t, output, "e+", "amount must not use scientific notation")
+}
+
 func TestPaymentGet_JSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)

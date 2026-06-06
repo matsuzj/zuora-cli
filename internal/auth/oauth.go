@@ -105,15 +105,19 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 
 	httpClient := ts.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{
-			Timeout: 30 * time.Second,
-			// A correct OAuth token endpoint never redirects. Refuse to follow any
-			// redirect (return the 3xx as-is) so the client_secret in the request
-			// body can never be forwarded to a different (attacker) host.
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+		httpClient = &http.Client{Timeout: 30 * time.Second}
+	}
+	// A correct OAuth token endpoint never redirects. Refuse to follow any
+	// redirect (return the 3xx as-is) so the client_secret in the request body
+	// can never be forwarded to a different (attacker) host. This applies to an
+	// injected ts.HTTPClient too (unless it set its own policy); copy it first so
+	// the caller's shared client is not mutated.
+	if httpClient.CheckRedirect == nil {
+		cp := *httpClient
+		cp.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
 		}
+		httpClient = &cp
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(body.Encode()))

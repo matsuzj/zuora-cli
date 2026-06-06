@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -85,8 +86,14 @@ func runApply(cmd *cobra.Command, opts *applyOptions, paymentID string) error {
 }
 
 func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v)
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
 	}
-	return ""
+	// JSON numbers decode to float64; format without scientific notation so
+	// monetary amounts (e.g. 1000000) render as "1000000", not "1e+06".
+	if f, ok := v.(float64); ok {
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	return fmt.Sprintf("%v", v)
 }

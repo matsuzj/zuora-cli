@@ -65,6 +65,38 @@ func TestDoPaginated_TwoPages(t *testing.T) {
 	assert.Len(t, data, 2)
 }
 
+// TestDoPaginated_MalformedJSON_IsError pins that a genuinely malformed (invalid)
+// JSON body is surfaced as an error rather than silently swallowed as a single
+// "page" — which would otherwise hide corruption, especially mid-pagination.
+func TestDoPaginated_MalformedJSON_IsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data": [`)) // truncated, invalid JSON
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.DoPaginated("GET", "/v1/test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not valid JSON")
+}
+
+// TestDoPaginated_ValidArrayBody_PassesThrough pins that a VALID JSON value that
+// just isn't the {data,nextPage} envelope (a bare array) is still treated as a
+// single non-paginated page — the malformed-JSON guard must not regress this.
+func TestDoPaginated_ValidArrayBody_PassesThrough(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`[{"id":"1"},{"id":"2"}]`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	data, err := c.DoPaginated("GET", "/v1/test")
+	require.NoError(t, err)
+	require.Len(t, data, 1, "a bare JSON array is a valid non-paginated body, returned as one element")
+}
+
 // TestDoPaginated_ResendsBodyEachPage guards against the body-exhaustion bug:
 // the request body is a single-use io.Reader, so without buffering it the first
 // page drains it and page 2+ POSTs an empty body. Every page must receive the

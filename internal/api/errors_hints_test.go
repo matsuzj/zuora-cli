@@ -62,6 +62,36 @@ func TestAPIError_Error_CodeBranch(t *testing.T) {
 	assert.True(t, strings.Contains(got, "\n"), "code form should be multi-line")
 }
 
+// TestAPIError_Error_2xxLogicalFailure pins that a 2xx carrying success=false
+// is framed as a request failure, not the self-contradictory "error (HTTP 200)".
+func TestAPIError_Error_2xxLogicalFailure(t *testing.T) {
+	got := (&APIError{StatusCode: http.StatusOK, Code: "X", Message: "nope"}).Error()
+	assert.Contains(t, got, "request failed", "2xx logical failure should read as a request failure")
+	assert.Contains(t, got, "success=false")
+	assert.NotContains(t, got, "error (HTTP 200)", "must not call a 200 an HTTP error")
+	assert.Contains(t, got, "Message: nope")
+}
+
+// TestParseAPIError_SingleReason pins back-compat: one reason keeps the
+// structured Code/Message split unchanged.
+func TestParseAPIError_SingleReason(t *testing.T) {
+	e := parseAPIError(http.StatusBadRequest, []byte(`{"success":false,"reasons":[{"code":"INVALID","message":"bad"}]}`))
+	assert.Equal(t, "INVALID", e.Code)
+	assert.Equal(t, "bad", e.Message)
+}
+
+// TestParseAPIError_MultipleReasons pins that EVERY reason is surfaced, not just
+// the first, including a numeric code unquoted to its digits.
+func TestParseAPIError_MultipleReasons(t *testing.T) {
+	body := []byte(`{"success":false,"reasons":[{"code":"C1","message":"first"},{"code":53100020,"message":"second"}]}`)
+	got := parseAPIError(http.StatusBadRequest, body).Error()
+	assert.Contains(t, got, "2 errors")
+	assert.Contains(t, got, "first")
+	assert.Contains(t, got, "second")
+	assert.Contains(t, got, "C1")
+	assert.Contains(t, got, "53100020", "numeric reason codes should appear as digits, not quoted")
+}
+
 // TestReadOnlyError_Error_BothForms pins both ReadOnlyError messages: the
 // detailed form when Method+Path are set, and the generic fallback otherwise.
 func TestReadOnlyError_Error_BothForms(t *testing.T) {

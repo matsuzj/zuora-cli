@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // maxRawErrorBody caps how much of an unparseable error body is echoed to the
@@ -24,11 +25,19 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
+	// A 2xx response carrying success=false means the HTTP call succeeded but
+	// Zuora reported an application-level failure. Calling that "error (HTTP
+	// 200)" is self-contradictory, so frame it as a request failure instead.
+	header := fmt.Sprintf("Zuora API error (HTTP %d)", e.StatusCode)
+	if e.StatusCode >= 200 && e.StatusCode < 300 {
+		header = fmt.Sprintf("Zuora API request failed (HTTP %d, success=false)", e.StatusCode)
+	}
+
 	var msg string
 	if e.Code != "" {
-		msg = fmt.Sprintf("Zuora API error (HTTP %d)\n  Code: %s\n  Message: %s", e.StatusCode, e.Code, e.Message)
+		msg = fmt.Sprintf("%s\n  Code: %s\n  Message: %s", header, e.Code, e.Message)
 	} else {
-		msg = fmt.Sprintf("Zuora API error (HTTP %d): %s", e.StatusCode, e.Message)
+		msg = fmt.Sprintf("%s: %s", header, e.Message)
 	}
 	if e.StatusCode == http.StatusUnauthorized {
 		msg += "\n  Hint: credentials may be expired. Run: zr auth login"
@@ -70,14 +79,31 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 		} `json:"reasons"`
 	}
 	if err := json.Unmarshal(body, &v1); err == nil && len(v1.Reasons) > 0 {
-		// Unquote the code (may be a string like "INVALID" or a number like 53100020)
-		code := string(v1.Reasons[0].Code)
-		var codeStr string
-		if err := json.Unmarshal(v1.Reasons[0].Code, &codeStr); err == nil {
-			code = codeStr
+		// decodeCode unquotes a reason code, which may be a JSON string like
+		// "INVALID" or a number like 53100020.
+		decodeCode := func(raw json.RawMessage) string {
+			var s string
+			if err := json.Unmarshal(raw, &s); err == nil {
+				return s
+			}
+			return string(raw)
 		}
-		apiErr.Code = code
-		apiErr.Message = v1.Reasons[0].Message
+		if len(v1.Reasons) == 1 {
+			apiErr.Code = decodeCode(v1.Reasons[0].Code)
+			apiErr.Message = v1.Reasons[0].Message
+			return apiErr
+		}
+		// Zuora frequently returns several validation failures at once. Showing
+		// only the first hides the rest, so list every reason.
+		parts := make([]string, len(v1.Reasons))
+		for i, r := range v1.Reasons {
+			if code := decodeCode(r.Code); code != "" {
+				parts[i] = fmt.Sprintf("[%s] %s", code, r.Message)
+			} else {
+				parts[i] = r.Message
+			}
+		}
+		apiErr.Message = fmt.Sprintf("%d errors:\n  - %s", len(parts), strings.Join(parts, "\n  - "))
 		return apiErr
 	}
 

@@ -68,3 +68,63 @@ func TestOmnichannelDelete_RequiresArg(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestOmnichannelDelete_JSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm", "--json"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), `"success": true`)
+}
+
+func TestOmnichannelDelete_BodyResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), "true")
+}
+
+func TestOmnichannelDelete_NonJSONBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("not json"))
+	}))
+	defer server.Close()
+
+	ios, _, _, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, errOut.String(), "Omni-channel subscription S-1 deleted.")
+}
+
+func TestOmnichannelDelete_UnparseableBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`[1,2,3]`))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+	root := newTestRoot(f)
+	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing response")
+}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -32,8 +33,8 @@ Examples:
   zr fulfillment delete F-00000001 --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !opts.Confirm {
-				return fmt.Errorf("this action is irreversible. Use --confirm to proceed")
+			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
+				return err
 			}
 			return runDelete(cmd, opts, args[0])
 		},

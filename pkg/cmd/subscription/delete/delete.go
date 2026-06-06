@@ -29,8 +29,8 @@ Examples:
   zr subscription delete A-S001 --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !confirm {
-				return fmt.Errorf("this action is irreversible. Use --confirm to proceed")
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
 			}
 			return runDelete(cmd, f, args[0])
 		},

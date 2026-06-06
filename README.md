@@ -64,7 +64,7 @@ zr api /v1/orders -X POST --body @order.json
 | `subscription` | Subscription CRUD + lifecycle (cancel/suspend/resume/renew) + ChangeLog |
 | `order` | Order CRUD + lifecycle (activate/cancel/revert) + async operations |
 | `order-action` | Update order actions |
-| `order-line-item` | Order line item CRUD + bulk update |
+| `order-line-item` | Order line item get/update + bulk update |
 | `contact` | Contact CRUD + transfer + scrub + snapshot |
 | `signup` | Create account + payment method + subscription in one call |
 | `product` | Commerce Product create/get/update + list-legacy |
@@ -105,7 +105,7 @@ zr api /v1/orders -X POST --body @order.json
 
 **Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
 
-**Destructive operations**: irreversible commands require an explicit `--confirm` flag. This includes `delete` for `account` / `contact` / `order` / `order-line-item` / `subscription` / `usage` / `fulfillment` / `fulfillment-item` / `omnichannel`, plus `order cancel`, `order revert`, `subscription cancel`, `contact scrub`, and `prepaid reverse-rollover`.
+**Destructive operations**: irreversible commands require an explicit `--confirm` flag. This includes `delete` for `account` / `contact` / `order` / `subscription` / `usage` / `fulfillment` / `fulfillment-item` / `omnichannel`, plus `order cancel`, `order revert`, `subscription cancel`, `contact scrub`, and `prepaid reverse-rollover`.
 
 **Interrupts**: pressing Ctrl-C (SIGINT/SIGTERM) cancels any in-flight request and aborts retry backoff. Mutating requests (POST/PATCH) carry an `Idempotency-Key` header so a network retry cannot create a duplicate order, payment, or refund.
 

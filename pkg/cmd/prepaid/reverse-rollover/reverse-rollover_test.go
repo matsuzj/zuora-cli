@@ -44,12 +44,33 @@ func TestPrepaidReverseRollover_Success(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"prepaid", "reverse-rollover", "--body", `{"subscriptionNumber":"A-S001"}`})
+	root.SetArgs([]string{"prepaid", "reverse-rollover", "--body", `{"subscriptionNumber":"A-S001"}`, "--confirm"})
 	err := root.Execute()
 
 	require.NoError(t, err)
 	assert.Equal(t, "A-S001", gotBody["subscriptionNumber"])
 	assert.Contains(t, errOut.String(), "Prepaid reverse rollover completed.")
+}
+
+func TestPrepaidReverseRollover_RequiresConfirm(t *testing.T) {
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"prepaid", "reverse-rollover", "--body", `{"subscriptionNumber":"A-S001"}`})
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--confirm")
+	assert.False(t, called, "no HTTP call should be made without --confirm")
 }
 
 func TestPrepaidReverseRollover_RequiresBody(t *testing.T) {
@@ -82,7 +103,7 @@ func TestPrepaidReverseRollover_SuccessFalse(t *testing.T) {
 	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
 
 	root := newTestRoot(f)
-	root.SetArgs([]string{"prepaid", "reverse-rollover", "--body", `{"bad":"data"}`})
+	root.SetArgs([]string{"prepaid", "reverse-rollover", "--body", `{"bad":"data"}`, "--confirm"})
 	err := root.Execute()
 
 	assert.Error(t, err)

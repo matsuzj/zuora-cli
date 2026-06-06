@@ -47,10 +47,12 @@ func TestAPI_BodyResolveError(t *testing.T) {
 }
 
 // TestAPI_Paginate_Error covers the error return when a page request fails
-// (DoPaginated propagates the underlying API error).
+// (DoPaginated propagates the underlying API error). Uses a non-retriable 404
+// (not 5xx) so the GET retry/backoff loop doesn't sleep through a coverage-only
+// path, and pins the surfaced message so the assertion is tied to this path.
 func TestAPI_Paginate_Error(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
+		w.WriteHeader(404)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "boom"})
 	}))
 	defer server.Close()
@@ -62,6 +64,7 @@ func TestAPI_Paginate_Error(t *testing.T) {
 	root.SetArgs([]string{"api", "/v1/accounts", "--paginate"})
 	err := root.Execute()
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "boom")
 }
 
 // TestAPI_Paginate_NonArrayPage covers the branch where an aggregated page is a
@@ -82,7 +85,12 @@ func TestAPI_Paginate_NonArrayPage(t *testing.T) {
 	root.SetArgs([]string{"api", "/v1/accounts/acct-1", "--paginate"})
 	require.NoError(t, root.Execute())
 
-	output := out.String()
-	assert.Contains(t, output, "acct-1")
-	assert.Contains(t, output, "Acme")
+	// The page must be aggregated as a single whole element (the object), not
+	// flattened into the top level or dropped: the output is a JSON array of
+	// length 1 whose element is the original object.
+	var agg []map[string]interface{}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &agg))
+	require.Len(t, agg, 1)
+	assert.Equal(t, "acct-1", agg[0]["id"])
+	assert.Equal(t, "Acme", agg[0]["name"])
 }

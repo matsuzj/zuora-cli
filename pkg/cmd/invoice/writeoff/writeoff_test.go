@@ -35,7 +35,9 @@ func TestInvoiceWriteoff_Success(t *testing.T) {
 		assert.Contains(t, string(body), "bad debt")
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"creditMemo": map[string]interface{}{"id": "cm-001", "memoNumber": "CM00001"},
+			// Use Zuora's real credit-memo field name ("number"), matching the
+			// creditmemo get/list commands, so this test actually guards the key.
+			"creditMemo": map[string]interface{}{"id": "cm-001", "number": "CM00001"},
 			"success":    true,
 		})
 	}))

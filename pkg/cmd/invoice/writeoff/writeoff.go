@@ -86,7 +86,7 @@ func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) er
 	if cm, ok := raw["creditMemo"].(map[string]interface{}); ok {
 		fields = append(fields,
 			output.DetailField{Key: "Credit Memo ID", Value: cmdutil.GetString(cm, "id")},
-			output.DetailField{Key: "Credit Memo Number", Value: cmdutil.GetString(cm, "memoNumber")},
+			output.DetailField{Key: "Credit Memo Number", Value: cmdutil.GetString(cm, "number")},
 		)
 	}
 

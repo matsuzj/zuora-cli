@@ -4,6 +4,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	internalapi "github.com/matsuzj/zuora-cli/internal/api"
@@ -43,6 +44,11 @@ Examples:
 			// Read --jq and --template from global persistent flags
 			opts.JQ, _ = cmd.Flags().GetString("jq")
 			opts.Template, _ = cmd.Flags().GetString("template")
+			// --csv shapes tabular command output; the raw api body has no fixed
+			// columns, so silently dropping it would mislead. Reject it explicitly.
+			if csv, _ := cmd.Flags().GetBool("csv"); csv {
+				return fmt.Errorf("--csv is not supported for raw api output; use --jq or --template to shape the response")
+			}
 			return runAPI(opts, args[0])
 		},
 	}
@@ -82,6 +88,15 @@ func runAPI(opts *apiOptions, path string) error {
 			return fmt.Errorf("invalid header format %q (expected key:value)", h)
 		}
 		reqOpts = append(reqOpts, internalapi.WithHeader(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])))
+	}
+
+	// For mutating methods, surface HTTP-200 {"success":false} envelopes as an
+	// error (non-zero exit), matching every typed write command. WithCheckSuccess
+	// is a no-op when the body has no success field or isn't JSON, so the raw
+	// passthrough for non-envelope responses is preserved.
+	switch opts.Method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		reqOpts = append(reqOpts, internalapi.WithCheckSuccess())
 	}
 
 	// Execute request

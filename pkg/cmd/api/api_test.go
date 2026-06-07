@@ -22,6 +22,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 	root.PersistentFlags().String("jq", "", "Filter JSON output")
 	root.PersistentFlags().Bool("json", false, "Output as JSON")
 	root.PersistentFlags().String("template", "", "Format output")
+	root.PersistentFlags().Bool("csv", false, "Output as CSV")
 	root.AddCommand(NewCmdAPI(f))
 	return root
 }

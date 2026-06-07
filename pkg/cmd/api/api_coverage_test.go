@@ -94,3 +94,66 @@ func TestAPI_Paginate_NonArrayPage(t *testing.T) {
 	assert.Equal(t, "acct-1", agg[0]["id"])
 	assert.Equal(t, "Acme", agg[0]["name"])
 }
+
+// TestAPI_Write_SuccessFalse_Errors covers that a mutating method surfaces an
+// HTTP-200 {"success":false} envelope as an error (non-zero exit), matching the
+// typed write commands instead of silently exiting 0.
+func TestAPI_Write_SuccessFalse_Errors(t *testing.T) {
+	for _, method := range []string{"POST", "PUT", "PATCH", "DELETE"} {
+		t.Run(method, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, method, r.Method)
+				w.WriteHeader(200)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"reasons": []map[string]interface{}{
+						{"code": 50000040, "message": "write rejected"},
+					},
+				})
+			}))
+			defer server.Close()
+
+			ios, _, _, _ := iostreams.Test()
+			f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+			root := newTestRoot(f)
+			root.SetArgs([]string{"api", "/v1/things", "-X", method})
+			err := root.Execute()
+			require.Error(t, err, "%s with 200 success:false must error", method)
+			assert.Contains(t, err.Error(), "write rejected")
+		})
+	}
+}
+
+// TestAPI_GET_SuccessFalse_PassesThrough covers that reads are NOT subject to the
+// success-flag check: a GET returning {"success":false} is passed through (the
+// raw escape hatch), so the body prints and the command exits 0.
+func TestAPI_GET_SuccessFalse_PassesThrough(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "note": "raw"})
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"api", "/v1/things"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), "raw")
+}
+
+// TestAPI_CSV_Rejected covers that --csv (a global flag) is rejected for raw api
+// output rather than silently ignored.
+func TestAPI_CSV_Rejected(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"api", "/v1/things", "--csv"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--csv is not supported")
+}

@@ -52,10 +52,19 @@ func (e *APIError) Error() string {
 }
 
 // ExitCode maps the HTTP status to a CLI exit code:
-// 2 for 401 (auth — matches AuthError), 4 for 5xx (server), 3 for other 4xx.
+// 2 for 401 (auth — matches AuthError), 4 for 5xx (server), 1 for a transport
+// failure (no HTTP response), 3 for other 4xx.
 func (e *APIError) ExitCode() int {
 	if e.StatusCode == http.StatusUnauthorized {
 		return 2
+	}
+	if e.StatusCode == 0 {
+		// Transport failure (no HTTP response: connection refused, DNS, timeout).
+		// It is NOT a 4xx client error. The idempotent-method retry path returns
+		// the bare transport error (exit 1); non-idempotent methods wrap it in an
+		// APIError{StatusCode:0}, so map that to exit 1 too for a consistent,
+		// method-independent exit code.
+		return 1
 	}
 	if e.StatusCode >= 500 {
 		return 4

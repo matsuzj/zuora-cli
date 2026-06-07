@@ -143,9 +143,14 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 		if len(errBody) > 200 {
 			errBody = errBody[:200] + "..."
 		}
+		hint := "Check your Client ID and Client Secret."
+		if resp.StatusCode >= 500 {
+			hint = "The OAuth server returned a server error; this is likely transient. Try again shortly."
+		}
 		return "", &AuthError{
-			Message: fmt.Sprintf("authentication failed (HTTP %d): %s", resp.StatusCode, errBody),
-			Hint:    "Check your Client ID and Client Secret.",
+			Message:    fmt.Sprintf("authentication failed (HTTP %d): %s", resp.StatusCode, errBody),
+			Hint:       hint,
+			StatusCode: resp.StatusCode,
 		}
 	}
 

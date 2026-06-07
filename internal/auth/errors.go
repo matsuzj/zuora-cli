@@ -7,6 +7,9 @@ import "fmt"
 type AuthError struct {
 	Message string
 	Hint    string
+	// StatusCode is the HTTP status from the OAuth server when the failure came
+	// from an HTTP response (0 otherwise).
+	StatusCode int
 }
 
 func (e *AuthError) Error() string {
@@ -16,5 +19,12 @@ func (e *AuthError) Error() string {
 	return e.Message
 }
 
-// ExitCode returns the exit code for authentication errors.
-func (e *AuthError) ExitCode() int { return 2 }
+// ExitCode returns the exit code for authentication errors. A 5xx from the OAuth
+// server is a server-side failure (exit 4, matching APIError); anything else is
+// treated as a credential/auth error (exit 2).
+func (e *AuthError) ExitCode() int {
+	if e.StatusCode >= 500 {
+		return 4
+	}
+	return 2
+}

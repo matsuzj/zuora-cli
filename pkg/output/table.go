@@ -32,20 +32,22 @@ func PrintTable(w io.Writer, rows [][]string, columns []Column) error {
 }
 
 // sanitizeCell makes an arbitrary API string safe to render in a table cell:
-// newlines/tabs/carriage returns collapse to spaces and other control
-// characters (including ANSI escape sequences) are dropped, so a multiline or
-// hostile field cannot break the table layout or write escape codes to the
-// terminal.
+// newlines/tabs/carriage returns and the Unicode line/paragraph separators
+// (U+2028/U+2029) collapse to spaces, and other control characters (ANSI escape
+// sequences) plus Unicode format characters (U+202A-U+202E and the other BiDi /
+// zero-width controls in category Cf) are dropped — so a multiline or hostile
+// field cannot break the table layout, write escape codes to the terminal, or
+// spoof text direction.
 func sanitizeCell(s string) string {
 	if s == "" {
 		return s
 	}
 	return strings.Map(func(r rune) rune {
 		switch r {
-		case '\n', '\t', '\r':
+		case '\n', '\t', '\r', '\u2028', '\u2029':
 			return ' '
 		}
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
 			return -1
 		}
 		return r

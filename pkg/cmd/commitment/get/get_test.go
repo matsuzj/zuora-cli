@@ -30,13 +30,15 @@ func TestCommitmentGet_Success(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/v1/commitments/CMT-00000001", r.URL.Path)
 		w.WriteHeader(200)
+		// Real shape: the key is "commitmentNumber"/"id" (no "commitmentKey" field).
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":       true,
-			"commitmentKey": "CMT-00000001",
-			"name":          "Test Commitment",
-			"type":          "Monetary",
-			"status":        "Active",
-			"accountNumber": "A00000001",
+			"success":          true,
+			"id":               "8aca-commit-id",
+			"commitmentNumber": "CMT-00000001",
+			"name":             "Test Commitment",
+			"type":             "Monetary",
+			"status":           "Active",
+			"accountNumber":    "A00000001",
 		})
 	}))
 	defer server.Close()
@@ -50,8 +52,11 @@ func TestCommitmentGet_Success(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "CMT-00000001")
-	assert.Contains(t, out.String(), "Test Commitment")
+	outStr := out.String()
+	assert.Contains(t, outStr, "CMT-00000001") // commitmentNumber (was read from the absent "commitmentKey")
+	assert.Contains(t, outStr, "8aca-commit-id")
+	assert.Contains(t, outStr, "Test Commitment")
+	assert.Contains(t, outStr, "A00000001")
 }
 
 func TestCommitmentGet_RequiresArg(t *testing.T) {

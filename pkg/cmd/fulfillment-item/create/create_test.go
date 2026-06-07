@@ -36,9 +36,13 @@ func TestFulfillmentItemCreate_Success(t *testing.T) {
 		assert.Equal(t, "F-001", payload["fulfillmentKey"])
 
 		w.WriteHeader(200)
+		// Real shape: bulk endpoint returns created ids under a "fulfillmentItems"
+		// array, not a flat top-level "id".
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"id":      "fi-00000001",
+			"fulfillmentItems": []map[string]interface{}{
+				{"id": "fi-00000001"},
+			},
 		})
 	}))
 	defer server.Close()

@@ -49,8 +49,12 @@ func runGet(cmd *cobra.Command, f *factory.Factory, commitmentKey string) error 
 		return fmt.Errorf("parsing response: %w", err)
 	}
 
+	// GET /v1/commitments/{key} returns the commitment at the top level keyed by
+	// "id" and "commitmentNumber". "commitmentKey" is only the path-parameter name
+	// (an id or number), not a response field, so it was always empty.
 	fields := []output.DetailField{
-		{Key: "Commitment Key", Value: cmdutil.GetString(raw, "commitmentKey")},
+		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+		{Key: "Commitment Number", Value: cmdutil.GetString(raw, "commitmentNumber")},
 		{Key: "Name", Value: cmdutil.GetString(raw, "name")},
 		{Key: "Type", Value: cmdutil.GetString(raw, "type")},
 		{Key: "Status", Value: cmdutil.GetString(raw, "status")},

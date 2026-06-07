@@ -118,3 +118,33 @@ func TestToken_AuthFailed(t *testing.T) {
 	assert.ErrorAs(t, err, &authErr)
 	assert.Equal(t, 2, authErr.ExitCode())
 }
+
+// TestToken_ServerError_ExitCode covers that a 5xx from the OAuth server is
+// classified as a server error (exit 4, matching APIError) rather than a
+// credential error (exit 2), and that the status is recorded on the AuthError.
+func TestToken_ServerError_ExitCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable) // 503
+		w.Write([]byte(`{"error":"temporarily_unavailable"}`))
+	}))
+	defer server.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "id", "secret"))
+
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  creds,
+	}
+
+	_, err := ts.Token("sandbox")
+	require.Error(t, err)
+
+	var authErr *AuthError
+	require.ErrorAs(t, err, &authErr)
+	assert.Equal(t, 503, authErr.StatusCode)
+	assert.Equal(t, 4, authErr.ExitCode(), "OAuth 5xx must map to the server exit code (4)")
+}

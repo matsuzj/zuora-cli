@@ -3,7 +3,6 @@ package root
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -30,24 +29,33 @@ func TestRootHasSubcommands(t *testing.T) {
 	assert.Contains(t, names, "subscription")
 }
 
-func TestRootOutputFlagExclusion(t *testing.T) {
-	cases := [][]string{
-		{"version", "--json", "--template", "foo"},
-		{"version", "--json", "--csv"},
-		{"version", "--jq", ".x", "--template", "foo"},
-		{"version", "--csv", "--jq", ".x"},
-	}
-	for _, args := range cases {
-		t.Run(strings.Join(args[1:], " "), func(t *testing.T) {
+func TestRootJsonTemplateExclusion(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	f := &factory.Factory{IOStreams: ios}
+
+	cmd := NewCmdRoot(f)
+	cmd.SetArgs([]string{"version", "--json", "--template", "foo"})
+	err := cmd.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use --json and --template together")
+}
+
+// TestRootJqCombinationsAllowed guards the documented precedence: --jq implies
+// JSON and wins when combined, and --json/--jq/--template all win over --csv, so
+// these combinations must NOT be rejected (the renderer picks one). version reads
+// no network, so a nil error means the combination was accepted by the guard.
+func TestRootJqCombinationsAllowed(t *testing.T) {
+	for _, args := range [][]string{
+		{"version", "--json", "--jq", ".version"},
+		{"version", "--csv", "--jq", ".version"},
+	} {
+		t.Run(args[1]+"+"+args[2], func(t *testing.T) {
 			ios, _, _, _ := iostreams.Test()
 			f := &factory.Factory{IOStreams: ios}
-
 			cmd := NewCmdRoot(f)
 			cmd.SetArgs(args)
-			err := cmd.Execute()
-
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "mutually exclusive")
+			assert.NoError(t, cmd.Execute())
 		})
 	}
 }

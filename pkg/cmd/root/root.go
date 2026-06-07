@@ -52,28 +52,14 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Output-format flags are mutually exclusive. The renderer picks one by
-			// a fixed precedence (jq > json > template > csv), so passing two would
-			// silently ignore the rest; reject the combination instead.
+			// --json + --template mutual exclusion. Other combinations are NOT
+			// rejected: per the documented precedence (--jq implies JSON and wins;
+			// --json/--jq/--template all win over --csv), the renderer deliberately
+			// picks one, so e.g. `--json --jq .x` and `--csv --jq .x` are valid.
 			jsonFlag, _ := cmd.Flags().GetBool("json")
-			jq, _ := cmd.Flags().GetString("jq")
 			tmpl, _ := cmd.Flags().GetString("template")
-			csvFlag, _ := cmd.Flags().GetBool("csv")
-			var set []string
-			if jsonFlag {
-				set = append(set, "--json")
-			}
-			if jq != "" {
-				set = append(set, "--jq")
-			}
-			if tmpl != "" {
-				set = append(set, "--template")
-			}
-			if csvFlag {
-				set = append(set, "--csv")
-			}
-			if len(set) > 1 {
-				return fmt.Errorf("output format flags are mutually exclusive: %s given together", strings.Join(set, " and "))
+			if jsonFlag && tmpl != "" {
+				return fmt.Errorf("cannot use --json and --template together")
 			}
 
 			// --env override (transient, does not persist to config.yml)

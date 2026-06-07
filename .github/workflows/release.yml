@@ -22,7 +22,12 @@ jobs:
 
       - uses: goreleaser/goreleaser-action@v7
         with:
-          version: latest
+          # Pin to the v2 line (goreleaser-action's own recommendation over
+          # "latest"): it keeps the deprecated-but-valid `brews:` Homebrew
+          # formula working — which, unlike a macOS-only cask, installs on both
+          # macOS and Linux — and avoids a future major version silently
+          # removing `brews:` and breaking a release.
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

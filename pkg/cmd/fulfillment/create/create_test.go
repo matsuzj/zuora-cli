@@ -31,9 +31,13 @@ func TestFulfillmentCreate_Success(t *testing.T) {
 		assert.Equal(t, "/v1/fulfillments", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		w.WriteHeader(200)
+		// Real shape: bulk endpoint returns the created object under a
+		// "fulfillments" array (keyed by id/fulfillmentNumber), not a flat "key".
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"key":     "F-00000001",
+			"fulfillments": []map[string]interface{}{
+				{"id": "8aca-ful-id", "fulfillmentNumber": "F-00000001"},
+			},
 		})
 	}))
 	defer server.Close()

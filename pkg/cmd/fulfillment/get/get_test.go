@@ -30,13 +30,18 @@ func TestFulfillmentGet_Success(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/v1/fulfillments/F-00000001", r.URL.Path)
 		w.WriteHeader(200)
+		// Real shape: nested under a "fulfillment" object; the number is
+		// "fulfillmentNumber" (no top-level "key") and the date is "fulfillmentDate".
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":         true,
-			"key":             "F-00000001",
-			"state":           "Executed",
-			"orderLineItemId": "OLI-001",
-			"quantity":        5,
-			"date":            "2026-05-30",
+			"success": true,
+			"fulfillment": map[string]interface{}{
+				"id":                "8aca-ful-id",
+				"fulfillmentNumber": "F-00000001",
+				"state":             "Executed",
+				"orderLineItemId":   "OLI-001",
+				"quantity":          5,
+				"fulfillmentDate":   "2026-05-30",
+			},
 		})
 	}))
 	defer server.Close()
@@ -50,8 +55,11 @@ func TestFulfillmentGet_Success(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "F-00000001")
-	assert.Contains(t, out.String(), "Executed")
+	outStr := out.String()
+	assert.Contains(t, outStr, "F-00000001") // fulfillmentNumber (was read from the absent "key")
+	assert.Contains(t, outStr, "Executed")   // nested state
+	assert.Contains(t, outStr, "OLI-001")    // nested orderLineItemId
+	assert.Contains(t, outStr, "2026-05-30") // fulfillmentDate (was read from the absent "date")
 }
 
 func TestFulfillmentGet_RequiresArg(t *testing.T) {

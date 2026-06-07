@@ -30,11 +30,16 @@ func TestRampGet_Success(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/v1/ramps/R-00000001", r.URL.Path)
 		w.WriteHeader(200)
+		// Real shape: the ramp is nested under a "ramp" object and its number
+		// field is "number" (not "rampNumber").
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":            true,
-			"rampNumber":         "R-00000001",
-			"name":               "Test Ramp",
-			"subscriptionNumber": "A-S00000001",
+			"success": true,
+			"ramp": map[string]interface{}{
+				"number":             "R-00000001",
+				"name":               "Test Ramp",
+				"description":        "Ramp description",
+				"subscriptionNumber": "A-S00000001",
+			},
 		})
 	}))
 	defer server.Close()
@@ -48,8 +53,10 @@ func TestRampGet_Success(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "R-00000001")
-	assert.Contains(t, out.String(), "Test Ramp")
+	outStr := out.String()
+	assert.Contains(t, outStr, "R-00000001") // ramp.number (was read from flat "rampNumber")
+	assert.Contains(t, outStr, "Test Ramp")
+	assert.Contains(t, outStr, "A-S00000001") // proves the nested read works
 }
 
 func TestRampGet_RequiresArg(t *testing.T) {

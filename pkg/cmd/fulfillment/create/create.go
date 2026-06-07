@@ -67,8 +67,20 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 		return fmt.Errorf("parsing response: %w", err)
 	}
 
+	// POST /v1/fulfillments is the BULK create endpoint: the created object(s) are
+	// returned under a top-level "fulfillments" array (keyed by id/fulfillmentNumber),
+	// not a flat top-level "key". "success" is top-level.
+	var fulfillmentID, fulfillmentNumber string
+	if arr, ok := raw["fulfillments"].([]interface{}); ok && len(arr) > 0 {
+		if first, ok := arr[0].(map[string]interface{}); ok {
+			fulfillmentID = cmdutil.GetString(first, "id")
+			fulfillmentNumber = cmdutil.GetString(first, "fulfillmentNumber")
+		}
+	}
+
 	fields := []output.DetailField{
-		{Key: "Key", Value: cmdutil.GetString(raw, "key")},
+		{Key: "Fulfillment Number", Value: fulfillmentNumber},
+		{Key: "ID", Value: fulfillmentID},
 		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
@@ -76,8 +88,12 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 		return err
 	}
 
-	if key := cmdutil.GetString(raw, "key"); key != "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment %s created.\n", key)
+	ref := fulfillmentNumber
+	if ref == "" {
+		ref = fulfillmentID
+	}
+	if ref != "" {
+		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment %s created.\n", ref)
 	}
 	return nil
 }

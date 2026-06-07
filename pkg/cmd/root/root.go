@@ -52,7 +52,10 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// --json + --template mutual exclusion
+			// --json + --template mutual exclusion. Other combinations are NOT
+			// rejected: per the documented precedence (--jq implies JSON and wins;
+			// --json/--jq/--template all win over --csv), the renderer deliberately
+			// picks one, so e.g. `--json --jq .x` and `--csv --jq .x` are valid.
 			jsonFlag, _ := cmd.Flags().GetBool("json")
 			tmpl, _ := cmd.Flags().GetString("template")
 			if jsonFlag && tmpl != "" {

@@ -3,6 +3,7 @@ package root
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -29,16 +30,26 @@ func TestRootHasSubcommands(t *testing.T) {
 	assert.Contains(t, names, "subscription")
 }
 
-func TestRootJsonTemplateExclusion(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := &factory.Factory{IOStreams: ios}
+func TestRootOutputFlagExclusion(t *testing.T) {
+	cases := [][]string{
+		{"version", "--json", "--template", "foo"},
+		{"version", "--json", "--csv"},
+		{"version", "--jq", ".x", "--template", "foo"},
+		{"version", "--csv", "--jq", ".x"},
+	}
+	for _, args := range cases {
+		t.Run(strings.Join(args[1:], " "), func(t *testing.T) {
+			ios, _, _, _ := iostreams.Test()
+			f := &factory.Factory{IOStreams: ios}
 
-	cmd := NewCmdRoot(f)
-	cmd.SetArgs([]string{"version", "--json", "--template", "foo"})
-	err := cmd.Execute()
+			cmd := NewCmdRoot(f)
+			cmd.SetArgs(args)
+			err := cmd.Execute()
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot use --json and --template together")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "mutually exclusive")
+		})
+	}
 }
 
 func TestRootGlobalFlags(t *testing.T) {

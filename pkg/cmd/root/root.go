@@ -52,11 +52,28 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// --json + --template mutual exclusion
+			// Output-format flags are mutually exclusive. The renderer picks one by
+			// a fixed precedence (jq > json > template > csv), so passing two would
+			// silently ignore the rest; reject the combination instead.
 			jsonFlag, _ := cmd.Flags().GetBool("json")
+			jq, _ := cmd.Flags().GetString("jq")
 			tmpl, _ := cmd.Flags().GetString("template")
-			if jsonFlag && tmpl != "" {
-				return fmt.Errorf("cannot use --json and --template together")
+			csvFlag, _ := cmd.Flags().GetBool("csv")
+			var set []string
+			if jsonFlag {
+				set = append(set, "--json")
+			}
+			if jq != "" {
+				set = append(set, "--jq")
+			}
+			if tmpl != "" {
+				set = append(set, "--template")
+			}
+			if csvFlag {
+				set = append(set, "--csv")
+			}
+			if len(set) > 1 {
+				return fmt.Errorf("output format flags are mutually exclusive: %s given together", strings.Join(set, " and "))
 			}
 
 			// --env override (transient, does not persist to config.yml)

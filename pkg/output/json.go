@@ -86,6 +86,13 @@ func printJQ(ios *iostreams.IOStreams, data []byte, expr string) error {
 		return fmt.Errorf("parsing jq expression: %w", err)
 	}
 
+	// An empty body (e.g. HTTP 204) has nothing to filter — succeed silently,
+	// matching the pretty-print (PrintJSON) and raw (PrintRawOrJSON) paths so the
+	// exit code is consistent across output modes.
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil
+	}
+
 	input, err := decodeJSONPreservingNumbers(data)
 	if err != nil {
 		return fmt.Errorf("parsing JSON for jq: %w", err)

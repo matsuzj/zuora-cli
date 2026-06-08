@@ -4,6 +4,8 @@ Zuora CLI -- Work with Zuora from the command line.
 
 A CLI tool for Zuora API operations, modeled after GitHub CLI (`gh`). Manage accounts, subscriptions, orders, invoices, payments, and more from your terminal.
 
+> **Safety & maturity**: zuora-cli is pre-1.0, and its **write operations are less battle-tested than its read operations** — they have unit tests and safeguards (`--confirm` on destructive commands, an `Idempotency-Key` on POST/PATCH, and a fail-closed `--read-only` mode), but only limited verification against a live Zuora tenant. Because Zuora is a billing system, we recommend running **read-only** (`--read-only` or `ZR_READ_ONLY=1`) for exploration, trying any write against a **sandbox** environment first, and inspecting requests with `--verbose` (or previewing output with `--json`) before mutating production data. See [Global Flags](#global-flags) for read-only mode and the list of destructive commands.
+
 ## Installation
 
 ### Homebrew (macOS / Linux)

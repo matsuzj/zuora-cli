@@ -321,15 +321,17 @@ Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/
 
 ```bash
 task build          # outputs ./bin/zr
-task test           # go test -race -count=1 ./...
+task test           # go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...
 task lint           # go vet + staticcheck
 task fmt            # gofmt -w .
-task check          # lint + test (pre-commit gate)
+task check          # fmtcheck + lint + cover (quick pre-commit gate)
+task ci             # full local mirror of CI: modverify + fmtcheck + lint + vuln + cover + build
 ```
 
-CI additionally enforces a `gofmt -l .` formatting gate and `go mod verify`, which
-`task lint`/`task check` do not run — so run `task fmt` (or `gofmt -w .`) before
-pushing, or CI will fail on formatting even when local checks pass.
+`task check` runs the same `gofmt -l .` gate as CI (via `fmtcheck`) plus lint and the
+coverage floor. `task ci` additionally runs `go mod verify` and `govulncheck`, mirroring
+the full CI gate (`.github/workflows/ci.yml`). Run `task fmt` (or `gofmt -w .`) before
+pushing to auto-fix formatting.
 
 End-to-end suites (run the real binary against a live Zuora tenant) live in
 `tests/e2e-*.sh`; run them with `./tests/run-all.sh` after `zr auth login`. Some

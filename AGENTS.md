@@ -17,7 +17,7 @@ Guidance for AI coding agents working in this repo. Read this first.
 CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To avoid a red PR, run the **same** checks locally before pushing:
 
 1. `go mod verify`
-2. `gofmt -l .` — must print nothing (CI fails on any unformatted file; `make check`/`make lint` do NOT check this — run `make fmt` first)
+2. `gofmt -l .` — must print nothing (CI fails on any unformatted file). Run `make fmt` to auto-fix before pushing. (`make check`/`make ci` run this gate via `fmtcheck`; bare `make lint` does not.)
 3. `go vet ./...`
 4. `staticcheck ./...` — **CI runs this; fix every finding.** (Note: a `map[string]interface{}` → `any` editor hint is gopls "modernize", NOT staticcheck, and does not fail CI — the codebase uses `interface{}` throughout.)
 5. `make vuln` (i.e. `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`) — **CI runs govulncheck and fails on any vulnerability finding.**

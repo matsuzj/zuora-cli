@@ -100,4 +100,8 @@ tasks:
       - task: lint
       - task: vuln
       - task: cover
-      - task: build
+      # Build inline (not `task: build`) so it ALWAYS runs — the `build` task's
+      # sources/generates fingerprint would skip it on a cached re-run, but CI
+      # (and `make ci`) always build, so `ci` must too.
+      - mkdir -p bin
+      - go build -ldflags "{{.LDFLAGS}}" -o bin/{{.BINARY_NAME}} ./cmd/zr/

@@ -26,9 +26,9 @@ tasks:
       - bin/{{.BINARY_NAME}}
 
   test:
-    desc: Run all tests
+    desc: Run all tests with race + coverage profile (matches CI)
     cmds:
-      - go test -race -count=1 ./...
+      - go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...
 
   e2e:
     desc: Run E2E suites against the authenticated tenant (requires `zr auth login`)
@@ -42,6 +42,11 @@ tasks:
       - go vet ./...
       - staticcheck ./...
 
+  vuln:
+    desc: Scan for known vulnerabilities in deps and the toolchain (matches CI)
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
   clean:
     desc: Remove build artifacts
     cmds:
@@ -52,8 +57,47 @@ tasks:
     cmds:
       - gofmt -w .
 
-  check:
-    desc: Run fmt check, lint, and tests
+  fmtcheck:
+    desc: Fail if any Go file is not gofmt-formatted (matches the CI Gofmt step)
     cmds:
-      - task: lint
+      - |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then
+          echo "These files are not gofmt-formatted (run 'task fmt'):"
+          echo "$unformatted"
+          exit 1
+        fi
+
+  modverify:
+    desc: Verify module dependencies (matches the CI "Verify dependencies" step)
+    cmds:
+      - go mod verify
+
+  cover:
+    desc: Run tests and enforce the 73% coverage floor (matches CI)
+    cmds:
       - task: test
+      - |
+        total="$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $3); print $3}')"
+        echo "Total coverage: ${total}%"
+        if awk "BEGIN{exit !(${total} < 73.0)}"; then
+          echo "FAIL: coverage ${total}% is below the 73.0% threshold"
+          exit 1
+        fi
+
+  check:
+    desc: Quick pre-commit gate (gofmt check + lint + coverage) — a subset of `ci`
+    cmds:
+      - task: fmtcheck
+      - task: lint
+      - task: cover
+
+  ci:
+    desc: Full local mirror of the CI gate (gofmt, mod verify, vet, staticcheck, govulncheck, race+coverage, build)
+    cmds:
+      - task: modverify
+      - task: fmtcheck
+      - task: lint
+      - task: vuln
+      - task: cover
+      - task: build

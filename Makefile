@@ -7,7 +7,7 @@ LDFLAGS := -s -w \
 	-X github.com/matsuzj/zuora-cli/internal/build.Commit=$(COMMIT) \
 	-X github.com/matsuzj/zuora-cli/internal/build.Date=$(DATE)
 
-.PHONY: build test e2e lint vuln cover clean fmt check
+.PHONY: build test e2e lint vuln cover clean fmt fmtcheck modverify check ci
 
 build:
 	mkdir -p bin
@@ -42,4 +42,22 @@ clean:
 fmt:
 	gofmt -w .
 
-check: lint cover
+# Fail if any Go file is not gofmt-formatted (matches the CI Gofmt step).
+fmtcheck:
+	@unformatted="$$(gofmt -l .)"; \
+	if [ -n "$$unformatted" ]; then \
+		echo "These files are not gofmt-formatted (run 'make fmt'):"; \
+		echo "$$unformatted"; exit 1; \
+	fi
+
+# Verify module dependencies (matches the CI "Verify dependencies" step).
+modverify:
+	go mod verify
+
+# Quick local pre-commit gate: a SUBSET of `ci` (no mod-verify/vuln/build).
+check: fmtcheck lint cover
+
+# Full local mirror of the CI gate (.github/workflows/ci.yml): run before
+# pushing to catch everything CI checks. (E2E is a separate manual gate — `make e2e`.)
+ci: modverify fmtcheck lint vuln cover build
+	@echo "ci: all checks passed (matches .github/workflows/ci.yml)"

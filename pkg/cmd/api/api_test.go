@@ -202,7 +202,7 @@ func TestAPIGet_SuccessFalseBodyPassesThrough(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err, "GET passthrough must not interpret the envelope")
-	assert.Contains(t, out.String(), `"success":false`)
+	assert.Contains(t, out.String(), `"success": false`)
 }
 
 func TestAPIPost_SuccessFalseBodyErrors(t *testing.T) {

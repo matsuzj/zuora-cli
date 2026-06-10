@@ -19,48 +19,28 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Each step delegates to the Makefile target of the same gate, so the
+      # gate logic lives in exactly one place (the Makefile) and `make ci`
+      # locally is the same gate by construction. Steps stay split to keep
+      # per-gate CI annotations. staticcheck needs no install step: it runs
+      # via go.mod's `tool` directive (pinned version, shared with local).
       - name: Verify dependencies
-        run: go mod verify
+        run: make modverify
 
       - name: Gofmt
-        run: |
-          unformatted="$(gofmt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "These files are not gofmt-formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
+        run: make fmtcheck
 
-      - name: Vet
-        run: go vet ./...
-
-      - name: Install staticcheck
-        run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      - name: Staticcheck
-        run: staticcheck ./...
+      - name: Lint (vet + staticcheck)
+        run: make lint
 
       - name: Govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          "$(go env GOPATH)/bin/govulncheck" ./...
+        run: make vuln
 
-      - name: Test
-        run: go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...
-
-      - name: Coverage gate
-        run: |
-          total="$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $3); print $3}')"
-          echo "Total coverage: ${total}%"
-          if awk "BEGIN{exit !(${total} < 73.0)}"; then
-            echo "FAIL: coverage ${total}% is below the 73.0% threshold"
-            exit 1
-          fi
+      - name: Test & coverage gate
+        run: make cover
 
       - name: Build
-        run: mkdir -p bin && go build -o bin/zr ./cmd/zr/
+        run: make build
 
   # Compile and race-test the darwin binary that Homebrew ships — the ubuntu
   # `test` job never builds it. Kept lighter than `test`: the gofmt/vet/
@@ -76,8 +56,10 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Intentionally NOT `make test`: kept lighter (no coverage profile) with
+      # an explicit timeout, per the job comment above.
       - name: Test
         run: go test -race -count=1 -timeout=120s ./...
 
       - name: Build
-        run: mkdir -p bin && go build -o bin/zr ./cmd/zr/
+        run: make build

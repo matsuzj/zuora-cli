@@ -37,10 +37,10 @@ tasks:
       - ./tests/run-all.sh {{.CLI_ARGS}}
 
   lint:
-    desc: Run linters
+    desc: Run linters (staticcheck version pinned via go.mod's tool directive)
     cmds:
       - go vet ./...
-      - staticcheck ./...
+      - go tool staticcheck ./...
 
   vuln:
     desc: Scan for known vulnerabilities in deps and the toolchain (matches CI)

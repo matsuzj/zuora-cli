@@ -314,7 +314,8 @@ Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/
 ### Prerequisites
 
 - Go 1.26+
-- [go-task](https://taskfile.dev/) (`brew install go-task`)
+- `make` (preinstalled with Xcode Command Line Tools on macOS, standard on Linux) — the single home of all build/gate logic
+- [go-task](https://taskfile.dev/) (`brew install go-task`) — optional thin wrapper: every `task` command delegates to the make target of the same name
 - [staticcheck](https://staticcheck.dev/) — no separate install needed: it runs via
   `go tool staticcheck`, with the version pinned in `go.mod`'s `tool` directive so
   local runs and CI always use the same one

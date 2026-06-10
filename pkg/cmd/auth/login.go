@@ -28,7 +28,7 @@ Credentials can be provided via flags, environment variables (ZR_CLIENT_ID,
 ZR_CLIENT_SECRET), or interactive prompts.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLogin(opts)
+			return runLogin(cmd, opts)
 		},
 	}
 
@@ -39,7 +39,7 @@ ZR_CLIENT_SECRET), or interactive prompts.`,
 	return cmd
 }
 
-func runLogin(opts *loginOptions) error {
+func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 	f := opts.Factory
 	cfg, err := f.Config()
 	if err != nil {
@@ -111,7 +111,10 @@ func runLogin(opts *loginOptions) error {
 		envName: {clientID, clientSecret},
 	}}
 	ts := &auth.TokenSource{Config: cfg, Creds: creds}
-	_, err = ts.Refresh(envName)
+	// ForceRefreshContext (not the context-less Refresh): the command context
+	// makes a hung OAuth endpoint interruptible with Ctrl-C, and the forced
+	// path also takes the per-environment single-flight lock.
+	_, err = ts.ForceRefreshContext(cmd.Context(), envName)
 	if err != nil {
 		return err
 	}

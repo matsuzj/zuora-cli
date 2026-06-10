@@ -19,49 +19,13 @@ LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-usage-meter-${TIMESTAMP}.log"
 
-# Tee all output to log file
-exec > >(tee >(sed 's/\x1b\[[0-9;]*m//g' > "$LOG_FILE")) 2>&1
-
-green()  { printf "\033[32m%s\033[0m\n" "$1"; }
-red()    { printf "\033[31m%s\033[0m\n" "$1"; }
-yellow() { printf "\033[33m%s\033[0m\n" "$1"; }
-
-pass() { PASS=$((PASS+1)); green "  ✓ $1"; }
-fail() { FAIL=$((FAIL+1)); red   "  ✗ $1"; }
-skip() { SKIP=$((SKIP+1)); yellow "  ⊘ $1 (skipped)"; }
-
-header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
-
-# expect_fail <description> <expected-substring> -- <command...>
-# Passes only when the command exits non-zero AND its combined (stdout+stderr)
-# output contains the exact expected substring (fixed-string match). This makes a
-# regression that drops the validation, prints help, or exits 0 a real FAIL —
-# unlike a loose 'grep -qi arg|required' which any usage banner would satisfy.
-expect_fail() {
-  local desc="$1" want="$2"; shift 2
-  [ "${1:-}" = "--" ] && shift
-  local out rc
-  out=$("$@" 2>&1); rc=$?
-  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF -- "$want"; then
-    pass "$desc"
-  else
-    fail "$desc → rc=$rc, expected '$want', got: $(printf '%s' "$out" | head -1)"
-  fi
-}
+source "$SCRIPT_DIR/lib/e2e-common.sh"
+setup_log
 
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-[ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }
-# auth status always exits 0 and prints "Token: valid|expired"; the only reliable
-# signal of a usable session is a "Token: ... valid" line, so key on that.
-AUTH_OUT=$($ZR auth status 2>&1)
-if echo "$AUTH_OUT" | grep -qE "Token:[[:space:]]+valid"; then
-  pass "Auth OK"
-else
-  fail "Auth failed (token not valid): $(echo "$AUTH_OUT" | grep -i 'token' | head -1)"
-  exit 1
-fi
+require_auth
 
 # ─────────────────────────────────────────
 header "Step 1: Usage Validation"
@@ -123,15 +87,4 @@ expect_fail "meter audit validation → requires argument" "accepts 1 arg(s), re
 header "Step 3: Summary"
 # ─────────────────────────────────────────
 echo ""
-echo "  Passed:  $PASS / $((PASS+FAIL+SKIP))"
-echo "  Failed:  $FAIL / $((PASS+FAIL+SKIP))"
-echo "  Skipped: $SKIP / $((PASS+FAIL+SKIP))"
-echo ""
-echo "  Log: $LOG_FILE"
-echo ""
-if [ "$FAIL" -gt 0 ]; then
-  echo "  RESULT: FAIL"
-  exit 1
-else
-  echo "  RESULT: PASS"
-fi
+print_summary

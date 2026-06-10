@@ -23,14 +23,14 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 5. `make vuln` (i.e. `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`) — **CI runs govulncheck and fails on any vulnerability finding.**
 6. `go test -race -count=1 ./...`
 7. Coverage floor: **≥ 73.0%** total (`make cover` enforces it locally; CI enforces it too)
-8. `go build ./...`
+8. `make build` (what CI runs — produces `bin/zr` with version ldflags; a bare `go build ./...` does not exercise that linkage)
 9. For changes to live API/auth/output behavior: run the **E2E suite** (`make e2e`, 9 suites against the live sandbox) — it is the only thing that catches Zuora-specific behavior that mocked unit tests miss. E2E is a MANUAL pre-merge/release gate and is intentionally NOT in CI.
 
 `main` is protected (strict): PRs serialize. After one PR merges, others go BEHIND — `gh pr update-branch <n>`, wait for CI, then merge. `--admin`/auto-merge are not available.
 
 ## Go Code Standards
 
-- `gofmt` all files; `go vet` + `staticcheck` clean before committing.
+- `gofmt` all files; `go vet` + `go tool staticcheck` clean before committing.
 - Exported functions need doc comments. New code needs tests (`*_test.go`).
 - Use `testify` (`require` for fatal, `assert` for non-fatal).
 

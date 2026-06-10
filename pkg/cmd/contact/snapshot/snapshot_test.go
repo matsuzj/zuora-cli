@@ -58,3 +58,23 @@ func TestContactSnapshot_RequiresArgs(t *testing.T) {
 	root.SetArgs([]string{"contact", "snapshot"})
 	assert.Error(t, root.Execute())
 }
+
+func TestContactSnapshot_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Contact snapshot not found"}},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"contact", "snapshot", "bad-id"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Contact snapshot not found")
+}

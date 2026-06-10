@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -36,7 +37,7 @@ func runVersions(cmd *cobra.Command, f *factory.Factory, key, version string) er
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/subscriptions/%s/versions/%s", url.PathEscape(key), url.PathEscape(version)))
+	resp, err := client.Get(fmt.Sprintf("/v1/subscriptions/%s/versions/%s", url.PathEscape(key), url.PathEscape(version)), api.WithCheckSuccess())
 	if err != nil {
 		return err
 	}

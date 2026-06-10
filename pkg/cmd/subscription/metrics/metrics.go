@@ -49,6 +49,7 @@ func runMetrics(cmd *cobra.Command, opts *metricsOptions) error {
 	reqOpts := []api.RequestOption{
 		api.WithQuerySlice("subscriptionNumbers[]", opts.SubscriptionNumbers),
 	}
+	reqOpts = append(reqOpts, api.WithCheckSuccess())
 
 	resp, err := client.Get("/v1/subscriptions/subscription-metrics", reqOpts...)
 	if err != nil {

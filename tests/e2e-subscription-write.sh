@@ -12,43 +12,22 @@ FAIL=0
 SKIP=0
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 TODAY=$(date +%Y-%m-%d)  # local order date used by suspend/resume/renew steps
-RATE_PLAN_ID="4c6059a8d8899f453ffa0637451d0003"  # Backlog-スタータープラン(月払い)
-
 # Log directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-subscription-write-${TIMESTAMP}.log"
 
-# Tee all output to log file (preserving terminal colors in terminal, stripping in file)
-exec > >(tee >(sed 's/\x1b\[[0-9;]*m//g' > "$LOG_FILE")) 2>&1
-LOG_TEE_PID=$!
-# Drain the tee/sed log pipeline on exit (sed block-buffers to a file;
-# without a clean EOF + wait the tail of the log is silently truncated).
-_drain_log() { exec 1>&- 2>&-; wait "$LOG_TEE_PID" 2>/dev/null || true; }
-trap _drain_log EXIT
-
-green()  { printf "\033[32m%s\033[0m\n" "$1"; }
-red()    { printf "\033[31m%s\033[0m\n" "$1"; }
-yellow() { printf "\033[33m%s\033[0m\n" "$1"; }
-
-pass() { PASS=$((PASS+1)); green "  ✓ $1"; }
-fail() { FAIL=$((FAIL+1)); red   "  ✗ $1"; }
-skip() { SKIP=$((SKIP+1)); yellow "  ⊘ $1 (skipped)"; }
-
-header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
+source "$SCRIPT_DIR/lib/e2e-common.sh"
+setup_log
 
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-# auth status always exits 0 and prints "Token: valid|expired"; key on a valid
-# token so an expired session fails fast rather than passing on the env label.
-if $ZR auth status 2>&1 | grep -qE "Token:[[:space:]]+valid"; then
-  pass "Auth OK"
-else
-  fail "Auth failed (token not valid)"
-  exit 1
-fi
+# Known quirk: $ZR is "./bin/zr" (CWD-relative, unlike the other suites'
+# SCRIPT_DIR-relative form), so require_auth's binary check assumes the suite
+# runs from the repo root. Canonicalizing the path is a separate change.
+require_auth
 
 # ─────────────────────────────────────────
 header "Step 1: Account Create (テスト用アカウント)"
@@ -633,23 +612,4 @@ echo ""
 echo "  Test Account: $ACCT_NUM"
 echo "  Subscriptions: SUB_A=$SUB_A SUB_B=$SUB_B SUB_C=$SUB_C"
 echo ""
-TOTAL=$((PASS + FAIL + SKIP))
-green  "  Passed:  $PASS / $TOTAL"
-if [ "$FAIL" -gt 0 ]; then
-  red  "  Failed:  $FAIL / $TOTAL"
-fi
-if [ "$SKIP" -gt 0 ]; then
-  yellow "  Skipped: $SKIP / $TOTAL"
-fi
-echo ""
-
-echo "  Log: $LOG_FILE"
-echo ""
-
-if [ "$FAIL" -gt 0 ]; then
-  red "  RESULT: FAIL"
-  exit 1
-else
-  green "  RESULT: PASS"
-  exit 0
-fi
+print_summary

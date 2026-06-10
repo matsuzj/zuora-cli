@@ -19,6 +19,7 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-order-${TIMESTAMP}.log"
+
 source "$SCRIPT_DIR/lib/e2e-common.sh"
 setup_log
 

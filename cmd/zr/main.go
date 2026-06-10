@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/root"
 )
@@ -19,12 +20,13 @@ func main() {
 	// alias expansion can derive the builtin-name and flag-arity sets from it.
 	rootCmd := root.NewCmdRoot(f)
 
-	// Resolve aliases: expand os.Args before Cobra dispatch. The alias file
-	// lives in the config dir; if the config itself cannot load, skip
-	// expansion and let dispatch surface the real config error.
-	if cfg, err := f.Config(); err == nil {
-		os.Args = resolveAliasArgs(rootCmd, cfg.ConfigDir(), os.Args, f.IOStreams.ErrOut)
-	}
+	// Resolve aliases: expand os.Args before Cobra dispatch. Only the config
+	// DIRECTORY is needed here (config.Dir() is pure path resolution, the same
+	// XDG logic the loaded config uses) — deliberately NOT f.Config(): gating
+	// expansion on a successful config parse would silently disable aliases
+	// whenever any config file is malformed, even for aliases that target
+	// commands needing no config at all.
+	os.Args = resolveAliasArgs(rootCmd, config.Dir(), os.Args, f.IOStreams.ErrOut)
 
 	// Cancel in-flight requests and retry backoff on Ctrl-C / SIGTERM.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

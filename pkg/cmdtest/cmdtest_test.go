@@ -88,3 +88,39 @@ func TestStatus_ExplicitCode(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "404")
 }
+
+// newWriteProbeCmd POSTs — for asserting the harness applies real global-flag
+// behavior (--read-only must block it before any HTTP call).
+func newWriteProbeCmd(f *factory.Factory) *cobra.Command {
+	return &cobra.Command{
+		Use:  "wprobe",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := f.HttpClient()
+			if err != nil {
+				return err
+			}
+			_, err = client.Post("/v1/probe", nil, api.WithCheckSuccess())
+			return err
+		},
+	}
+}
+
+func TestRun_AppliesRealGlobalFlagBehavior(t *testing.T) {
+	t.Run("--json and --template are rejected", func(t *testing.T) {
+		_, _, err := Run(t, "", newProbeCmd, nil, "probe", "P-1", "--json", "--template", "{{.}}")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot use --json and --template together")
+	})
+
+	t.Run("--read-only blocks a write before any HTTP call", func(t *testing.T) {
+		_, _, err := Run(t, "", newWriteProbeCmd, nil, "wprobe", "--read-only")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "read-only")
+	})
+
+	// NOTE: --env validation is part of Apply but cannot be asserted here:
+	// NewTestFactory pre-wires HttpClient to the test server and never
+	// consults f.Config, so the override (and its validation) is bypassed —
+	// the same limitation every existing command test has.
+}

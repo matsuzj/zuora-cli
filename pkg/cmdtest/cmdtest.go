@@ -13,6 +13,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/spf13/cobra"
 )
@@ -46,21 +47,22 @@ func Run(t *testing.T, parent string, newCmd func(*factory.Factory) *cobra.Comma
 	return out.String(), errOut.String(), err
 }
 
-// buildRoot constructs a stub root carrying the same 8 persistent flags
-// pkg/cmd/root/root.go registers — commands read them via output.FromCmd, and
-// cobra rejects unknown flags otherwise. Help texts are intentionally empty:
-// the stub is never user-facing, only the names must match.
+// buildRoot constructs a stub root that carries the REAL global-flag
+// behavior: globalflags.Register defines the same persistent flags as the
+// production root, and globalflags.Apply runs as PersistentPreRunE — so
+// --read-only blocking, the --json+--template rejection, --env validation and
+// --zuora-version/--verbose wiring all behave exactly as in the shipped CLI
+// (a review caught that a name-only stub would let migrated tests drift).
 func buildRoot(f *factory.Factory, parent string, newCmd func(*factory.Factory) *cobra.Command) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-
-	root.PersistentFlags().StringP("env", "e", "", "")
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	root.PersistentFlags().Bool("csv", false, "")
-	root.PersistentFlags().String("zuora-version", "", "")
-	root.PersistentFlags().Bool("verbose", false, "")
-	root.PersistentFlags().Bool("read-only", false, "")
+	root := &cobra.Command{
+		Use:           "zr",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return globalflags.Apply(f, cmd)
+		},
+	}
+	globalflags.Register(root)
 
 	leaf := newCmd(f)
 	if parent == "" {

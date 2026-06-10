@@ -41,7 +41,10 @@ declare -a FAILED_SUITES=()
 for suite in "${SUITES[@]}"; do
   name="$(basename "$suite")"
   if [ ! -x "$suite" ]; then
-    red "  skip $name (not found/executable)"
+    # A requested-but-missing suite must FAIL the run, not skip silently —
+    # otherwise a typoed name produces a green E2E run that tested nothing.
+    red "  ✗ $name (not found/executable)"
+    FAILED_SUITES+=("$name (not found)")
     continue
   fi
   bold "▶ $name"
@@ -55,7 +58,11 @@ done
 
 bold "════════ E2E roll-up ════════"
 green "  Passed suites: ${#OK_SUITES[@]}"
-for s in "${OK_SUITES[@]}"; do green "    ✓ $s"; done
+# Guard the expansion: bash 3.2 (macOS /bin/bash) treats an empty array as
+# unbound under `set -u` and would crash the roll-up.
+if [ "${#OK_SUITES[@]}" -gt 0 ]; then
+  for s in "${OK_SUITES[@]}"; do green "    ✓ $s"; done
+fi
 if [ "${#FAILED_SUITES[@]}" -gt 0 ]; then
   red "  Failed suites: ${#FAILED_SUITES[@]}"
   for s in "${FAILED_SUITES[@]}"; do red "    ✗ $s"; done

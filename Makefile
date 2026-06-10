@@ -32,7 +32,7 @@ vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # E2E suites hit a real Zuora tenant — requires `zr auth login` first.
-# Optionally run a subset: make e2e ARGS="e2e-local.sh"
+# Optionally run a subset by suite name (tests/e2e-<name>.sh): make e2e ARGS="local"
 e2e: build
 	./tests/run-all.sh $(ARGS)
 

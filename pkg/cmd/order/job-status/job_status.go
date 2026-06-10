@@ -71,14 +71,24 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
 		defer cancel()
-		client.SetContext(ctx)
 	}
+	// Re-point the client at the (possibly deadline-carrying) context so an
+	// in-flight status request observes Ctrl-C and --timeout too — not just
+	// the sleep between polls. (root's PersistentPreRunE wires cmd.Context()
+	// already; this also covers the derived deadline and direct callers.)
+	client.SetContext(ctx)
 
 	path := fmt.Sprintf("/v1/async-jobs/%s", url.PathEscape(jobID))
 
+	lastStatus := "unknown"
 	for {
 		resp, err := client.Get(path, api.WithCheckSuccess())
 		if err != nil {
+			// A deadline that fires mid-request must read like the one that
+			// fires mid-sleep, not as a raw "context deadline exceeded".
+			if opts.Timeout > 0 && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return fmt.Errorf("gave up waiting for job %s after %s (last status: %s)", jobID, opts.Timeout, lastStatus)
+			}
 			return err
 		}
 
@@ -90,6 +100,7 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 		}
 
 		status := cmdutil.GetString(raw, "status")
+		lastStatus = status
 
 		fields := []output.DetailField{
 			{Key: "Job ID", Value: cmdutil.GetString(raw, "jobId")},

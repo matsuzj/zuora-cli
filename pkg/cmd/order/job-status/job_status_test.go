@@ -198,5 +198,6 @@ func TestOrderJobStatus_TimeoutAbortsInFlightRequest(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gave up waiting for job J1", "mid-request timeout must use the friendly message")
 	assert.Less(t, elapsed, 500*time.Millisecond, "--timeout must abort an in-flight request promptly")
 }

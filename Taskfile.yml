@@ -1,107 +1,72 @@
 version: '3'
 
-vars:
-  BINARY_NAME: zr
-  VERSION:
-    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
-  COMMIT:
-    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
-  DATE:
-    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
-  LDFLAGS: >-
-    -s -w
-    -X github.com/matsuzj/zuora-cli/internal/build.Version={{.VERSION}}
-    -X github.com/matsuzj/zuora-cli/internal/build.Commit={{.COMMIT}}
-    -X github.com/matsuzj/zuora-cli/internal/build.Date={{.DATE}}
+# Thin delegation layer for go-task users: every task forwards to the Makefile
+# target of the same name, so build/gate logic lives in exactly one place (the
+# Makefile — .github/workflows/ci.yml delegates to the same targets).
 
 tasks:
   build:
-    desc: Build the zr binary
+    desc: Build the zr binary (delegates to make build)
     cmds:
-      - mkdir -p bin
-      - go build -ldflags "{{.LDFLAGS}}" -o bin/{{.BINARY_NAME}} ./cmd/zr/
+      - make build
+    # go-task-only convenience the Makefile doesn't provide: skip the build on
+    # a cached re-run when no .go file changed.
     sources:
       - ./**/*.go
     generates:
-      - bin/{{.BINARY_NAME}}
+      - bin/zr
 
   test:
     desc: Run all tests with race + coverage profile (matches CI)
     cmds:
-      - go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...
+      - make test
 
   e2e:
     desc: Run E2E suites against the authenticated tenant (requires `zr auth login`)
-    deps: [build]
     cmds:
-      - ./tests/run-all.sh {{.CLI_ARGS}}
+      - make e2e ARGS="{{.CLI_ARGS}}"
 
   lint:
-    desc: Run linters (staticcheck version pinned via go.mod's tool directive)
+    desc: Run linters (go vet + staticcheck pinned via go.mod's tool directive)
     cmds:
-      - go vet ./...
-      - go tool staticcheck ./...
+      - make lint
 
   vuln:
     desc: Scan for known vulnerabilities in deps and the toolchain (matches CI)
     cmds:
-      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - make vuln
 
   clean:
     desc: Remove build artifacts
     cmds:
-      - rm -rf bin/
+      - make clean
 
   fmt:
     desc: Format Go source files
     cmds:
-      - gofmt -w .
+      - make fmt
 
   fmtcheck:
     desc: Fail if any Go file is not gofmt-formatted (matches the CI Gofmt step)
     cmds:
-      - |
-        unformatted="$(gofmt -l .)"
-        if [ -n "$unformatted" ]; then
-          echo "These files are not gofmt-formatted (run 'task fmt'):"
-          echo "$unformatted"
-          exit 1
-        fi
+      - make fmtcheck
 
   modverify:
     desc: Verify module dependencies (matches the CI "Verify dependencies" step)
     cmds:
-      - go mod verify
+      - make modverify
 
   cover:
     desc: Run tests and enforce the 73% coverage floor (matches CI)
     cmds:
-      - task: test
-      - |
-        total="$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $3); print $3}')"
-        echo "Total coverage: ${total}%"
-        if awk "BEGIN{exit !(${total} < 73.0)}"; then
-          echo "FAIL: coverage ${total}% is below the 73.0% threshold"
-          exit 1
-        fi
+      - make cover
 
   check:
     desc: Quick pre-commit gate (gofmt check + lint + coverage) — a subset of `ci`
     cmds:
-      - task: fmtcheck
-      - task: lint
-      - task: cover
+      - make check
 
   ci:
-    desc: Full local mirror of the CI gate (gofmt, mod verify, vet, staticcheck, govulncheck, race+coverage, build)
+    desc: Full local mirror of the CI gate (.github/workflows/ci.yml)
     cmds:
-      - task: modverify
-      - task: fmtcheck
-      - task: lint
-      - task: vuln
-      - task: cover
-      # Build inline (not `task: build`) so it ALWAYS runs — the `build` task's
-      # sources/generates fingerprint would skip it on a cached re-run, but CI
-      # (and `make ci`) always build, so `ci` must too.
-      - mkdir -p bin
-      - go build -ldflags "{{.LDFLAGS}}" -o bin/{{.BINARY_NAME}} ./cmd/zr/
+      - make ci

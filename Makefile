@@ -32,8 +32,9 @@ vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # E2E suites hit a real Zuora tenant — requires `zr auth login` first.
+# Optionally run a subset: make e2e ARGS="e2e-local.sh"
 e2e: build
-	./tests/run-all.sh
+	./tests/run-all.sh $(ARGS)
 
 # staticcheck runs via go.mod's `tool` directive, so local and CI always use
 # the same pinned version (dependabot bumps it) — no separate install needed.

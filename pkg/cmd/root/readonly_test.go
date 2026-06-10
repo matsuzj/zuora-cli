@@ -1,6 +1,7 @@
 package root
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,15 @@ func TestEnvReadOnly(t *testing.T) {
 }
 
 func TestEnvReadOnly_Unset(t *testing.T) {
-	// With the var unset entirely, read-only must be off.
+	// With the var unset entirely, read-only must be off. t.Setenv overrides
+	// any ambient ZR_READ_ONLY (so a developer machine exporting it — a
+	// documented safety setup — cannot flip this assertion) and registers
+	// restoration of the pre-test state; it also guards against t.Parallel.
+	// envReadOnly currently reads os.Getenv, which cannot tell "" from unset,
+	// so t.Setenv alone would pass today — the extra os.Unsetenv makes the
+	// test true to its name and keeps it valid if envReadOnly ever switches
+	// to os.LookupEnv.
+	t.Setenv("ZR_READ_ONLY", "")
+	os.Unsetenv("ZR_READ_ONLY")
 	assert.False(t, envReadOnly())
 }

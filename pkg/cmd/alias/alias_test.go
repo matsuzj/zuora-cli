@@ -8,6 +8,7 @@ import (
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -114,4 +115,97 @@ func TestSetCommand_ExactArgs(t *testing.T) {
 	cmd.SetArgs([]string{"set", "onlyname"})
 	err := cmd.Execute()
 	assert.Error(t, err)
+}
+
+// newTestRootWithAlias builds a zr-shaped root: the alias group plus a dummy
+// "account" command, so runSet's cmd.Root()-derived reserved set includes a
+// realistic builtin.
+func newTestRootWithAlias(f *factory.Factory, ios *iostreams.IOStreams) *cobra.Command {
+	root := &cobra.Command{Use: "zr"}
+	root.AddCommand(NewCmdAlias(f))
+	root.AddCommand(&cobra.Command{Use: "account", Run: func(*cobra.Command, []string) {}})
+	root.SetOut(ios.Out)
+	root.SetErr(ios.ErrOut)
+	return root
+}
+
+func TestSetCommand_RejectsReservedName(t *testing.T) {
+	f, ios, dir := newTestFactory(t)
+
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs([]string{"alias", "set", "account", "contact list"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"account" is a built-in command`)
+
+	// Nothing was written.
+	s := NewStore(dir)
+	require.NoError(t, s.Load())
+	_, ok := s.Get("account")
+	assert.False(t, ok)
+}
+
+func TestSetCommand_RejectsHelp(t *testing.T) {
+	f, ios, _ := newTestFactory(t)
+
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs([]string{"alias", "set", "help", "account list"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "built-in command")
+}
+
+func TestSetCommand_RejectsSelfReference(t *testing.T) {
+	f, ios, dir := newTestFactory(t)
+
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs([]string{"alias", "set", "loop", "loop --json"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `alias "loop" would invoke itself`)
+
+	s := NewStore(dir)
+	require.NoError(t, s.Load())
+	_, ok := s.Get("loop")
+	assert.False(t, ok)
+}
+
+func TestSetCommand_RejectsMalformedExpansion(t *testing.T) {
+	f, ios, _ := newTestFactory(t)
+
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs([]string{"alias", "set", "bad", `query "SELECT unbalanced`})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "malformed expansion")
+}
+
+func TestSetCommand_RejectsEmptyExpansion(t *testing.T) {
+	f, ios, _ := newTestFactory(t)
+
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs([]string{"alias", "set", "blank", "   "})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestDeleteCommand_AllowsReservedName(t *testing.T) {
+	// delete stays permissive so pre-existing polluted entries (created
+	// before the set-side guard) can be cleaned up.
+	f, ios, dir := newTestFactory(t)
+
+	s := NewStore(dir)
+	require.NoError(t, s.Load())
+	s.Set("account", "contact list")
+	require.NoError(t, s.Save())
+
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs([]string{"alias", "delete", "account"})
+	require.NoError(t, root.Execute())
+
+	s2 := NewStore(dir)
+	require.NoError(t, s2.Load())
+	_, ok := s2.Get("account")
+	assert.False(t, ok)
 }

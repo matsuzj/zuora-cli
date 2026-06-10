@@ -19,54 +19,18 @@ LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-local-${TIMESTAMP}.log"
 
-exec > >(tee >(sed 's/\x1b\[[0-9;]*m//g' > "$LOG_FILE")) 2>&1
+source "$SCRIPT_DIR/lib/e2e-common.sh"
+setup_log
 
-green()  { printf "\033[32m%s\033[0m\n" "$1"; }
-red()    { printf "\033[31m%s\033[0m\n" "$1"; }
-yellow() { printf "\033[33m%s\033[0m\n" "$1"; }
-
-pass() { PASS=$((PASS+1)); green "  ✓ $1"; }
-fail() { FAIL=$((FAIL+1)); red   "  ✗ $1"; }
-skip() { SKIP=$((SKIP+1)); yellow "  ⊘ $1 (skipped)"; }
-
-header() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
-
-# Isolated config dir for the whole run; cleaned up on exit.
+# Isolated config dir for the whole run; cleaned up on exit. This trap REPLACES
+# the lib's drain trap, so chain _drain_log explicitly (see lib contract).
 ISO_DIR=$(mktemp -d)
 export XDG_CONFIG_HOME="$ISO_DIR"
 cleanup() { rm -rf "$ISO_DIR"; }
-trap cleanup EXIT
+trap 'cleanup; _drain_log' EXIT
 
 # zr <args...> — run the CLI against the isolated config dir.
 zr() { "$ZR" "$@"; }
-
-# expect_ok <description> <expected-substring> -- <command...>
-# Passes when the command exits 0 AND output contains the expected fixed-string.
-expect_ok() {
-  local desc="$1" want="$2"; shift 2
-  [ "${1:-}" = "--" ] && shift
-  local out rc
-  out=$("$@" 2>&1); rc=$?
-  if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qF -- "$want"; then
-    pass "$desc"
-  else
-    fail "$desc → rc=$rc, expected '$want', got: $(printf '%s' "$out" | head -1)"
-  fi
-}
-
-# expect_fail <description> <expected-substring> -- <command...>
-# Passes when the command exits non-zero AND output contains the expected string.
-expect_fail() {
-  local desc="$1" want="$2"; shift 2
-  [ "${1:-}" = "--" ] && shift
-  local out rc
-  out=$("$@" 2>&1); rc=$?
-  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF -- "$want"; then
-    pass "$desc"
-  else
-    fail "$desc → rc=$rc, expected '$want', got: $(printf '%s' "$out" | head -1)"
-  fi
-}
 
 # ─────────────────────────────────────────
 header "Step 0: binary + isolation check"
@@ -219,16 +183,4 @@ fi
 header "Summary"
 # ─────────────────────────────────────────
 echo ""
-TOTAL=$((PASS + FAIL + SKIP))
-echo "  Passed:  $PASS / $TOTAL"
-echo "  Failed:  $FAIL / $TOTAL"
-echo "  Skipped: $SKIP / $TOTAL"
-echo ""
-echo "  Log: $LOG_FILE"
-echo ""
-if [ "$FAIL" -gt 0 ]; then
-  echo "  RESULT: FAIL"
-  exit 1
-else
-  echo "  RESULT: PASS"
-fi
+print_summary

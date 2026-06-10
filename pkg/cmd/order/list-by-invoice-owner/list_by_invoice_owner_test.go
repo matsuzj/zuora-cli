@@ -103,3 +103,26 @@ func TestOrderListByInvoiceOwner_RequiresArg(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestOrderListByInvoiceOwner_NextPageHint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":  true,
+			"orders":   []map[string]interface{}{{"orderNumber": "O-00000001"}},
+			"nextPage": "https://rest.example.com/v1/orders/invoiceOwner/A00000001?page=2",
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, errOut := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order", "list-by-invoice-owner", "A00000001"})
+	err := root.Execute()
+
+	require.NoError(t, err)
+	assert.Contains(t, errOut.String(), "More results available")
+}

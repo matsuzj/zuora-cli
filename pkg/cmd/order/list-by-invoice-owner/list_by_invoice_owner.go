@@ -73,6 +73,7 @@ func runList(cmd *cobra.Command, opts *listOptions, accountNumber string) error 
 			AccountNumber string `json:"existingAccountNumber"`
 			OrderDate     string `json:"orderDate"`
 		} `json:"orders"`
+		NextPage string `json:"nextPage"`
 	}
 	if err := json.Unmarshal(resp.Body, &body); err != nil {
 		return fmt.Errorf("parsing response: %w", err)
@@ -97,5 +98,13 @@ func runList(cmd *cobra.Command, opts *listOptions, accountNumber string) error 
 		}
 	}
 
-	return output.Render(f.IOStreams, resp.Body, fmtOpts, rows, cols)
+	if err := output.Render(f.IOStreams, resp.Body, fmtOpts, rows, cols); err != nil {
+		return err
+	}
+
+	if body.NextPage != "" && !fmtOpts.JSON && fmtOpts.JQ == "" && fmtOpts.Template == "" {
+		fmt.Fprintf(f.IOStreams.ErrOut, "\nMore results available. Use --json to see nextPage URL.\n")
+	}
+
+	return nil
 }

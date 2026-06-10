@@ -141,6 +141,30 @@ else
 fi
 
 # ─────────────────────────────────────────
+header "Step 4b: alias EXECUTION (expansion through main)"
+# ─────────────────────────────────────────
+# Until P1-3 no E2E actually ran an alias through the expansion path.
+echo "  Testing: set + run a simple alias"
+zr alias set v version >/dev/null 2>&1
+expect_ok "alias execution → 'zr v' runs 'zr version'" "zr version" -- zr v
+
+echo "  Testing: quoted multi-word expansion survives shlex"
+zr alias set vq 'config get "active_environment"' >/dev/null 2>&1
+expect_ok "alias execution → quoted expansion works" "" -- zr vq
+
+echo "  Testing: alias set rejects a built-in name"
+expect_fail "alias set → rejects built-in name" "built-in command" -- zr alias set account "contact list"
+
+echo "  Testing: alias set rejects a self-reference"
+expect_fail "alias set → rejects self-reference" "would invoke itself" -- zr alias set myloop "myloop --json"
+
+echo "  Testing: alias set rejects a malformed expansion"
+expect_fail "alias set → rejects unbalanced quotes" "malformed expansion" -- zr alias set bad 'query "SELECT unbalanced'
+
+zr alias delete v >/dev/null 2>&1
+zr alias delete vq >/dev/null 2>&1
+
+# ─────────────────────────────────────────
 header "Step 5: completion"
 # ─────────────────────────────────────────
 echo "  Testing: completion bash"

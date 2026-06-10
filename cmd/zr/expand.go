@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/google/shlex"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -19,10 +21,12 @@ type aliasResolver interface {
 // rootCmd are never expanded, and which global flags consume a value is
 // derived from rootCmd's persistent flag definitions — both were previously
 // hand-maintained lists that had drifted from root.go. When no expansion
-// applies, args is returned unchanged.
-func expandAlias(rootCmd *cobra.Command, args []string, store aliasResolver) []string {
+// applies, args is returned unchanged. A malformed expansion (unbalanced
+// quoting) returns the original args plus a non-nil error so the caller can
+// warn and dispatch unexpanded.
+func expandAlias(rootCmd *cobra.Command, args []string, store aliasResolver) ([]string, error) {
 	if len(args) < 2 {
-		return args
+		return args, nil
 	}
 
 	builtins := builtinNames(rootCmd)
@@ -42,28 +46,35 @@ func expandAlias(rootCmd *cobra.Command, args []string, store aliasResolver) []s
 		}
 	}
 	if cmdIdx < 0 {
-		return args
+		return args, nil
 	}
 
 	cmdName := args[cmdIdx]
 
 	// Don't expand built-in commands
 	if builtins[cmdName] {
-		return args
+		return args, nil
 	}
 
 	expanded, ok := store.Get(cmdName)
 	if !ok {
-		return args
+		return args, nil
+	}
+
+	// Split shell-style (like gh): quoted segments stay single arguments, so
+	// an alias wrapping a ZOQL query survives intact. strings.Fields would
+	// shred it.
+	expandedArgs, err := shlex.Split(expanded)
+	if err != nil {
+		return args, fmt.Errorf("alias %q has a malformed expansion %q: %w", cmdName, expanded, err)
 	}
 
 	// Replace the alias at cmdIdx with expanded command words
-	expandedArgs := strings.Fields(expanded)
 	newArgs := make([]string, 0, len(args)+len(expandedArgs)-1)
 	newArgs = append(newArgs, args[:cmdIdx]...)
 	newArgs = append(newArgs, expandedArgs...)
 	newArgs = append(newArgs, args[cmdIdx+1:]...)
-	return newArgs
+	return newArgs, nil
 }
 
 // builtinNames returns every name dispatchable on rootCmd — registered command

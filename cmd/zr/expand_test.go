@@ -26,6 +26,7 @@ func TestExpandAlias(t *testing.T) {
 		"creditmemo": "account list", // attempts to shadow a registered command
 		"billrun":    "account list", // ditto (was shadowable via the old manual map)
 		"q1":         `query "SELECT Id FROM Account"`,
+		"broken":     `query "SELECT unbalanced`,
 	}
 
 	cases := []struct {
@@ -52,15 +53,31 @@ func TestExpandAlias(t *testing.T) {
 		// builtin set is now derived from the registered commands.
 		{"registered command cannot be shadowed (creditmemo)", []string{"zr", "creditmemo"}, []string{"zr", "creditmemo"}},
 		{"registered command cannot be shadowed (billrun)", []string{"zr", "billrun"}, []string{"zr", "billrun"}},
-		// KNOWN BUG (fixed in a later commit): strings.Fields destroys quoting,
-		// so an alias wrapping a ZOQL query splits mid-string.
-		{"BUG: quotes are destroyed", []string{"zr", "q1"},
-			[]string{"zr", "query", `"SELECT`, "Id", "FROM", `Account"`}},
+		// FIXED (was a bug): strings.Fields destroyed quoting, so an alias
+		// wrapping a ZOQL query split mid-string. shlex keeps quoted segments
+		// as single arguments (gh behavior).
+		{"quoted expansion survives intact", []string{"zr", "q1"},
+			[]string{"zr", "query", "SELECT Id FROM Account"}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, expandAlias(rootCmd, tc.in, store), "input %v", tc.in)
+			got, err := expandAlias(rootCmd, tc.in, store)
+			assert.NoError(t, err, "input %v", tc.in)
+			assert.Equal(t, tc.want, got, "input %v", tc.in)
 		})
 	}
+}
+
+// A malformed expansion (unbalanced quoting) must not be half-applied: the
+// original args come back with a non-nil error so main can warn and dispatch
+// unexpanded.
+func TestExpandAlias_MalformedExpansion(t *testing.T) {
+	rootCmd := root.NewCmdRoot(factory.New())
+	store := fakeStore{"broken": `query "SELECT unbalanced`}
+
+	got, err := expandAlias(rootCmd, []string{"zr", "broken"}, store)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "malformed expansion")
+	assert.Equal(t, []string{"zr", "broken"}, got)
 }

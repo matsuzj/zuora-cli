@@ -47,7 +47,12 @@ func expandAliases(rootCmd *cobra.Command) {
 	if err := store.Load(); err != nil {
 		return // silently ignore alias load failures
 	}
-	os.Args = expandAlias(rootCmd, os.Args, store)
+	expanded, err := expandAlias(rootCmd, os.Args, store)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: %s — running without alias expansion\n", err)
+		return
+	}
+	os.Args = expanded
 }
 
 func exitCode(err error) int {

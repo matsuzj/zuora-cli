@@ -161,3 +161,42 @@ func TestOrderJobStatus_WatchIntervalCompletes(t *testing.T) {
 	assert.Contains(t, errOut.String(), "polling in 20ms")
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&calls), int32(2))
 }
+
+func TestOrderJobStatus_WatchRejectsNonPositiveInterval(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://unused.invalid", "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order", "job-status", "J1", "--watch", "--interval", "0s"})
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--interval must be positive")
+}
+
+func TestOrderJobStatus_TimeoutAbortsInFlightRequest(t *testing.T) {
+	// Server stalls each request far longer than --timeout; the deadline must
+	// abort the in-flight GET, not just the sleep between polls.
+	unblock := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-unblock:
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	defer close(unblock)
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "80ms"})
+
+	start := time.Now()
+	err := root.Execute()
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Less(t, elapsed, 500*time.Millisecond, "--timeout must abort an in-flight request promptly")
+}

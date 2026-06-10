@@ -58,13 +58,20 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 		return err
 	}
 
+	if opts.Watch && opts.Interval <= 0 {
+		return fmt.Errorf("--interval must be positive (got %s)", opts.Interval)
+	}
+
 	// The command context is cancelled by Ctrl-C (signal.NotifyContext in
-	// main); --timeout layers a deadline on top of it.
+	// main); --timeout layers a deadline on top of it. Re-point the client at
+	// the derived context so an in-flight status request observes the
+	// deadline too — not just the sleep between polls.
 	ctx := cmd.Context()
 	if opts.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
 		defer cancel()
+		client.SetContext(ctx)
 	}
 
 	path := fmt.Sprintf("/v1/async-jobs/%s", url.PathEscape(jobID))

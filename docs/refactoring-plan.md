@@ -124,7 +124,7 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - これで P1-1 のバグクラスが**構造的に再発不能**になり、AGENTS.md の該当規約とレビュー負担が消える。インラインのエンベロープ検査(client.go:313-326)は `successEnvelopeError(body)` として response.go/errors.go 側へ抽出。
 - リスク: success フィールドのない 2xx ボディには no-op(checksuccess_test.go:56-79 が既に固定)なので list/object-query 系は無影響。E2E全スイートで確認。P3 の前に行うことで、ランナーがこのオプションを一切持ち回らずに済む。
 
-- **実装メモ(2026-06-11, P2-1)**: 実装完了。`WithCheckSuccess` は**関数ごと削除**(コンパイラが全箇所の整合を強制)し `WithoutCheckSuccess` を新設、newRequestConfig で既定 true。エンベロープ検査は `successEnvelopeError`(errors.go)へ抽出。`zr api` は GET/HEAD のみオプトアウト(従来の mutating-only オプトインと同セマンティクス)。呼び出し引数 131箇所/122ファイル + 空 append 14行を一括削除。AGENTS.md の規約を「デフォルトON・typed コマンドでのオプトアウト禁止」に書き換え。**P2-1 完了**。
+- **実装メモ(2026-06-11, P2-1)**: 実装完了。`WithCheckSuccess` は**関数ごと削除**(コンパイラが全箇所の整合を強制)し `WithoutCheckSuccess` を新設、newRequestConfig で既定 true。エンベロープ検査は `successEnvelopeError`(errors.go)へ抽出。`zr api` は GET/HEAD のみオプトアウト(従来の mutating-only オプトインと同セマンティクス)。呼び出し引数 133箇所/131ファイル + 空 append 14行を一括削除。AGENTS.md の規約を「デフォルトON・typed コマンドでのオプトアウト禁止」に書き換え。**P2-1 完了**。
 
 **P2-2. `pkg/output` の入口統一**
 - `output.RenderJSON(ios, rawJSON, opts)` を新設: 正準順 JQ > JSON > Template > (CSV方針) > PrintJSON。現状28ファイルが6行の手書き分岐をコピペし、うち全てが `--csv` を黙殺、28ファイルが `--json`/`--template` の優先順を RenderDetail と逆に実装している(--json+--template 併用は root で拒否済みのため実害は限定的だが、統一はここで宣言)。Render / RenderDetail の重複する先頭3分岐(formatter.go:43-51 / 68-76)も RenderJSON 呼び出しに畳む。

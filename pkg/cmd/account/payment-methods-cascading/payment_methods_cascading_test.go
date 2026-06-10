@@ -53,3 +53,24 @@ func TestPaymentMethodsCascading_Detail(t *testing.T) {
 	assert.Contains(t, output, "pm-parent")
 	assert.Contains(t, output, "CreditCard")
 }
+
+func TestPaymentMethodsCascading_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Account not found"}},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"account", "payment-methods-cascading", "bad-key"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Account not found")
+}

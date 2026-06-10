@@ -62,3 +62,23 @@ func TestContactGet_RequiresArgs(t *testing.T) {
 	root.SetArgs([]string{"contact", "get"})
 	assert.Error(t, root.Execute())
 }
+
+func TestContactGet_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Contact not found"}},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"contact", "get", "bad-id"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Contact not found")
+}

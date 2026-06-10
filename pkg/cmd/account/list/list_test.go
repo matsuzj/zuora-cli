@@ -120,3 +120,24 @@ func TestAccountList_JQ(t *testing.T) {
 	assert.Contains(t, out.String(), "Acme")
 	assert.Contains(t, out.String(), "Beta")
 }
+
+func TestAccountList_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Account not found"}},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"account", "list"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Account not found")
+}

@@ -56,3 +56,23 @@ func TestAccountSummary_Detail(t *testing.T) {
 	assert.Contains(t, output, "Invoices")
 	assert.Contains(t, output, "2")
 }
+
+func TestAccountSummary_SuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Account not found"}},
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"account", "summary", "bad-key"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Account not found")
+}

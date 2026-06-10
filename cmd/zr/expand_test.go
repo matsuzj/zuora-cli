@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/root"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type fakeStore map[string]string
@@ -80,4 +84,48 @@ func TestExpandAlias_MalformedExpansion(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "malformed expansion")
 	assert.Equal(t, []string{"zr", "broken"}, got)
+}
+
+func TestResolveAliasArgs(t *testing.T) {
+	rootCmd := root.NewCmdRoot(factory.New())
+
+	t.Run("expands from a valid aliases.yml", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "aliases.yml"),
+			[]byte("ls: account list\n"), 0600))
+		var errOut bytes.Buffer
+		got := resolveAliasArgs(rootCmd, dir, []string{"zr", "ls"}, &errOut)
+		assert.Equal(t, []string{"zr", "account", "list"}, got)
+		assert.Empty(t, errOut.String())
+	})
+
+	t.Run("missing aliases.yml is fine", func(t *testing.T) {
+		var errOut bytes.Buffer
+		got := resolveAliasArgs(rootCmd, t.TempDir(), []string{"zr", "ls"}, &errOut)
+		assert.Equal(t, []string{"zr", "ls"}, got)
+		assert.Empty(t, errOut.String())
+	})
+
+	t.Run("broken aliases.yml warns and falls through", func(t *testing.T) {
+		// The old behavior silently disabled every alias on a load error,
+		// hiding the corruption from the user entirely.
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "aliases.yml"),
+			[]byte(":\n\t- not yaml"), 0600))
+		var errOut bytes.Buffer
+		got := resolveAliasArgs(rootCmd, dir, []string{"zr", "ls"}, &errOut)
+		assert.Equal(t, []string{"zr", "ls"}, got)
+		assert.Contains(t, errOut.String(), "Warning: ignoring aliases")
+		assert.Contains(t, errOut.String(), "aliases.yml")
+	})
+
+	t.Run("malformed expansion warns and falls through", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "aliases.yml"),
+			[]byte(`broken: 'query "SELECT unbalanced'`+"\n"), 0600))
+		var errOut bytes.Buffer
+		got := resolveAliasArgs(rootCmd, dir, []string{"zr", "broken"}, &errOut)
+		assert.Equal(t, []string{"zr", "broken"}, got)
+		assert.Contains(t, errOut.String(), "malformed expansion")
+	})
 }

@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/google/shlex"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/alias"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -12,6 +14,25 @@ import (
 // aliasResolver is the subset of *alias.Store that alias expansion needs.
 type aliasResolver interface {
 	Get(name string) (string, bool)
+}
+
+// resolveAliasArgs loads the alias store from configDir and returns args with
+// any alias expansion applied. Failures never block dispatch: a broken
+// aliases.yml or a malformed expansion prints a warning to errOut and returns
+// args unchanged (the old behavior silently disabled ALL aliases on a load
+// error, hiding the corruption).
+func resolveAliasArgs(rootCmd *cobra.Command, configDir string, args []string, errOut io.Writer) []string {
+	store := alias.NewStore(configDir)
+	if err := store.Load(); err != nil {
+		fmt.Fprintf(errOut, "Warning: ignoring aliases (%s) — running without alias expansion\n", err)
+		return args
+	}
+	expanded, err := expandAlias(rootCmd, args, store)
+	if err != nil {
+		fmt.Fprintf(errOut, "Warning: %s — running without alias expansion\n", err)
+		return args
+	}
+	return expanded
 }
 
 // expandAlias returns args (an os.Args-shaped slice: args[0] is the binary

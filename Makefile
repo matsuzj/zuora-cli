@@ -25,6 +25,9 @@ cover: test
 	fi
 
 # Scan for known vulnerabilities in deps and the stdlib toolchain (matches CI).
+# Note: ./... covers code reachable from this module's packages only — go.mod
+# `tool` deps (staticcheck) are NOT scanned. Acceptable: they never ship in the
+# binary and only run on developer/CI machines.
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
@@ -32,9 +35,11 @@ vuln:
 e2e: build
 	./tests/run-all.sh
 
+# staticcheck runs via go.mod's `tool` directive, so local and CI always use
+# the same pinned version (dependabot bumps it) — no separate install needed.
 lint:
 	go vet ./...
-	staticcheck ./...
+	go tool staticcheck ./...
 
 clean:
 	rm -rf bin/

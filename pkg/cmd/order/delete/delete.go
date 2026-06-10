@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -52,7 +51,7 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, orderNumber string) erro
 		return err
 	}
 
-	resp, err := client.Delete(fmt.Sprintf("/v1/orders/%s", url.PathEscape(orderNumber)), api.WithCheckSuccess())
+	resp, err := client.Delete(fmt.Sprintf("/v1/orders/%s", url.PathEscape(orderNumber)))
 	if err != nil {
 		return err
 	}

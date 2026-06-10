@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -38,7 +37,7 @@ func runDebug(cmd *cobra.Command, f *factory.Factory, meterID, version string) e
 	}
 
 	path := fmt.Sprintf("/meters/debug/%s/%s", url.PathEscape(meterID), url.PathEscape(version))
-	resp, err := client.Post(path, nil, api.WithCheckSuccess())
+	resp, err := client.Post(path, nil)
 	if err != nil {
 		return err
 	}

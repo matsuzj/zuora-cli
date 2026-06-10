@@ -90,13 +90,13 @@ func runAPI(opts *apiOptions, path string) error {
 		reqOpts = append(reqOpts, internalapi.WithHeader(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])))
 	}
 
-	// For mutating methods, surface HTTP-200 {"success":false} envelopes as an
-	// error (non-zero exit), matching every typed write command. WithCheckSuccess
-	// is a no-op when the body has no success field or isn't JSON, so the raw
-	// passthrough for non-envelope responses is preserved.
+	// Success checking is on by default. Keep GET/HEAD as PURE passthrough
+	// (no envelope interpretation — scripts read raw bodies, including ones
+	// with success:false); mutating methods keep the check, matching every
+	// typed write command. Same semantics as the old mutating-only opt-in.
 	switch opts.Method {
-	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
-		reqOpts = append(reqOpts, internalapi.WithCheckSuccess())
+	case http.MethodGet, http.MethodHead:
+		reqOpts = append(reqOpts, internalapi.WithoutCheckSuccess())
 	}
 
 	// Execute request

@@ -60,7 +60,6 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 		reqOpts = append(reqOpts, api.WithQuery("pageSize", opts.PageSize))
 	}
 
-	reqOpts = append(reqOpts, api.WithCheckSuccess())
 	resp, err := client.Get(fmt.Sprintf("/v1/transactions/invoices/accounts/%s", url.PathEscape(opts.Account)), reqOpts...)
 	if err != nil {
 		return err

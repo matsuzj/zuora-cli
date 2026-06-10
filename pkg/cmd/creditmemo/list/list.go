@@ -71,7 +71,6 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 	if opts.PageSize != "" {
 		reqOpts = append(reqOpts, api.WithQuery("pageSize", opts.PageSize))
 	}
-	reqOpts = append(reqOpts, api.WithCheckSuccess())
 
 	resp, err := client.Get("/v1/creditmemos", reqOpts...)
 	if err != nil {

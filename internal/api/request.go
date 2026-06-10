@@ -45,18 +45,22 @@ func WithBody(r io.Reader) RequestOption {
 	}
 }
 
-// WithCheckSuccess enables Zuora success flag checking on the response.
-// When enabled, HTTP 200 responses with {"success": false} are treated as errors.
-func WithCheckSuccess() RequestOption {
+// WithoutCheckSuccess disables the Zuora success-flag check for this request.
+// Checking is ON by default (HTTP 200 + {"success":false} is an error, the
+// recurring silent-failure bug class); opt out ONLY for raw passthrough reads
+// where the body must reach the caller uninterpreted (the zr api GET/HEAD
+// path).
+func WithoutCheckSuccess() RequestOption {
 	return func(rc *requestConfig) {
-		rc.checkSuccess = true
+		rc.checkSuccess = false
 	}
 }
 
 func newRequestConfig(opts []RequestOption) *requestConfig {
 	rc := &requestConfig{
-		headers: make(map[string]string),
-		query:   make(url.Values),
+		headers:      make(map[string]string),
+		query:        make(url.Values),
+		checkSuccess: true, // default ON — see WithoutCheckSuccess
 	}
 	for _, opt := range opts {
 		opt(rc)

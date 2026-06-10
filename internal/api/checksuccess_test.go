@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// checkSuccess detects HTTP 200 responses that carry {"success": false} (v1) or
-// {"Success": false} (Object CRUD). These are the only signal that an
-// otherwise-2xx mutation actually failed, so they must be turned into errors.
+// The success-flag check is ON BY DEFAULT: HTTP 200 responses carrying
+// {"success": false} (v1) or {"Success": false} (Object CRUD) are the only
+// signal that an otherwise-2xx call actually failed, so they must be turned
+// into errors unless a caller explicitly opts out (WithoutCheckSuccess —
+// reserved for the raw zr api GET/HEAD passthrough).
 func TestCheckSuccess_LowercaseFalse_IsError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -21,7 +23,7 @@ func TestCheckSuccess_LowercaseFalse_IsError(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(WithBaseURL(srv.URL))
-	_, err := c.Post("/v1/action", strings.NewReader(`{}`), WithCheckSuccess())
+	_, err := c.Post("/v1/action", strings.NewReader(`{}`))
 	require.Error(t, err)
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr)
@@ -36,7 +38,7 @@ func TestCheckSuccess_UppercaseFalse_IsError(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(WithBaseURL(srv.URL))
-	_, err := c.Post("/v1/objects", strings.NewReader(`{}`), WithCheckSuccess())
+	_, err := c.Post("/v1/objects", strings.NewReader(`{}`))
 	require.Error(t, err, "uppercase Object-CRUD Success:false must be detected")
 }
 
@@ -48,7 +50,7 @@ func TestCheckSuccess_True_IsOK(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(WithBaseURL(srv.URL))
-	resp, err := c.Post("/v1/action", strings.NewReader(`{}`), WithCheckSuccess())
+	resp, err := c.Post("/v1/action", strings.NewReader(`{}`))
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 }
@@ -61,7 +63,7 @@ func TestCheckSuccess_NoSuccessField_PassesThrough(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(WithBaseURL(srv.URL))
-	_, err := c.Post("/v1/action", strings.NewReader(`{}`), WithCheckSuccess())
+	_, err := c.Post("/v1/action", strings.NewReader(`{}`))
 	require.NoError(t, err, "a body without a success field is not a failure")
 }
 
@@ -73,7 +75,7 @@ func TestCheckSuccess_MalformedJSON_PassesThrough(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(WithBaseURL(srv.URL))
-	resp, err := c.Post("/v1/action", strings.NewReader(`{}`), WithCheckSuccess())
+	resp, err := c.Post("/v1/action", strings.NewReader(`{}`))
 	require.NoError(t, err)
 	assert.Equal(t, "not json", resp.String())
 }
@@ -136,4 +138,29 @@ func TestClient_GET_NoIdempotencyKey(t *testing.T) {
 	_, err := c.Get("/v1/test")
 	require.NoError(t, err)
 	assert.False(t, hasKey, "GET must not carry an Idempotency-Key")
+}
+
+func TestCheckSuccess_DefaultOnForGet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"success":false,"reasons":[{"code":"Y","message":"hidden failure"}]}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.Get("/v1/thing")
+	require.Error(t, err, "the check must be on by default — no option passed")
+}
+
+func TestCheckSuccess_WithoutCheckSuccess_OptsOut(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"success":false,"reasons":[{"code":"Z","message":"raw passthrough"}]}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	resp, err := c.Get("/v1/raw", WithoutCheckSuccess())
+	require.NoError(t, err, "opt-out must deliver the body uninterpreted")
+	assert.Contains(t, resp.String(), "raw passthrough")
 }

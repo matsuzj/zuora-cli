@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -54,7 +53,6 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, subscriptionKey string) 
 
 	resp, err := client.Delete(
 		fmt.Sprintf("/v1/omni-channel-subscriptions/%s", url.PathEscape(subscriptionKey)),
-		api.WithCheckSuccess(),
 	)
 	if err != nil {
 		return err

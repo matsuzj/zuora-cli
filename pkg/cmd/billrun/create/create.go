@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -53,7 +52,7 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 		return err
 	}
 
-	resp, err := client.Post("/v1/bill-runs", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post("/v1/bill-runs", bodyReader)
 	if err != nil {
 		return err
 	}

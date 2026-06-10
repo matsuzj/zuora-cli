@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -56,7 +55,7 @@ func runEmail(cmd *cobra.Command, opts *emailOptions, invoiceID string) error {
 		return err
 	}
 
-	resp, err := client.Post(fmt.Sprintf("/v1/invoices/%s/emails", url.PathEscape(invoiceID)), bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post(fmt.Sprintf("/v1/invoices/%s/emails", url.PathEscape(invoiceID)), bodyReader)
 	if err != nil {
 		return err
 	}

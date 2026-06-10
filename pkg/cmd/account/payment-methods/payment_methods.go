@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ func runPaymentMethods(cmd *cobra.Command, f *factory.Factory, key string) error
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/accounts/%s/payment-methods", url.PathEscape(key)), api.WithCheckSuccess())
+	resp, err := client.Get(fmt.Sprintf("/v1/accounts/%s/payment-methods", url.PathEscape(key)))
 	if err != nil {
 		return err
 	}

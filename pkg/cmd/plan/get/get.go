@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -55,7 +54,7 @@ func runGet(cmd *cobra.Command, opts *getOptions) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.Post("/commerce/plans/query", bytes.NewReader(data), api.WithCheckSuccess())
+	resp, err := client.Post("/commerce/plans/query", bytes.NewReader(data))
 	if err != nil {
 		return err
 	}

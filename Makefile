@@ -32,9 +32,11 @@ vuln:
 e2e: build
 	./tests/run-all.sh
 
+# staticcheck runs via go.mod's `tool` directive, so local and CI always use
+# the same pinned version (dependabot bumps it) — no separate install needed.
 lint:
 	go vet ./...
-	staticcheck ./...
+	go tool staticcheck ./...
 
 clean:
 	rm -rf bin/

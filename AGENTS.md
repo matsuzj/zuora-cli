@@ -19,7 +19,7 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 1. `go mod verify`
 2. `gofmt -l .` — must print nothing (CI fails on any unformatted file). Run `make fmt` to auto-fix before pushing. (`make check`/`make ci` run this gate via `fmtcheck`; bare `make lint` does not.)
 3. `go vet ./...`
-4. `staticcheck ./...` — **CI runs this; fix every finding.** (Note: a `map[string]interface{}` → `any` editor hint is gopls "modernize", NOT staticcheck, and does not fail CI — the codebase uses `interface{}` throughout.)
+4. `go tool staticcheck ./...` — **CI runs this; fix every finding.** The version is pinned by go.mod's `tool` directive, so local and CI always run the same staticcheck — no separate install. (Note: a `map[string]interface{}` → `any` editor hint is gopls "modernize", NOT staticcheck, and does not fail CI — the codebase uses `interface{}` throughout.)
 5. `make vuln` (i.e. `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`) — **CI runs govulncheck and fails on any vulnerability finding.**
 6. `go test -race -count=1 ./...`
 7. Coverage floor: **≥ 73.0%** total (`make cover` enforces it locally; CI enforces it too)

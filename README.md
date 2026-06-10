@@ -315,7 +315,10 @@ Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/
 
 - Go 1.26+
 - [go-task](https://taskfile.dev/) (`brew install go-task`)
-- [staticcheck](https://staticcheck.dev/) (`go install honnef.co/go/tools/cmd/staticcheck@latest`)
+
+[staticcheck](https://staticcheck.dev/) needs no separate install — it runs via
+`go tool staticcheck`, with the version pinned in `go.mod`'s `tool` directive so
+local runs and CI always use the same one.
 
 ### Build & Test
 

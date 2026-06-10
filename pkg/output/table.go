@@ -39,12 +39,27 @@ func PrintTable(w io.Writer, rows [][]string, columns []Column) error {
 // field cannot break the table layout, write escape codes to the terminal, or
 // spoof text direction.
 func sanitizeCell(s string) string {
+	return sanitizeRunes(s, false)
+}
+
+// sanitizeRunes is the shared body of sanitizeCell and sanitizeCSVCell: tabs,
+// CRs and the Unicode line/paragraph separators collapse to spaces; other
+// control characters (ANSI escapes) and Unicode format characters (BiDi /
+// zero-width, category Cf) are dropped. preserveNewlines keeps '\n' for CSV
+// (encoding/csv quotes the field) and collapses it for tables (a newline
+// would break the fixed-width layout).
+func sanitizeRunes(s string, preserveNewlines bool) string {
 	if s == "" {
 		return s
 	}
 	return strings.Map(func(r rune) rune {
 		switch r {
-		case '\n', '\t', '\r', '\u2028', '\u2029':
+		case '\n':
+			if preserveNewlines {
+				return r
+			}
+			return ' '
+		case '\t', '\r', '\u2028', '\u2029':
 			return ' '
 		}
 		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {

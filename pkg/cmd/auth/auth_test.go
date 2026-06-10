@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -117,4 +118,77 @@ func TestAuthToken(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "cached-token-123\n", out.String())
+}
+
+// A hung OAuth endpoint must be interruptible with Ctrl-C. Before the
+// context wiring, login/token went through context.Background() wrappers and
+// could not be cancelled until the 30s HTTP timeout fired.
+func TestAuthLogin_HungOAuthEndpointCancelsPromptly(t *testing.T) {
+	// The handler blocks on a test-owned channel (NOT r.Context().Done():
+	// with an unread POST body, net/http does not reliably cancel the
+	// handler context on client disconnect, which would deadlock
+	// server.Close()). LIFO defers: close(unblock) releases the handler
+	// before server.Close() waits on it.
+	unblock := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-unblock // hang until the test tears down
+	}))
+	defer server.Close()
+	defer close(unblock)
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+	f := factory.NewTestFactory(ios, cfg, server.URL, "")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"auth", "login", "--client-id", "id", "--client-secret", "secret"})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	err := root.ExecuteContext(ctx)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt a hung OAuth request promptly")
+}
+
+func TestAuthToken_HungOAuthEndpointCancelsPromptly(t *testing.T) {
+	// See the comment in TestAuthLogin_HungOAuthEndpointCancelsPromptly for
+	// why the handler blocks on a test-owned channel.
+	unblock := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-unblock
+	}))
+	defer server.Close()
+	defer close(unblock)
+
+	t.Setenv("ZR_CLIENT_ID", "id")
+	t.Setenv("ZR_CLIENT_SECRET", "secret")
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+	f := factory.NewTestFactory(ios, cfg, server.URL, "")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"auth", "token"})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	err := root.ExecuteContext(ctx)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt a hung OAuth request promptly")
 }

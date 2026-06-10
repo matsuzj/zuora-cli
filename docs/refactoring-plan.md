@@ -177,7 +177,7 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - 完全死(テスト含め呼び出しゼロ): `api.WithUserAgent`、`factory.NewTestFactoryReadOnly`、`iostreams.IsStderrTerminal`、`iostreams.ColorEnabled`。
   - **注意**: ColorEnabled は本リポジトリ唯一の NO_COLOR 処理で、README.md:276 が NO_COLOR 対応を明記している。実際には色出力が存在せず(tablewriter 無着色+サニタイザが ESC を除去)、間接依存の fatih/color も自前で NO_COLOR を尊重するため、**削除+README.md:276 の行も削除**で整合させる(配線する価値が生じたら再実装)。
 - 自パッケージのテストだけが延命させているもの: `Client.Patch`(テスト2箇所を `Do(http.MethodPatch,…)` に書き換えて削除)、`Response.JSON`/`Response.String`(専用の29行テストファイル response_json_test.go ごと削除)、`TokenSource.ForceRefresh`/`Refresh`/`Token` の context なしラッパー3本(P1-4 で呼び出し側は移行済み)、`alias.Store.Len`(assert.Len(s.List(), N) に書き換え)。
-- `internal/config.Dir()` は P1-3 で唯一の呼び出しが消えるため削除。
+- ~~`internal/config.Dir()` は P1-3 で唯一の呼び出しが消えるため削除~~ **取り消し(2026-06-11)**: P1-3 のレビューで「展開を config パース成功にゲートしない」と決めたため、エイリアス展開が正当な呼び出しとして残る(main.go のコメント参照)。削除しない。
 
 **P4-2. internal/api の整理**
 - With*/Set* の二重構成面を解消: **オプション(b)を採用** — テスト専用の WithVerbose/WithReadOnly/WithContext を削除し、テストを本番と同じ Set* 経路に書き換え(17行削減+本番経路がテストで直接叩かれるようになる)。WithHTTPClient はテスト注入シームとして明示的に残す(doc コメントでその旨を宣言)。

@@ -42,9 +42,6 @@ type exitCoder interface {
 	ExitCode() int
 }
 
-// expandAliases loads aliases and rewrites os.Args if the first non-flag argument
-// matches an alias name. For example, if "ls" is aliased to "account list",
-// "zr --json ls" becomes "zr --json account list".
 func exitCode(err error) int {
 	var ec exitCoder
 	if errors.As(err, &ec) {

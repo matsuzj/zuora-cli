@@ -78,12 +78,13 @@ run_retry() {
 
 # run_retry_nonempty <attempts> <command...> — like run_retry, but ALSO
 # retries when the command exits 0 with EMPTY stdout. The live ZOQL endpoint
-# occasionally returns a transient empty result set with HTTP 200; rc stays 0
-# so run_retry never retries that mode, which made the query-CSV check flaky
-# (observed repeatedly 2026-06-12).
+# transiently returns an empty result set with HTTP 200 in BURSTS (observed
+# 2026-06-12, correlated with heavy write activity from the preceding
+# suites); rc stays 0 so run_retry never retries that mode. Sleeps escalate
+# (2,4,8,16s) so a burst that outlives a fixed 2s pause is still survived.
 run_retry_nonempty() {
   local attempts="$1"; shift
-  local i
+  local i delay=2
   for ((i=1; i<=attempts; i++)); do
     run "$@"
     if [ "$RUN_RC" -eq 0 ] && [ -n "$RUN_OUT" ]; then
@@ -92,7 +93,7 @@ run_retry_nonempty() {
     if [ "$RUN_RC" -ne 0 ]; then
       echo "$RUN_ERR" | grep -qiE "HTTP 429|HTTP 5[0-9][0-9]|rate limit" || return "$RUN_RC"
     fi
-    sleep 2
+    sleep "$delay"; delay=$((delay * 2))
   done
   return "$RUN_RC"
 }

@@ -60,11 +60,9 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 
 	fmtOpts := output.FromCmd(cmd)
 
-	if fmtOpts.JQ != "" {
-		return output.PrintJSON(f.IOStreams, resp.Body, fmtOpts.JQ)
-	}
-	if fmtOpts.Template != "" {
-		return output.PrintTemplate(f.IOStreams, resp.Body, fmtOpts.Template)
+	if fmtOpts.JQ != "" || fmtOpts.Template != "" {
+		_, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts)
+		return err
 	}
 
 	if err := output.PrintJSON(f.IOStreams, resp.Body, ""); err != nil {

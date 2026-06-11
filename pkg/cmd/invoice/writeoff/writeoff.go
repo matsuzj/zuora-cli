@@ -43,8 +43,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Optional write-off details (JSON string, @file, or - for stdin)")
-	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the write-off")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "write-off")
 	return cmd
 }
 

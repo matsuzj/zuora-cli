@@ -35,7 +35,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmdutil.AddBodyFlag(cmd, &body, false)
 	return cmd
 }
 

@@ -84,12 +84,12 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 	}
 
 	cols := []output.Column{
-		{Header: "ID", Field: "id"},
-		{Header: "NAME", Field: "name"},
-		{Header: "NUMBER", Field: "accountNumber"},
-		{Header: "STATUS", Field: "status"},
-		{Header: "BALANCE", Field: "balance"},
-		{Header: "CREATED", Field: "createdDate"},
+		{Header: "ID"},
+		{Header: "NAME"},
+		{Header: "NUMBER"},
+		{Header: "STATUS"},
+		{Header: "BALANCE"},
+		{Header: "CREATED"},
 	}
 
 	rows := make([][]string, len(body.Data))

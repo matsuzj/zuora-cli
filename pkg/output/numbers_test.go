@@ -48,7 +48,7 @@ func TestPrintJSON_JQ_EmptyResult_NoBlankLine(t *testing.T) {
 
 func TestPrintCSV_NeutralizesFormulaInjection(t *testing.T) {
 	var buf strings.Builder
-	cols := []Column{{Header: "Name", Field: "name"}}
+	cols := []Column{{Header: "Name"}}
 	rows := [][]string{
 		{"=1+1"},
 		{"+cmd|'/C calc'"},
@@ -68,7 +68,7 @@ func TestPrintCSV_NeutralizesFormulaInjection(t *testing.T) {
 
 func TestPrintCSV_PreservesNegativeNumbers(t *testing.T) {
 	var buf strings.Builder
-	cols := []Column{{Header: "Amount", Field: "amount"}}
+	cols := []Column{{Header: "Amount"}}
 	rows := [][]string{{"-10.50"}, {"-5"}, {"+3"}, {"-1e3"}}
 	require.NoError(t, PrintCSV(&buf, rows, cols))
 	got := buf.String()
@@ -81,7 +81,7 @@ func TestPrintCSV_PreservesNegativeNumbers(t *testing.T) {
 
 func TestPrintTable_SanitizesControlChars(t *testing.T) {
 	var buf strings.Builder
-	cols := []Column{{Header: "V", Field: "v"}}
+	cols := []Column{{Header: "V"}}
 	rows := [][]string{{"line1\nline2\x1b[31mred"}}
 	require.NoError(t, PrintTable(&buf, rows, cols))
 	got := buf.String()

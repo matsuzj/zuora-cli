@@ -274,3 +274,88 @@ func TestList_NoHintWithoutNextPage(t *testing.T) {
 
 	assert.NotContains(t, stderr, "More results available")
 }
+
+func TestList_JQAndTemplateSuppressHint(t *testing.T) {
+	body := map[string]interface{}{
+		"memos":    []map[string]interface{}{{"id": "m-1"}},
+		"nextPage": "https://api.example.com/v1/memos?page=2",
+	}
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"jq", []string{"demo", "list", "--jq", ".memos"}},
+		{"template", []string{"demo", "list", "--template", "{{.nextPage}}"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := cmdtest.OK(t, "GET", "/v1/memos", body)
+			_, stderr, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, tc.args...)
+			require.NoError(t, err)
+			assert.NotContains(t, stderr, "More results available")
+		})
+	}
+}
+
+func TestList_ItemsKeyNotArrayErrors(t *testing.T) {
+	// The hand-written typed structs error on a non-array items key; a silent
+	// empty table would hide a response-shape change.
+	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+		"memos": map[string]interface{}{"unexpected": "object"},
+	})
+
+	_, _, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing response")
+	assert.Contains(t, err.Error(), "memos")
+}
+
+func TestList_AbsentItemsKeyRendersZeroRows(t *testing.T) {
+	// An absent items key matches the typed-struct zero slice: empty table.
+	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{})
+
+	stdout, stderr, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "ID")
+	assert.NotContains(t, stderr, "More results available")
+}
+
+func TestList_IntFlagValueAvailableToPath(t *testing.T) {
+	var gotPath string
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		fmt.Fprint(w, `{"items": []}`)
+	}
+
+	spec := listcmd.Spec{
+		Use: "list",
+		Flags: []listcmd.Flag{
+			{Name: "version", Usage: "Version segment", Int: true, IntDefault: 2},
+		},
+		Path: func(args []string, flags map[string]string) string {
+			return "/v" + flags["version"] + "/items"
+		},
+		ItemsKey: "items",
+		Columns:  []listcmd.ColumnSpec{{Header: "ID", Key: "id"}},
+	}
+
+	_, _, err := cmdtest.Run(t, "demo", newCmd(spec), handler, "demo", "list", "--version", "3")
+	require.NoError(t, err)
+	assert.Equal(t, "/v3/items", gotPath)
+}
+
+func TestList_HintStripsControlCharacters(t *testing.T) {
+	// nextPage values must not smuggle terminal escape sequences into the
+	// reconstructed command (same CWE-150 posture as the table renderer).
+	spec := cursorSpec()
+	handler := cmdtest.OK(t, "GET", "/object-query/demo", map[string]interface{}{
+		"data":     []map[string]interface{}{{"id": "a-1"}},
+		"nextPage": "tok\x1b[31mred\x1b[0m\nnext",
+	})
+
+	_, stderr, err := cmdtest.Run(t, "demo", newCmd(spec), handler, "demo", "list")
+	require.NoError(t, err)
+
+	assert.NotContains(t, stderr, "\x1b[31m")
+	assert.Contains(t, stderr, "--cursor 'tok [31mred [0m next'")
+}

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -55,7 +56,8 @@ type Flag struct {
 // generic "Use --json to see nextPage URL." message.
 type NextPage struct {
 	// Flag is the flag name that carries the next-page value in the
-	// reconstructed command (e.g. "page" or "cursor").
+	// reconstructed command (e.g. "page" or "cursor"). It must name a plain
+	// string Flag of the Spec (not Int or Repeatable).
 	Flag string
 	// FromURL, when non-empty, parses the response's nextPage as a URL and
 	// takes this query parameter as the value (page-based APIs). When empty,
@@ -174,7 +176,12 @@ func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, st
 		return fmt.Errorf("parsing response: %w", err)
 	}
 
-	rawItems, _ := envelope[spec.ItemsKey].([]interface{})
+	rawItems, ok := envelope[spec.ItemsKey].([]interface{})
+	if !ok && envelope[spec.ItemsKey] != nil {
+		// The hand-written commands' typed structs error on a non-array items
+		// key; a silent empty table would hide a response-shape change.
+		return fmt.Errorf("parsing response: %q is not an array", spec.ItemsKey)
+	}
 	rows := make([][]string, len(rawItems))
 	for i, ri := range rawItems {
 		item, _ := ri.(map[string]interface{})
@@ -274,9 +281,19 @@ func printHint(cmd *cobra.Command, spec Spec, posArgs []string, strVals map[stri
 // quoteIfNeeded wraps a value in shell single quotes when it contains
 // characters that would not survive a shell unquoted; plain tokens stay bare
 // so the common hints read naturally. Single quotes (not Go/double quoting —
-// review finding) so that $VAR, backticks, and backslashes paste verbatim;
-// embedded single quotes use the standard '\” escape.
+// review finding) so that $VAR, backticks, and backslashes paste verbatim; an
+// embedded single quote is escaped by closing the quotes, emitting a
+// backslash-quote, and reopening (quote backslash-quote quote). Control and
+// Unicode format characters are mapped to spaces first: the hint goes to the
+// terminal unfiltered, so the table renderer's escape-sequence sanitization
+// (CWE-150) must not be bypassable via nextPage/cursor values.
 func quoteIfNeeded(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.In(r, unicode.Cf) {
+			return ' '
+		}
+		return r
+	}, s)
 	if s == "" {
 		return "''"
 	}

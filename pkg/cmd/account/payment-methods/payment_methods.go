@@ -72,11 +72,11 @@ func runPaymentMethods(cmd *cobra.Command, f *factory.Factory, key string) error
 	}
 
 	cols := []output.Column{
-		{Header: "ID", Field: "id"},
-		{Header: "TYPE", Field: "type"},
-		{Header: "LAST4", Field: "last4"},
-		{Header: "DEFAULT", Field: "default"},
-		{Header: "STATUS", Field: "status"},
+		{Header: "ID"},
+		{Header: "TYPE"},
+		{Header: "LAST4"},
+		{Header: "DEFAULT"},
+		{Header: "STATUS"},
 	}
 
 	rows := make([][]string, len(methods))

@@ -93,10 +93,10 @@ func runList(cmd *cobra.Command, f *factory.Factory, accountID string) error {
 	fmtOpts := output.FromCmd(cmd)
 
 	cols := []output.Column{
-		{Header: "ID", Field: "Id"},
-		{Header: "FIRST NAME", Field: "FirstName"},
-		{Header: "LAST NAME", Field: "LastName"},
-		{Header: "EMAIL", Field: "WorkEmail"},
+		{Header: "ID"},
+		{Header: "FIRST NAME"},
+		{Header: "LAST NAME"},
+		{Header: "EMAIL"},
 	}
 
 	rows := make([][]string, len(allRecords))

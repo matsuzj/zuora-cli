@@ -73,12 +73,12 @@ func runMetrics(cmd *cobra.Command, opts *metricsOptions) error {
 	}
 
 	cols := []output.Column{
-		{Header: "SUBSCRIPTION", Field: "subscriptionNumber"},
-		{Header: "MRR", Field: "contractedMrr"},
-		{Header: "GROSS_MRR", Field: "asOfDayGrossMrr"},
-		{Header: "NET_MRR", Field: "asOfDayNetMrr"},
-		{Header: "TCV", Field: "totalContractedValue"},
-		{Header: "NET_TCV", Field: "netTotalContractedValue"},
+		{Header: "SUBSCRIPTION"},
+		{Header: "MRR"},
+		{Header: "GROSS_MRR"},
+		{Header: "NET_MRR"},
+		{Header: "TCV"},
+		{Header: "NET_TCV"},
 	}
 
 	rows := make([][]string, len(body.Metrics))

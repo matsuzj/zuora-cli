@@ -44,7 +44,7 @@ Examples:
 	}
 
 	cmd.Flags().StringVar(&opts.RunType, "run-type", "", "Run type (required)")
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 
 	return cmd
 }

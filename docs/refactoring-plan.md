@@ -139,6 +139,8 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - `GetBool` / `GetInt` / `GetMoney`(固定2桁)を追加。account/get:87-113 と account/summary:103 の私製 getNumber/getBool/getInt(逐語一致の重複あり)を削除し、`.(string)`/`Sprintf("%v")` バイパス10箇所を置換。**決定事項**: 金額表示は現行の `%.2f`("50.00")を GetMoney で維持(E2E・ユーザースクリプトの互換のため。GetDecimal への正規化は採らない)。
 - `output.Column.Field` の削除: 85箇所で代入されるが**一度も読まれない** write-only フィールド。gh 風自動抽出を匂わせる誤誘導なので構造体から削除(84箇所は sed 可能、query.go:180 のみ手修正)。
 
+- **実装メモ(2026-06-11, P2-3)**: AddBodyFlag(54箇所、writeoff の異文も正準化)/ AddConfirmFlag(19箇所、reverse-rollover の冗長サフィックスは RequireConfirm が同文を返すため削除)/ GetMoney(%.2f 維持)・GetBool・GetInt 新設、account/get・summary の私製ヘルパー3種+逐語コピーを削除、delete系4箇所の Sprintf("%v") バイパスを GetString 化。**write-only だった output.Column.Field を構造体ごと削除**(84箇所 + query.go の動的1箇所。読み手ゼロは grep で再確認)。AddBodyFlag の required は P5 の MarkFlagRequired 移行用に署名へ先行導入(現状 no-op)。**P2-3 完了 = フェーズ2 完了**。
+
 **P2-4. `pkg/cmdtest` テストハーネス**
 - `cmdtest.Run(t, parent, newCmd, handler, args…) (stdout, stderr, err)`: newTestRoot 構築(persistent flags 全部入り)+ httptest.NewServer + NewTestFactory + 実行 + ストリーム回収を1呼び出しに。現状 `newTestRoot` が136ファイルに完全コピー(1,352行)、実行ブロックが426箇所。
 - エンベロープビルダー `cmdtest.OK(method, path, body)` / `cmdtest.Reasons(code, msg)` / `cmdtest.Status(code, body)`: `"success": true` 手書き75ファイル、`"reasons"` 手書き45ファイル、同形の SuccessFalse テスト44本を1行化。OK() は expected method/path を取り、既存のリクエスト assert を保てる署名にする。

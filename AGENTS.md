@@ -47,7 +47,7 @@ When adding/maintaining a command that calls the API:
 
 - The Zuora success-flag check is **ON BY DEFAULT** in the API client: HTTP 200 with `{"success":false}` (or Object-CRUD `{"Success":false}`) becomes a non-zero exit, and it is a no-op for bodies without the flag. Do NOT pass `api.WithoutCheckSuccess()` in typed commands — it exists solely for the raw `zr api` GET/HEAD passthrough, which must deliver bodies uninterpreted. (This used to be an opt-in, `WithCheckSuccess()`, and missing call sites were a recurring bug class — the default flip made that structurally impossible.)
 - Destructive/irreversible commands must gate on `cmdutil.RequireConfirm(confirm)` behind a `--confirm` flag (returns the canonical "this action is irreversible…" error). Do not inline the guard string — call the helper.
-- Render response fields via `cmdutil.GetString` (plain) / `cmdutil.GetDecimal` (monetary/numeric, avoids scientific notation), descending into nested objects/array elements as the real response requires.
+- Render response fields via `cmdutil.GetString` (plain) / `cmdutil.GetMoney` (monetary — fixed two decimals, the display contract) / `cmdutil.GetDecimal` (non-monetary numerics, avoids scientific notation) / `cmdutil.GetBool`/`GetInt`, descending into nested objects/array elements as the real response requires. Register `--body`/`--confirm` via `cmdutil.AddBodyFlag`/`AddConfirmFlag`, never hand-rolled.
 - Zuora rejects **PUT requests carrying an `Idempotency-Key`** — the client adds the key to POST/PATCH only; do not change that.
 
 ## Git hygiene

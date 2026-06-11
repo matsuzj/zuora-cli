@@ -176,7 +176,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 
 	cols := make([]output.Column, len(columns))
 	for i, c := range columns {
-		cols[i] = output.Column{Header: c, Field: c}
+		cols[i] = output.Column{Header: c}
 	}
 
 	if opts.CSV {

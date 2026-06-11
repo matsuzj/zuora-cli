@@ -56,7 +56,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Suspend policy (Today, EndOfLastInvoicePeriod, SpecificDate, FixedPeriodsFromToday)")
 	cmd.Flags().StringVar(&opts.SuspendDate, "suspend-date", "", "Suspend date (for SpecificDate, YYYY-MM-DD)")
 	cmd.Flags().IntVar(&opts.Periods, "periods", 0, "Number of periods (for FixedPeriodsFromToday)")

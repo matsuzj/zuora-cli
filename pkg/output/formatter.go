@@ -12,7 +12,6 @@ import (
 // Column defines a table column.
 type Column struct {
 	Header string
-	Field  string
 }
 
 // DetailField defines a key-value pair for detail output.

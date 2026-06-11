@@ -43,8 +43,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
-	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the depletion")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "depletion")
 
 	return cmd
 }

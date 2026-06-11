@@ -2,7 +2,6 @@
 package updatecustomfields
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -38,38 +37,23 @@ Examples:
 }
 
 func runUpdateCustomFields(cmd *cobra.Command, f *factory.Factory, num, ver, body string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	path := fmt.Sprintf("/v1/subscriptions/%s/versions/%s/customFields",
-		url.PathEscape(num), url.PathEscape(ver))
-	resp, err := client.Put(path, bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Custom fields updated.\n")
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "PUT",
+		Path: fmt.Sprintf("/v1/subscriptions/%s/versions/%s/customFields",
+			url.PathEscape(num), url.PathEscape(ver)),
+		Body: bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return "Custom fields updated.\n"
+		},
+	})
 }

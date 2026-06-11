@@ -35,7 +35,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the scrub")
+	cmdutil.AddConfirmFlag(cmd, &confirm, "scrub")
 	return cmd
 }
 

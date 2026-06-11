@@ -54,7 +54,7 @@ Examples:
 	}
 
 	cmd.Flags().StringVarP(&opts.Method, "method", "X", "GET", "HTTP method")
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 	cmd.Flags().StringArrayVarP(&opts.Headers, "header", "H", nil, "Additional headers (key:value)")
 	cmd.Flags().BoolVar(&opts.Paginate, "paginate", false, "Fetch all pages automatically")
 	// NOTE: --jq is inherited from root persistent flags, not defined locally

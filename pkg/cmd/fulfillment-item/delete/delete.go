@@ -39,7 +39,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the deletion")
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "deletion")
 
 	return cmd
 }
@@ -96,7 +96,7 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, itemID string) error {
 	}
 
 	fields := []output.DetailField{
-		{Key: "Success", Value: fmt.Sprintf("%v", raw["success"])},
+		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)

@@ -51,10 +51,10 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Cancellation policy (EndOfCurrentTerm, EndOfLastInvoicePeriod, SpecificDate)")
 	cmd.Flags().StringVar(&opts.EffectiveDate, "effective-date", "", "Cancellation date (required for SpecificDate, YYYY-MM-DD)")
-	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the cancellation")
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "cancellation")
 
 	return cmd
 }

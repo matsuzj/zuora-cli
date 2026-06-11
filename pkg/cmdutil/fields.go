@@ -32,3 +32,44 @@ func GetDecimal(m map[string]interface{}, key string) string {
 	}
 	return fmt.Sprintf("%v", v)
 }
+
+// GetMoney returns m[key] formatted with a fixed two decimals ("50.00") — the
+// display contract for monetary amounts and balances (E2E and user scripts
+// depend on the two-decimal form). GetDecimal strips trailing zeros and is for
+// non-monetary numerics.
+func GetMoney(m map[string]interface{}, key string) string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	if f, ok := v.(float64); ok {
+		return fmt.Sprintf("%.2f", f)
+	}
+	return fmt.Sprintf("%v", v)
+}
+
+// GetBool returns m[key] as "true"/"false", or "" when absent, nil, or not a
+// bool.
+func GetBool(m map[string]interface{}, key string) string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	if b, ok := v.(bool); ok {
+		return strconv.FormatBool(b)
+	}
+	return ""
+}
+
+// GetInt returns m[key] as a decimal integer string (JSON numbers are float64;
+// the value is truncated, not rounded), or "" when absent/nil/non-numeric.
+func GetInt(m map[string]interface{}, key string) string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	if f, ok := v.(float64); ok {
+		return strconv.Itoa(int(f))
+	}
+	return ""
+}

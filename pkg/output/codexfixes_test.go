@@ -53,7 +53,7 @@ func TestIsNumeric_StrictDecimalOnly(t *testing.T) {
 // The dangerous Go-float forms must therefore be quoted in CSV output.
 func TestPrintCSV_QuotesInfAndHex(t *testing.T) {
 	var buf strings.Builder
-	cols := []Column{{Header: "V", Field: "v"}}
+	cols := []Column{{Header: "V"}}
 	rows := [][]string{{"+Inf"}, {"-0x1p2"}, {"-10.50"}}
 	require.NoError(t, PrintCSV(&buf, rows, cols))
 	got := buf.String()

@@ -59,7 +59,7 @@ func runSummary(cmd *cobra.Command, f *factory.Factory, key string) error {
 		{Key: "Name", Value: cmdutil.GetString(basicInfo, "name")},
 		{Key: "Account Number", Value: cmdutil.GetString(basicInfo, "accountNumber")},
 		{Key: "Status", Value: cmdutil.GetString(basicInfo, "status")},
-		{Key: "Balance", Value: getNumber(basicInfo, "balance")},
+		{Key: "Balance", Value: cmdutil.GetMoney(basicInfo, "balance")},
 		{Key: "Currency", Value: cmdutil.GetString(basicInfo, "currency")},
 		{Key: "Default Payment Method", Value: getPaymentMethodSummary(basicInfo)},
 	}
@@ -98,14 +98,4 @@ func getPaymentMethodSummary(basicInfo map[string]interface{}) string {
 		return id
 	}
 	return typ
-}
-
-func getNumber(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		if f, ok := v.(float64); ok {
-			return fmt.Sprintf("%.2f", f)
-		}
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
 }

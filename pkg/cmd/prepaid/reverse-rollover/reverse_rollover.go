@@ -41,8 +41,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
-	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the reversal (this action is irreversible)")
+	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "reversal (this action is irreversible)")
 
 	return cmd
 }

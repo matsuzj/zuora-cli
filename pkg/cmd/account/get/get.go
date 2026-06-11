@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
@@ -71,43 +70,15 @@ func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
 		{Key: "Name", Value: cmdutil.GetString(basicInfo, "name")},
 		{Key: "Account Number", Value: cmdutil.GetString(basicInfo, "accountNumber")},
 		{Key: "Status", Value: cmdutil.GetString(basicInfo, "status")},
-		{Key: "Balance", Value: getNumber(metrics, "balance")},
+		{Key: "Balance", Value: cmdutil.GetMoney(metrics, "balance")},
 		{Key: "Currency", Value: cmdutil.GetString(billing, "currency")},
-		{Key: "Auto Pay", Value: getBool(billing, "autoPay")},
+		{Key: "Auto Pay", Value: cmdutil.GetBool(billing, "autoPay")},
 		{Key: "Payment Term", Value: cmdutil.GetString(billing, "paymentTerm")},
-		{Key: "Bill Cycle Day", Value: getInt(billing, "billCycleDay")},
+		{Key: "Bill Cycle Day", Value: cmdutil.GetInt(billing, "billCycleDay")},
 		{Key: "CRM ID", Value: cmdutil.GetString(basicInfo, "crmId")},
 		{Key: "Sales Rep", Value: cmdutil.GetString(basicInfo, "salesRep")},
 		{Key: "Batch", Value: cmdutil.GetString(basicInfo, "batch")},
 	}
 
 	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
-}
-
-func getNumber(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		if f, ok := v.(float64); ok {
-			return fmt.Sprintf("%.2f", f)
-		}
-		return fmt.Sprintf("%v", v)
-	}
-	return ""
-}
-
-func getBool(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		if b, ok := v.(bool); ok {
-			return strconv.FormatBool(b)
-		}
-	}
-	return ""
-}
-
-func getInt(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok && v != nil {
-		if f, ok := v.(float64); ok {
-			return strconv.Itoa(int(f))
-		}
-	}
-	return ""
 }

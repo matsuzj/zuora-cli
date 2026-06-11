@@ -39,7 +39,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.Confirm, "confirm", false, "Confirm the deletion")
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "deletion")
 
 	return cmd
 }

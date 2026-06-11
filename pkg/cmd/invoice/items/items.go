@@ -56,11 +56,11 @@ func runItems(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
 	}
 
 	cols := []output.Column{
-		{Header: "ID", Field: "id"},
-		{Header: "SUBSCRIPTION", Field: "subscriptionName"},
-		{Header: "CHARGE_AMOUNT", Field: "chargeAmount"},
-		{Header: "CHARGE_DATE", Field: "chargeDate"},
-		{Header: "CHARGE_NAME", Field: "chargeName"},
+		{Header: "ID"},
+		{Header: "SUBSCRIPTION"},
+		{Header: "CHARGE_AMOUNT"},
+		{Header: "CHARGE_DATE"},
+		{Header: "CHARGE_NAME"},
 	}
 
 	rows := make([][]string, len(body.InvoiceItems))

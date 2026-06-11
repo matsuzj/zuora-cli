@@ -12,8 +12,8 @@ import (
 func TestPrintTable(t *testing.T) {
 	var buf bytes.Buffer
 	cols := []Column{
-		{Header: "ID", Field: "id"},
-		{Header: "NAME", Field: "name"},
+		{Header: "ID"},
+		{Header: "NAME"},
 	}
 	rows := [][]string{
 		{"1", "Alice"},
@@ -72,8 +72,8 @@ func TestPrintTemplate(t *testing.T) {
 func TestPrintCSV(t *testing.T) {
 	var buf bytes.Buffer
 	cols := []Column{
-		{Header: "ID", Field: "id"},
-		{Header: "NAME", Field: "name"},
+		{Header: "ID"},
+		{Header: "NAME"},
 	}
 	rows := [][]string{
 		{"1", "Alice"},

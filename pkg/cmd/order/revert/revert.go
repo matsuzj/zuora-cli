@@ -40,8 +40,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&body, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
-	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the revert")
+	cmdutil.AddBodyFlag(cmd, &body, true)
+	cmdutil.AddConfirmFlag(cmd, &confirm, "revert")
 	return cmd
 }
 

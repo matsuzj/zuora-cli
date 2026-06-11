@@ -2,7 +2,6 @@
 package snapshot
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -33,31 +32,18 @@ Examples:
 }
 
 func runSnapshot(cmd *cobra.Command, f *factory.Factory, id string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/contact-snapshots/%s", url.PathEscape(id)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
-		{Key: "First Name", Value: cmdutil.GetString(raw, "firstName")},
-		{Key: "Last Name", Value: cmdutil.GetString(raw, "lastName")},
-		{Key: "Email", Value: cmdutil.GetString(raw, "workEmail")},
-		{Key: "Country", Value: cmdutil.GetString(raw, "country")},
-		{Key: "Contact ID", Value: cmdutil.GetString(raw, "contactId")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/contact-snapshots/%s", url.PathEscape(id)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "First Name", Value: cmdutil.GetString(raw, "firstName")},
+				{Key: "Last Name", Value: cmdutil.GetString(raw, "lastName")},
+				{Key: "Email", Value: cmdutil.GetString(raw, "workEmail")},
+				{Key: "Country", Value: cmdutil.GetString(raw, "country")},
+				{Key: "Contact ID", Value: cmdutil.GetString(raw, "contactId")},
+			}
+		},
+	})
 }

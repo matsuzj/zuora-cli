@@ -91,11 +91,11 @@ func TestContactDelete_UnparseableBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ios, _, _, _ := iostreams.Test()
+	ios, _, _, errOut := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
 	root := newTestRoot(f)
 	root.SetArgs([]string{"contact", "delete", "c-1", "--confirm"})
 	err := root.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parsing response")
+	require.NoError(t, err, "non-JSON 200 is a completed delete under the unified policy")
+	assert.Contains(t, errOut.String(), "deleted")
 }

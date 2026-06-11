@@ -2,7 +2,6 @@
 package delete
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -52,19 +51,11 @@ func runDelete(cmd *cobra.Command, f *factory.Factory, billRunID string) error {
 
 	fmtOpts := output.FromCmd(cmd)
 
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Bill run %s deleted.\n", billRunID)
-	return nil
+	return cmdutil.RenderDeleteResult(f.IOStreams, resp, fmtOpts,
+		fmt.Sprintf("Bill run %s deleted.\n", billRunID),
+		func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		})
 }

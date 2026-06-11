@@ -43,11 +43,8 @@ func runChangelogByOrder(cmd *cobra.Command, f *factory.Factory, orderNumber str
 
 	fmtOpts := output.FromCmd(cmd)
 
-	if fmtOpts.JQ != "" {
-		return output.PrintJSON(f.IOStreams, resp.Body, fmtOpts.JQ)
-	}
-	if fmtOpts.Template != "" {
-		return output.PrintTemplate(f.IOStreams, resp.Body, fmtOpts.Template)
+	if handled, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts); handled || err != nil {
+		return err
 	}
 	return output.PrintJSON(f.IOStreams, resp.Body, "")
 }

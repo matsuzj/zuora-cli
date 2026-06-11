@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -33,40 +32,27 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/subscriptions/%s", url.PathEscape(key)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
-		{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
-		{Key: "Name", Value: cmdutil.GetString(raw, "name")},
-		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-		{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
-		{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
-		{Key: "Account Name", Value: cmdutil.GetString(raw, "accountName")},
-		{Key: "Term Type", Value: cmdutil.GetString(raw, "termType")},
-		{Key: "Term Start Date", Value: cmdutil.GetString(raw, "termStartDate")},
-		{Key: "Term End Date", Value: cmdutil.GetString(raw, "termEndDate")},
-		{Key: "Current Term", Value: cmdutil.GetString(raw, "currentTerm")},
-		{Key: "Current Term Period", Value: cmdutil.GetString(raw, "currentTermPeriodType")},
-		{Key: "Auto Renew", Value: cmdutil.GetString(raw, "autoRenew")},
-		{Key: "Contract Effective Date", Value: cmdutil.GetString(raw, "contractEffectiveDate")},
-		{Key: "Service Activation Date", Value: cmdutil.GetString(raw, "serviceActivationDate")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/subscriptions/%s", url.PathEscape(key)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+				{Key: "Name", Value: cmdutil.GetString(raw, "name")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+				{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+				{Key: "Account Name", Value: cmdutil.GetString(raw, "accountName")},
+				{Key: "Term Type", Value: cmdutil.GetString(raw, "termType")},
+				{Key: "Term Start Date", Value: cmdutil.GetString(raw, "termStartDate")},
+				{Key: "Term End Date", Value: cmdutil.GetString(raw, "termEndDate")},
+				{Key: "Current Term", Value: cmdutil.GetString(raw, "currentTerm")},
+				{Key: "Current Term Period", Value: cmdutil.GetString(raw, "currentTermPeriodType")},
+				{Key: "Auto Renew", Value: cmdutil.GetString(raw, "autoRenew")},
+				{Key: "Contract Effective Date", Value: cmdutil.GetString(raw, "contractEffectiveDate")},
+				{Key: "Service Activation Date", Value: cmdutil.GetString(raw, "serviceActivationDate")},
+			}
+		},
+	})
 }

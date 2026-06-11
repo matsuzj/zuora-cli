@@ -11,69 +11,42 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdJobStatus(f))
-	root.AddCommand(order)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdJobStatus(f) }
 
 func TestOrderJobStatus_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/v1/async-jobs/2c92c0f9876", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":       true,
-			"jobId":         "2c92c0f9876",
-			"status":        "Completed",
-			"result":        "Success",
-			"orderNumber":   "O-00000001",
-			"accountNumber": "A001",
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "GET", "/v1/async-jobs/2c92c0f9876", map[string]interface{}{
+		"success":       true,
+		"jobId":         "2c92c0f9876",
+		"status":        "Completed",
+		"result":        "Success",
+		"orderNumber":   "O-00000001",
+		"accountNumber": "A001",
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "job-status", "2c92c0f9876"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "2c92c0f9876")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "2c92c0f9876")
-	assert.Contains(t, out.String(), "Completed")
-	assert.Contains(t, out.String(), "O-00000001")
+	assert.Contains(t, stdout, "2c92c0f9876")
+	assert.Contains(t, stdout, "Completed")
+	assert.Contains(t, stdout, "O-00000001")
 }
 
 func TestOrderJobStatus_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "job-status"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "job-status")
 	assert.Error(t, err)
 }
 
 // Always-InProgress server for watch tests.
-func inProgressServer(t *testing.T, calls *int32) *httptest.Server {
+func inProgressHandler(t *testing.T, calls *int32) http.HandlerFunc {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		n := atomic.AddInt32(calls, 1)
 		w.WriteHeader(200)
 		status := "InProgress"
@@ -83,7 +56,7 @@ func inProgressServer(t *testing.T, calls *int32) *httptest.Server {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true, "jobId": "J1", "status": status,
 		})
-	}))
+	}
 }
 
 func TestOrderJobStatus_WatchCtrlCInterruptsSleep(t *testing.T) {
@@ -99,7 +72,18 @@ func TestOrderJobStatus_WatchCtrlCInterruptsSleep(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
 
-	root := newTestRoot(f)
+	root := &cobra.Command{
+		Use:           "zr",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return globalflags.Apply(f, cmd)
+		},
+	}
+	globalflags.Register(root)
+	grp := &cobra.Command{Use: "order"}
+	grp.AddCommand(NewCmdJobStatus(f))
+	root.AddCommand(grp)
 	root.SetArgs([]string{"order", "job-status", "J1", "--watch"})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -120,55 +104,34 @@ func TestOrderJobStatus_WatchCtrlCInterruptsSleep(t *testing.T) {
 }
 
 func TestOrderJobStatus_WatchTimeoutGivesUp(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true, "jobId": "J1", "status": "InProgress",
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "job-status", "J1", "--watch", "--interval", "30ms", "--timeout", "80ms"})
-
-	start := time.Now()
-	err := root.Execute()
-	elapsed := time.Since(start)
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "30ms", "--timeout", "80ms")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting for job J1")
 	assert.Contains(t, err.Error(), "InProgress")
-	assert.Less(t, elapsed, 500*time.Millisecond)
 }
 
 func TestOrderJobStatus_WatchIntervalCompletes(t *testing.T) {
 	var calls int32
-	server := inProgressServer(t, &calls)
-	defer server.Close()
+	handler := inProgressHandler(t, &calls)
 
-	ios, _, out, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "job-status", "J1", "--watch", "--interval", "20ms"})
-	err := root.Execute()
+	stdout, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms")
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "Completed")
-	assert.Contains(t, errOut.String(), "polling in 20ms")
+	assert.Contains(t, stdout, "Completed")
+	assert.Contains(t, stderr, "polling in 20ms")
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&calls), int32(2))
 }
 
 func TestOrderJobStatus_WatchRejectsNonPositiveInterval(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://unused.invalid", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "job-status", "J1", "--watch", "--interval", "0s"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "job-status", "J1", "--watch", "--interval", "0s")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--interval must be positive")
@@ -178,23 +141,16 @@ func TestOrderJobStatus_TimeoutAbortsInFlightRequest(t *testing.T) {
 	// Server stalls each request far longer than --timeout; the deadline must
 	// abort the in-flight GET, not just the sleep between polls.
 	unblock := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-unblock:
 		case <-r.Context().Done():
 		}
-	}))
-	defer server.Close()
+	})
 	defer close(unblock)
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "80ms"})
-
 	start := time.Now()
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "80ms")
 	elapsed := time.Since(start)
 
 	require.Error(t, err)

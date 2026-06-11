@@ -3,64 +3,40 @@ package listpending
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdListPending(f))
-	root.AddCommand(order)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdListPending(f) }
 
 func TestOrderListPending_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/v1/orders/subscription/A-S00000001/pending", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"orders": []map[string]interface{}{
-				{
-					"orderNumber":           "O-00000001",
-					"status":                "Pending",
-					"orderDate":             "2026-05-01",
-					"existingAccountNumber": "A001",
-					"createdDate":           "2026-05-01T10:00:00",
-				},
+	handler := cmdtest.OK(t, "GET", "/v1/orders/subscription/A-S00000001/pending", map[string]interface{}{
+		"success": true,
+		"orders": []map[string]interface{}{
+			{
+				"orderNumber":           "O-00000001",
+				"status":                "Pending",
+				"orderDate":             "2026-05-01",
+				"existingAccountNumber": "A001",
+				"createdDate":           "2026-05-01T10:00:00",
 			},
-		})
-	}))
-	defer server.Close()
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "list-pending", "A-S00000001"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "list-pending", "A-S00000001")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "ORDER NUMBER")
-	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, out.String(), "Pending")
+	assert.Contains(t, stdout, "ORDER NUMBER")
+	assert.Contains(t, stdout, "O-00000001")
+	assert.Contains(t, stdout, "Pending")
 }
 
 func TestOrderListPending_WithQuery(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/v1/orders/subscription/A-S00000001/pending", r.URL.Path)
 		assert.Equal(t, "2", r.URL.Query().Get("page"))
@@ -70,51 +46,28 @@ func TestOrderListPending_WithQuery(t *testing.T) {
 			"success": true,
 			"orders":  []map[string]interface{}{},
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "list-pending", "A-S00000001", "--page", "2", "--page-size", "10"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "list-pending", "A-S00000001", "--page", "2", "--page-size", "10")
 	require.NoError(t, err)
 }
 
 func TestOrderListPending_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "list-pending"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "list-pending")
 	assert.Error(t, err)
 }
 
 func TestOrderListPending_NextPageHint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":  true,
 			"orders":   []map[string]interface{}{{"orderNumber": "O-00000001"}},
 			"nextPage": "https://rest.example.com/v1/orders/pending?page=2",
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "list-pending", "A-S00000001"})
-	err := root.Execute()
-
+	_, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "list-pending", "A-S00000001")
 	require.NoError(t, err)
-	assert.Contains(t, errOut.String(), "More results available")
+	assert.Contains(t, stderr, "More results available")
 }

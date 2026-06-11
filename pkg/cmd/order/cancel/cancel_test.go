@@ -1,73 +1,35 @@
 package cancel
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdCancel(f))
-	root.AddCommand(order)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCancel(f) }
 
 func TestOrderCancel_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "PUT", r.Method)
-		assert.Equal(t, "/v1/orders/O-00000001/cancel", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"orderNumber": "O-00000001",
-			"status":      "Cancelled",
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "PUT", "/v1/orders/O-00000001/cancel", map[string]interface{}{
+		"success":     true,
+		"orderNumber": "O-00000001",
+		"status":      "Cancelled",
+	})
 
-	ios, _, out, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "cancel", "O-00000001", "--confirm"})
-	err := root.Execute()
+	stdout, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "cancel", "O-00000001", "--confirm")
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 cancelled.")
+	assert.Contains(t, stdout, "O-00000001")
+	assert.Contains(t, stderr, "Order O-00000001 cancelled.")
 }
 
 func TestOrderCancel_RequiresConfirm(t *testing.T) {
-	called := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.WriteHeader(200)
-	}))
-	defer server.Close()
-
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "cancel", "O-00000001"})
-	err := root.Execute()
+	// handler is nil — no HTTP request should be made when --confirm is omitted
+	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "cancel", "O-00000001")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "irreversible")
-	assert.False(t, called, "no HTTP request should be made when --confirm is omitted")
 }

@@ -80,14 +80,14 @@ func TestStore_SaveAndReload(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "subscription get", cmd)
 
-	assert.Equal(t, 2, s2.Len())
+	assert.Len(t, s2.All(), 2)
 }
 
 func TestStore_LoadEmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	s := NewStore(dir)
 	require.NoError(t, s.Load())
-	assert.Equal(t, 0, s.Len())
+	assert.Len(t, s.All(), 0)
 }
 
 func TestStore_LoadExistingFile(t *testing.T) {
@@ -97,7 +97,7 @@ func TestStore_LoadExistingFile(t *testing.T) {
 
 	s := NewStore(dir)
 	require.NoError(t, s.Load())
-	assert.Equal(t, 2, s.Len())
+	assert.Len(t, s.All(), 2)
 
 	cmd, ok := s.Get("ls")
 	assert.True(t, ok)
@@ -115,5 +115,5 @@ func TestStore_OverwriteExisting(t *testing.T) {
 	cmd, ok := s.Get("ls")
 	assert.True(t, ok)
 	assert.Equal(t, "subscription list", cmd)
-	assert.Equal(t, 1, s.Len())
+	assert.Len(t, s.All(), 1)
 }

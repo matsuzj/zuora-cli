@@ -65,7 +65,7 @@ func TestRetry_PATCH_5xx_NotRetried(t *testing.T) {
 	defer srv.Close()
 
 	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
-	_, err := c.Patch("/v1/accounts/1", strings.NewReader(`{}`))
+	_, err := c.Do(http.MethodPatch, "/v1/accounts/1", WithBody(strings.NewReader(`{}`)))
 	require.Error(t, err)
 	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "PATCH 5xx must NOT be retried")
 }

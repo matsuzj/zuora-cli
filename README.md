@@ -273,7 +273,6 @@ For each setting, values are resolved highest-to-lowest:
 | `ZR_CLIENT_SECRET` | OAuth client secret |
 | `ZR_READ_ONLY` | Block write operations — truthy values enable it; fails closed (see [Read-only mode](#global-flags) and [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md)) |
 | `XDG_CONFIG_HOME` | Relocate the config directory (defaults to `~/.config`) |
-| `NO_COLOR` | Disable colored output when set (any value) |
 | `PAGER` | Pager command for long output (default: `less`); `LESS` / `LV` tune the respective pagers |
 
 ## Shell Completion

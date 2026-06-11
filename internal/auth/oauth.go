@@ -56,26 +56,16 @@ func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string
 	return ts.refresh(ctx, envName)
 }
 
-// ForceRefresh fetches a new token unconditionally (bypassing the cache) while
-// still serializing per environment via the same single-flight lock as Token,
-// so a forced refresh (e.g. after a 401) cannot stampede the OAuth endpoint
-// alongside concurrent callers.
-func (ts *TokenSource) ForceRefresh(envName string) (string, error) {
-	return ts.ForceRefreshContext(context.Background(), envName)
-}
-
-// ForceRefreshContext is ForceRefresh with a cancellable context.
+// ForceRefreshContext fetches a new token unconditionally (bypassing the
+// cache) while still serializing per environment via the same single-flight
+// lock as TokenContext, so a forced refresh (e.g. after a 401) cannot
+// stampede the OAuth endpoint alongside concurrent callers.
 func (ts *TokenSource) ForceRefreshContext(ctx context.Context, envName string) (string, error) {
 	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
 	mu := muAny.(*sync.Mutex)
 	mu.Lock()
 	defer mu.Unlock()
 	return ts.refresh(ctx, envName)
-}
-
-// Refresh fetches a new token from the OAuth endpoint (without cancellation).
-func (ts *TokenSource) Refresh(envName string) (string, error) {
-	return ts.refresh(context.Background(), envName)
 }
 
 // refresh fetches a new token from the OAuth endpoint using the given context.

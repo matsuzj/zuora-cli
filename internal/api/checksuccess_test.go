@@ -77,7 +77,7 @@ func TestCheckSuccess_MalformedJSON_PassesThrough(t *testing.T) {
 	c := NewClient(WithBaseURL(srv.URL))
 	resp, err := c.Post("/v1/action", strings.NewReader(`{}`))
 	require.NoError(t, err)
-	assert.Equal(t, "not json", resp.String())
+	assert.Equal(t, "not json", string(resp.Body))
 }
 
 func TestAPIError_401_ExitCodeAndHint(t *testing.T) {
@@ -162,5 +162,5 @@ func TestCheckSuccess_WithoutCheckSuccess_OptsOut(t *testing.T) {
 	c := NewClient(WithBaseURL(srv.URL))
 	resp, err := c.Get("/v1/raw", WithoutCheckSuccess())
 	require.NoError(t, err, "opt-out must deliver the body uninterpreted")
-	assert.Contains(t, resp.String(), "raw passthrough")
+	assert.Contains(t, string(resp.Body), "raw passthrough")
 }

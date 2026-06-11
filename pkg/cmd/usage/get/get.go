@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,36 +30,23 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, id string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/object/usage/%s", url.PathEscape(id)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetString(raw, "Id")},
-		{Key: "Account ID", Value: cmdutil.GetString(raw, "AccountId")},
-		{Key: "Quantity", Value: cmdutil.GetString(raw, "Quantity")},
-		{Key: "Start Date", Value: cmdutil.GetString(raw, "StartDateTime")},
-		{Key: "End Date", Value: cmdutil.GetString(raw, "EndDateTime")},
-		{Key: "UOM", Value: cmdutil.GetString(raw, "UOM")},
-		{Key: "Status", Value: cmdutil.GetString(raw, "Status")},
-		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "SubscriptionId")},
-		{Key: "Charge ID", Value: cmdutil.GetString(raw, "ChargeId")},
-		{Key: "Created Date", Value: cmdutil.GetString(raw, "CreatedDate")},
-		{Key: "Updated Date", Value: cmdutil.GetString(raw, "UpdatedDate")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/object/usage/%s", url.PathEscape(id)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetString(raw, "Id")},
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "AccountId")},
+				{Key: "Quantity", Value: cmdutil.GetString(raw, "Quantity")},
+				{Key: "Start Date", Value: cmdutil.GetString(raw, "StartDateTime")},
+				{Key: "End Date", Value: cmdutil.GetString(raw, "EndDateTime")},
+				{Key: "UOM", Value: cmdutil.GetString(raw, "UOM")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "Status")},
+				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "SubscriptionId")},
+				{Key: "Charge ID", Value: cmdutil.GetString(raw, "ChargeId")},
+				{Key: "Created Date", Value: cmdutil.GetString(raw, "CreatedDate")},
+				{Key: "Updated Date", Value: cmdutil.GetString(raw, "UpdatedDate")},
+			}
+		},
+	})
 }

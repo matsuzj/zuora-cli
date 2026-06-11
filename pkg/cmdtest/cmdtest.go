@@ -31,6 +31,14 @@ import (
 func Run(t *testing.T, parent string, newCmd func(*factory.Factory) *cobra.Command, handler http.HandlerFunc, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
+	// The harness root applies the REAL global flags, so an ambient
+	// ZR_READ_ONLY exported as a machine-level safety default would block
+	// every write-command success test (review finding on the wave-2
+	// migration). Neutralize it per test — t.Setenv restores it afterwards;
+	// EnvReadOnly treats empty as off. Tests that exercise the env knob
+	// itself use their own harness, not Run.
+	t.Setenv("ZR_READ_ONLY", "")
+
 	serverURL := "http://localhost"
 	if handler != nil {
 		server := httptest.NewServer(handler)

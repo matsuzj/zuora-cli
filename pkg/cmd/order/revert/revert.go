@@ -2,7 +2,6 @@
 package revert
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -46,37 +45,23 @@ Examples:
 }
 
 func runRevert(cmd *cobra.Command, f *factory.Factory, orderNumber, body string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Post(fmt.Sprintf("/v1/orders/%s/revert", url.PathEscape(orderNumber)), bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Order %s reverted.\n", orderNumber)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   fmt.Sprintf("/v1/orders/%s/revert", url.PathEscape(orderNumber)),
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Order %s reverted.\n", orderNumber)
+		},
+	})
 }

@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,29 +30,16 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, itemID string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/fulfillment-items/%s", url.PathEscape(itemID)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
-		{Key: "Fulfillment Key", Value: cmdutil.GetString(raw, "fulfillmentKey")},
-		{Key: "Quantity", Value: cmdutil.GetString(raw, "quantity")},
-		{Key: "Description", Value: cmdutil.GetString(raw, "description")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/fulfillment-items/%s", url.PathEscape(itemID)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Fulfillment Key", Value: cmdutil.GetString(raw, "fulfillmentKey")},
+				{Key: "Quantity", Value: cmdutil.GetString(raw, "quantity")},
+				{Key: "Description", Value: cmdutil.GetString(raw, "description")},
+			}
+		},
+	})
 }

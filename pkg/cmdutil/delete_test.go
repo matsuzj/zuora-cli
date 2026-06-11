@@ -44,12 +44,25 @@ func TestRenderDeleteResult_NonJSON200IsSuccess(t *testing.T) {
 }
 
 func TestRenderDeleteResult_JSONBodyRendersDetail(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
+	ios, _, out, errOut := iostreams.Test()
 	resp := &api.Response{StatusCode: 200, Body: []byte(`{"success":true,"id":"D-9"}`)}
 
-	err := RenderDeleteResult(ios, resp, output.FormatOptions{}, "ignored\n", deleteFields)
+	err := RenderDeleteResult(ios, resp, output.FormatOptions{}, "Thing D-9 deleted.\n", deleteFields)
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "D-9")
+	// The human message follows the detail render — the same convention as
+	// RunDetail.SuccessMsg (delete unification, 2026-06-12).
+	assert.Contains(t, errOut.String(), "Thing D-9 deleted.")
+}
+
+func TestRenderDeleteResult_JSONBodyWithPercentVerbMessage(t *testing.T) {
+	// Fprint semantics: a %s in the dynamic message must print literally.
+	ios, _, _, errOut := iostreams.Test()
+	resp := &api.Response{StatusCode: 200, Body: []byte(`{"success":true,"id":"D-9"}`)}
+
+	err := RenderDeleteResult(ios, resp, output.FormatOptions{}, "Deleted 100%s of it.\n", deleteFields)
+	require.NoError(t, err)
+	assert.Contains(t, errOut.String(), "Deleted 100%s of it.")
 }
 
 func TestRenderDeleteResult_SuccessSynthesizedForJSONFlag(t *testing.T) {

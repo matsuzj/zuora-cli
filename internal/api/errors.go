@@ -161,3 +161,24 @@ func (e *ReadOnlyError) Error() string {
 
 // ExitCode returns 5 for read-only violations (1=general, 2=auth, 3=4xx, 4=5xx, 5=read-only).
 func (e *ReadOnlyError) ExitCode() int { return 5 }
+
+// successEnvelopeError reports the logical failure carried by an HTTP-2xx
+// body whose Zuora success flag is false (v1 REST uses lowercase "success",
+// Object CRUD uses uppercase "Success"). Returns nil for non-JSON bodies and
+// for bodies without a success flag, so non-envelope responses pass through.
+func successEnvelopeError(statusCode int, body []byte) error {
+	var envelope struct {
+		Success      *bool `json:"success"`
+		SuccessUpper *bool `json:"Success"`
+	}
+	if json.Unmarshal(body, &envelope) != nil {
+		return nil
+	}
+	if envelope.Success != nil && !*envelope.Success {
+		return parseAPIError(statusCode, body)
+	}
+	if envelope.SuccessUpper != nil && !*envelope.SuccessUpper {
+		return parseAPIError(statusCode, body)
+	}
+	return nil
+}

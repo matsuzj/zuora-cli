@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -55,7 +54,7 @@ func runRollover(cmd *cobra.Command, opts *rolloverOptions) error {
 		return err
 	}
 
-	resp, err := client.Post("/v1/ppdd/rollover", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post("/v1/ppdd/rollover", bodyReader)
 	if err != nil {
 		return err
 	}

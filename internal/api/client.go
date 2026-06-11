@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -308,20 +307,9 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		return nil, parseAPIError(resp.StatusCode, body)
 	}
 
-	// Zuora success flag check: some endpoints return HTTP 200 with {"success": false}
-	// Note: v1 REST API uses lowercase "success", Object CRUD API uses uppercase "Success"
 	if rc.checkSuccess {
-		var envelope struct {
-			Success      *bool `json:"success"`
-			SuccessUpper *bool `json:"Success"`
-		}
-		if json.Unmarshal(body, &envelope) == nil {
-			if envelope.Success != nil && !*envelope.Success {
-				return nil, parseAPIError(resp.StatusCode, body)
-			}
-			if envelope.SuccessUpper != nil && !*envelope.SuccessUpper {
-				return nil, parseAPIError(resp.StatusCode, body)
-			}
+		if err := successEnvelopeError(resp.StatusCode, body); err != nil {
+			return nil, err
 		}
 	}
 

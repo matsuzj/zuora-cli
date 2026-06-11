@@ -38,16 +38,44 @@ func FromCmd(cmd *cobra.Command) FormatOptions {
 	return FormatOptions{JSON: jsonFlag, JQ: jq, Template: tmpl, CSV: csvFlag}
 }
 
-// Render outputs data in the appropriate format for table commands.
-func Render(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, rows [][]string, cols []Column) error {
+// RenderJSON dispatches rawJSON through the machine-readable format flags in
+// the canonical priority order JQ > JSON > Template. It returns handled=true
+// when one of those paths produced the output; handled=false means no format
+// flag was set and the caller should fall through to its table/detail/CSV
+// path. This is the single entry point those branches live in — commands and
+// Render/RenderDetail must not re-implement the dispatch (28 hand-rolled
+// copies disagreed on the order and all silently ignored --csv; their
+// replacement lands with P3-3).
+func RenderJSON(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions) (bool, error) {
 	if opts.JQ != "" {
-		return PrintJSON(ios, rawJSON, opts.JQ)
+		return true, PrintJSON(ios, rawJSON, opts.JQ)
 	}
 	if opts.JSON {
-		return PrintJSON(ios, rawJSON, "")
+		return true, PrintJSON(ios, rawJSON, "")
 	}
 	if opts.Template != "" {
-		return PrintTemplate(ios, rawJSON, opts.Template)
+		return true, PrintTemplate(ios, rawJSON, opts.Template)
+	}
+	return false, nil
+}
+
+// RenderSuccess renders the result of an operation whose response carries no
+// usable body (HTTP 204, an empty 200, or a non-JSON 200 — treated as success
+// per the delete-policy decision in docs/refactoring-plan.md). Machine-readable
+// flags receive a synthesized {"success": true}; otherwise humanMsg (a complete
+// sentence with trailing newline) goes to stderr, keeping stdout clean.
+func RenderSuccess(ios *iostreams.IOStreams, opts FormatOptions, humanMsg string) error {
+	if handled, err := RenderJSON(ios, []byte(`{"success": true}`), opts); handled || err != nil {
+		return err
+	}
+	fmt.Fprint(ios.ErrOut, humanMsg)
+	return nil
+}
+
+// Render outputs data in the appropriate format for table commands.
+func Render(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, rows [][]string, cols []Column) error {
+	if handled, err := RenderJSON(ios, rawJSON, opts); handled || err != nil {
+		return err
 	}
 	if opts.CSV {
 		return PrintCSV(ios.Out, rows, cols)
@@ -65,14 +93,8 @@ func Render(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, rows [
 
 // RenderDetail outputs data in the appropriate format for detail commands.
 func RenderDetail(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, fields []DetailField) error {
-	if opts.JQ != "" {
-		return PrintJSON(ios, rawJSON, opts.JQ)
-	}
-	if opts.JSON {
-		return PrintJSON(ios, rawJSON, "")
-	}
-	if opts.Template != "" {
-		return PrintTemplate(ios, rawJSON, opts.Template)
+	if handled, err := RenderJSON(ios, rawJSON, opts); handled || err != nil {
+		return err
 	}
 	if opts.CSV {
 		rows := make([][]string, len(fields))

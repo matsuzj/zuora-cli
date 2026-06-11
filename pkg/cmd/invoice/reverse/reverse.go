@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -45,7 +44,7 @@ func runReverse(cmd *cobra.Command, f *factory.Factory, invoiceID string) error 
 		return err
 	}
 
-	resp, err := client.Put(fmt.Sprintf("/v1/invoices/%s/reverse", url.PathEscape(invoiceID)), nil, api.WithCheckSuccess())
+	resp, err := client.Put(fmt.Sprintf("/v1/invoices/%s/reverse", url.PathEscape(invoiceID)), nil)
 	if err != nil {
 		return err
 	}

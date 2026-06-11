@@ -50,7 +50,6 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 
 	resp, err := client.Get("/v1/commitments",
 		api.WithQuery("accountNumber", opts.Account),
-		api.WithCheckSuccess(),
 	)
 	if err != nil {
 		return err

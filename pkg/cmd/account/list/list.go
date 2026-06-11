@@ -60,7 +60,6 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 	if len(opts.Filters) > 0 {
 		reqOpts = append(reqOpts, api.WithQuerySlice("filter[]", opts.Filters))
 	}
-	reqOpts = append(reqOpts, api.WithCheckSuccess())
 
 	resp, err := client.Get("/object-query/accounts", reqOpts...)
 	if err != nil {

@@ -70,7 +70,6 @@ func runAudit(cmd *cobra.Command, opts *auditOptions, meterID string) error {
 
 	path := fmt.Sprintf("/meters/%s/auditTrail/entries", url.PathEscape(meterID))
 	resp, err := client.Get(path,
-		api.WithCheckSuccess(),
 		api.WithQuery("exportType", opts.ExportType),
 		api.WithQuery("runType", opts.RunType),
 		api.WithQuery("from", opts.From),

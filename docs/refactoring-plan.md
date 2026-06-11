@@ -124,11 +124,15 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - これで P1-1 のバグクラスが**構造的に再発不能**になり、AGENTS.md の該当規約とレビュー負担が消える。インラインのエンベロープ検査(client.go:313-326)は `successEnvelopeError(body)` として response.go/errors.go 側へ抽出。
 - リスク: success フィールドのない 2xx ボディには no-op(checksuccess_test.go:56-79 が既に固定)なので list/object-query 系は無影響。E2E全スイートで確認。P3 の前に行うことで、ランナーがこのオプションを一切持ち回らずに済む。
 
+- **実装メモ(2026-06-11, P2-1)**: 実装完了。`WithCheckSuccess` は**関数ごと削除**(コンパイラが全箇所の整合を強制)し `WithoutCheckSuccess` を新設、newRequestConfig で既定 true。エンベロープ検査は `successEnvelopeError`(errors.go)へ抽出。`zr api` は GET/HEAD のみオプトアウト(従来の mutating-only オプトインと同セマンティクス)。呼び出し引数 133箇所/131ファイル + 空 append 14行を一括削除。AGENTS.md の規約を「デフォルトON・typed コマンドでのオプトアウト禁止」に書き換え。**P2-1 完了**。
+
 **P2-2. `pkg/output` の入口統一**
 - `output.RenderJSON(ios, rawJSON, opts)` を新設: 正準順 JQ > JSON > Template > (CSV方針) > PrintJSON。現状28ファイルが6行の手書き分岐をコピペし、うち全てが `--csv` を黙殺、28ファイルが `--json`/`--template` の優先順を RenderDetail と逆に実装している(--json+--template 併用は root で拒否済みのため実害は限定的だが、統一はここで宣言)。Render / RenderDetail の重複する先頭3分岐(formatter.go:43-51 / 68-76)も RenderJSON 呼び出しに畳む。
 - `output.RenderSuccess(ios, opts, humanMsg)` を新設: delete系が10箇所コピペしている `{"success": true}` 合成+分岐+stderrメッセージを1関数に。
 - `cmdutil.RenderDeleteResult`(または P3 ランナーのオプション)で 204 / 空200 / 非JSON 200 の方針を一本化。**決定事項**: 空200ボディは成功扱いを推奨(WithCheckSuccess が論理失敗を上流で弾くため)。現状は contact/fulfillment×2/omnichannel が成功・order/usage/account がエラーの3方針に分裂しており、どちらに寄せても挙動変更 — 独立コミット+3レスポンス形状のテスト付きで。
 - json.go 内部の重複(prettyJSON 抽出、emptyBody ガード4箇所、sanitizeCell/sanitizeCSVCell 統合)もここで実施(約27行、CWE-1236 等の load-bearing コメントは維持)。
+
+- **実装メモ(2026-06-11, P2-2)**: RenderJSON(JQ>JSON>Template、(handled,error) 戻り値で fall-through 表現)/ RenderSuccess / cmdutil.RenderDeleteResult(204・空200・非JSON200 = 成功、JSON ボディは detail 描画)を新設し、Render/RenderDetail の先頭3分岐を RenderJSON に畳んだ(バイト互換、既存テストで固定)。28ファイルの尾部置換と --csv 明示エラーは計画どおり P3-3。json.go 内部 dedup も同PRで実施: emptyBody ×4(json.go×3 + template.go)、prettyJSON ×2、sanitizeCell/sanitizeCSVCell → sanitizeRunes(preserveNewlines) 統合(load-bearing コメントは wrapper に温存)。**P2-2 完了**。
 
 **P2-3. `cmdutil` の小物ヘルパー**
 - `AddBodyFlag(cmd, &v, required)` / `AddConfirmFlag(cmd, &v)`(--body 定義54ファイル・ヘルプ2変種、--confirm ヘルプ8変種を正準化)、`RequireFlag` 相当は P5 の MarkFlagRequired 移行で吸収するため**ここでは作らない**。

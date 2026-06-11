@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -50,7 +49,6 @@ func runDelete(cmd *cobra.Command, f *factory.Factory, key string) error {
 	resp, err := client.Put(
 		fmt.Sprintf("/v1/subscriptions/%s/delete", url.PathEscape(key)),
 		strings.NewReader("{}"),
-		api.WithCheckSuccess(),
 	)
 	if err != nil {
 		return err

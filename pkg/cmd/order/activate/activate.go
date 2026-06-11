@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -36,7 +35,7 @@ func runActivate(cmd *cobra.Command, f *factory.Factory, orderNumber string) err
 		return err
 	}
 
-	resp, err := client.Put(fmt.Sprintf("/v1/orders/%s/activate", url.PathEscape(orderNumber)), nil, api.WithCheckSuccess())
+	resp, err := client.Put(fmt.Sprintf("/v1/orders/%s/activate", url.PathEscape(orderNumber)), nil)
 	if err != nil {
 		return err
 	}

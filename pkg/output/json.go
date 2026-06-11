@@ -11,6 +11,28 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 )
 
+// emptyBody reports whether data has no content (e.g. an HTTP 204 or empty
+// 200) — every output path treats that as "nothing to print", success, so the
+// exit code stays consistent across modes.
+func emptyBody(data []byte) bool {
+	return len(bytes.TrimSpace(data)) == 0
+}
+
+// prettyJSON validates data as a single JSON value and returns it re-indented.
+// Callers keep their own fallback behavior on error (raw passthrough for the
+// api escape hatch, stderr+non-zero for strict JSON output).
+func prettyJSON(data []byte) (string, error) {
+	var v json.RawMessage
+	if err := json.Unmarshal(data, &v); err != nil {
+		return "", err
+	}
+	pretty, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(pretty), nil
+}
+
 // decodeJSONPreservingNumbers decodes JSON into a generic value using
 // json.Number for all numbers, so large integers (e.g. Zuora's 19-digit IDs)
 // and high-precision amounts are not silently rounded by float64. gojq accepts
@@ -35,22 +57,17 @@ func decodeJSONPreservingNumbers(data []byte) (interface{}, error) {
 // hatch, whose response may legitimately be non-JSON (text, CSV, a proxy's HTML
 // success page), where failing would lose the body and break `zr api ... > file`.
 func PrintRawOrJSON(ios *iostreams.IOStreams, data []byte) error {
-	if len(bytes.TrimSpace(data)) == 0 {
+	if emptyBody(data) {
 		return nil
 	}
-	var v json.RawMessage
-	if err := json.Unmarshal(data, &v); err != nil {
+	pretty, err := prettyJSON(data)
+	if err != nil {
 		// Not JSON — pass the body through verbatim (no added newline), so a
 		// binary or exact-byte body redirected from `zr api` is not corrupted.
 		_, werr := ios.Out.Write(data)
 		return werr
 	}
-	pretty, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		_, werr := ios.Out.Write(data)
-		return werr
-	}
-	fmt.Fprintln(ios.Out, string(pretty))
+	fmt.Fprintln(ios.Out, pretty)
 	return nil
 }
 
@@ -60,23 +77,18 @@ func PrintJSON(ios *iostreams.IOStreams, data []byte, jqExpr string) error {
 		return printJQ(ios, data, jqExpr)
 	}
 	// Pretty-print. An empty body (e.g. HTTP 204) is not an error.
-	if len(bytes.TrimSpace(data)) == 0 {
+	if emptyBody(data) {
 		return nil
 	}
-	var v json.RawMessage
-	if err := json.Unmarshal(data, &v); err != nil {
+	pretty, err := prettyJSON(data)
+	if err != nil {
 		// Not valid JSON: echo the raw body to stderr and fail, so scripts and
 		// downstream JSON consumers can detect it via a non-zero exit code
 		// instead of receiving a corrupt stream on stdout.
 		fmt.Fprintln(ios.ErrOut, string(data))
 		return fmt.Errorf("response is not valid JSON")
 	}
-	pretty, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		fmt.Fprintln(ios.ErrOut, string(data))
-		return fmt.Errorf("formatting JSON: %w", err)
-	}
-	fmt.Fprintln(ios.Out, string(pretty))
+	fmt.Fprintln(ios.Out, pretty)
 	return nil
 }
 
@@ -89,7 +101,7 @@ func printJQ(ios *iostreams.IOStreams, data []byte, expr string) error {
 	// An empty body (e.g. HTTP 204) has nothing to filter — succeed silently,
 	// matching the pretty-print (PrintJSON) and raw (PrintRawOrJSON) paths so the
 	// exit code is consistent across output modes.
-	if len(bytes.TrimSpace(data)) == 0 {
+	if emptyBody(data) {
 		return nil
 	}
 

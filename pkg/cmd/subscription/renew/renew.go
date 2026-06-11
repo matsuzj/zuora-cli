@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -57,7 +56,7 @@ func runRenew(cmd *cobra.Command, f *factory.Factory, key, body string) error {
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/renew", url.PathEscape(key))
-	resp, err := client.Put(path, bodyReader, api.WithCheckSuccess())
+	resp, err := client.Put(path, bodyReader)
 	if err != nil {
 		return err
 	}

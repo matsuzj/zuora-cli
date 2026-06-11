@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -96,7 +95,7 @@ func runResume(cmd *cobra.Command, f *factory.Factory, opts *resumeOptions, key 
 		bodyReader = bytes.NewReader(data)
 	}
 
-	resp, err := client.Put(fmt.Sprintf("/v1/subscriptions/%s/resume", url.PathEscape(key)), bodyReader, api.WithCheckSuccess())
+	resp, err := client.Put(fmt.Sprintf("/v1/subscriptions/%s/resume", url.PathEscape(key)), bodyReader)
 	if err != nil {
 		return err
 	}

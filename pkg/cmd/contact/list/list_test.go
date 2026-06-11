@@ -3,56 +3,35 @@ package list
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	sub := &cobra.Command{Use: "contact"}
-	sub.AddCommand(NewCmdList(f))
-	root.AddCommand(sub)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdList(f) }
 
 func TestContactList_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/action/query", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"records": []map[string]interface{}{
-				{"Id": "c-1", "FirstName": "John", "LastName": "Doe", "WorkEmail": "j@example.com"},
-			},
-			"size": 1,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "POST", "/v1/action/query", map[string]interface{}{
+		"records": []map[string]interface{}{
+			{"Id": "c-1", "FirstName": "John", "LastName": "Doe", "WorkEmail": "j@example.com"},
+		},
+		"size": 1,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "list", "--account-id", "acct-123"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "John")
-	assert.Contains(t, out.String(), "Doe")
-	assert.Contains(t, out.String(), "j@example.com")
+	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "list", "--account-id", "acct-123")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "John")
+	assert.Contains(t, stdout, "Doe")
+	assert.Contains(t, stdout, "j@example.com")
 }
 
 func TestContactList_Pagination(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		w.WriteHeader(200)
 		if callCount == 1 {
@@ -75,23 +54,18 @@ func TestContactList_Pagination(t *testing.T) {
 				"done": true,
 			})
 		}
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "list", "--account-id", "acct-123"})
-	require.NoError(t, root.Execute())
+	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "list", "--account-id", "acct-123")
+	require.NoError(t, err)
 	assert.Equal(t, 2, callCount)
-	assert.Contains(t, out.String(), "Page1")
-	assert.Contains(t, out.String(), "Page2")
+	assert.Contains(t, stdout, "Page1")
+	assert.Contains(t, stdout, "Page2")
 }
 
 func TestContactList_Pagination_JSON(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		w.WriteHeader(200)
 		if callCount == 1 {
@@ -108,47 +82,27 @@ func TestContactList_Pagination_JSON(t *testing.T) {
 				"done":    true,
 			})
 		}
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "list", "--account-id", "acct-123", "--json"})
-	require.NoError(t, root.Execute())
+	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "list", "--account-id", "acct-123", "--json")
+	require.NoError(t, err)
 	// JSON output should contain both records
-	assert.Contains(t, out.String(), "c-1")
-	assert.Contains(t, out.String(), "c-2")
+	assert.Contains(t, stdout, "c-1")
+	assert.Contains(t, stdout, "c-2")
 }
 
 // TestContactList_SuccessFalse_IsError pins that an action/query returning
 // HTTP 200 with {"success":false} (e.g. invalid ZOQL) surfaces as an error
 // rather than silently printing zero contacts. Guards the WithCheckSuccess wiring.
 func TestContactList_SuccessFalse_IsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{{"code": "INVALID_FIELD", "message": "invalid query"}},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, "INVALID_FIELD", "invalid query")
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "list", "--account-id", "acct-123"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "list", "--account-id", "acct-123")
 	require.Error(t, err, "success:false from action/query must surface as an error")
 	assert.Contains(t, err.Error(), "invalid query")
 }
 
 func TestContactList_RequiresAccountID(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "list"})
-	assert.Error(t, root.Execute())
+	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "list")
+	assert.Error(t, err)
 }

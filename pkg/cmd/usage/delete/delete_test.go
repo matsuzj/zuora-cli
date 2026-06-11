@@ -2,103 +2,54 @@ package delete
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	usage := &cobra.Command{Use: "usage"}
-	usage.AddCommand(NewCmdDelete(f))
-	root.AddCommand(usage)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdDelete(f) }
 
 func TestUsageDelete_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "DELETE", r.Method)
-		assert.Equal(t, "/v1/object/usage/2c92a0f96bd", r.URL.Path)
-		w.WriteHeader(204)
-	}))
-	defer server.Close()
+	handler := cmdtest.Status(t, "DELETE", "/v1/object/usage/2c92a0f96bd", 204, nil)
 
-	ios, _, _, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"usage", "delete", "2c92a0f96bd", "--confirm"})
-	err := root.Execute()
-
+	_, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "delete", "2c92a0f96bd", "--confirm")
 	require.NoError(t, err)
-	assert.Contains(t, errOut.String(), "Usage record 2c92a0f96bd deleted.")
+	assert.Contains(t, stderr, "Usage record 2c92a0f96bd deleted.")
 }
 
 func TestUsageDelete_RequiresConfirm(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"usage", "delete", "2c92a0f96bd"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "delete", "2c92a0f96bd")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--confirm")
 }
 
 func TestUsageDelete_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"usage", "delete", "--confirm"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "delete", "--confirm")
 
 	assert.Error(t, err)
 }
 
 func TestUsageDelete_BodyResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"Id":"u-1"}`))
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{"Id": "u-1"})
 
-	ios, _, out, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"usage", "delete", "u-1", "--confirm"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "u-1")
-	assert.Contains(t, errOut.String(), "Usage record u-1 deleted.")
+	stdout, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "delete", "u-1", "--confirm")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "u-1")
+	assert.Contains(t, stderr, "Usage record u-1 deleted.")
 }
 
 func TestUsageDelete_UnparseableBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("not json"))
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"usage", "delete", "u-1", "--confirm"})
-	err := root.Execute()
+	_, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "delete", "u-1", "--confirm")
 	require.NoError(t, err, "non-JSON 200 is a completed delete under the unified policy")
-	assert.Contains(t, errOut.String(), "deleted")
+	assert.Contains(t, stderr, "deleted")
 }

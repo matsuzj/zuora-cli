@@ -1,141 +1,71 @@
 package get
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	payment := &cobra.Command{Use: "payment"}
-	payment.AddCommand(NewCmdGet(f))
-	root.AddCommand(payment)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestPaymentGet_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/v1/payments/pay-001", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":            "pay-001",
-			"paymentNumber": "P-00000001",
-			"effectiveDate": "2026-01-15",
-			"amount":        100.00,
-			"status":        "Processed",
-			"type":          "External",
-			"accountId":     "acc-001",
-			"gatewayState":  "Settled",
-			"createdDate":   "2026-01-10T10:00:00Z",
-			"success":       true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "GET", "/v1/payments/pay-001", map[string]interface{}{
+		"id":            "pay-001",
+		"paymentNumber": "P-00000001",
+		"effectiveDate": "2026-01-15",
+		"amount":        100.00,
+		"status":        "Processed",
+		"type":          "External",
+		"accountId":     "acc-001",
+		"gatewayState":  "Settled",
+		"createdDate":   "2026-01-10T10:00:00Z",
+		"success":       true,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "get", "pay-001"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "pay-001")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "P-00000001")
-	assert.Contains(t, out.String(), "Processed")
+	assert.Contains(t, stdout, "P-00000001")
+	assert.Contains(t, stdout, "Processed")
 }
 
 func TestPaymentGet_LargeAmountNotScientific(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":     "pay-002",
-			"amount": 1234567.89,
-			"status": "Processed",
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"id":     "pay-002",
+		"amount": 1234567.89,
+		"status": "Processed",
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "get", "pay-002"})
-	require.NoError(t, root.Execute())
-
-	output := out.String()
-	assert.Contains(t, output, "1234567.89", "large amount must render as a plain decimal")
-	assert.NotContains(t, output, "e+", "amount must not use scientific notation")
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "pay-002")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "1234567.89", "large amount must render as a plain decimal")
+	assert.NotContains(t, stdout, "e+", "amount must not use scientific notation")
 }
 
 func TestPaymentGet_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":            "pay-001",
-			"paymentNumber": "P-00000001",
-			"success":       true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"id":            "pay-001",
+		"paymentNumber": "P-00000001",
+		"success":       true,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "get", "pay-001", "--json"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "pay-001", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), `"paymentNumber"`)
+	assert.Contains(t, stdout, `"paymentNumber"`)
 }
 
 func TestPaymentGet_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "get"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "get")
 	assert.Error(t, err)
 }
 
 func TestPaymentGet_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{
-				{"code": 50000040, "message": "Payment not found"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000040, "Payment not found")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "get", "bad-id"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "bad-id")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Payment not found")
 }

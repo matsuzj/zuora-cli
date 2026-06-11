@@ -1,67 +1,34 @@
 package refund
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	payment := &cobra.Command{Use: "payment"}
-	payment.AddCommand(NewCmdRefund(f))
-	root.AddCommand(payment)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdRefund(f) }
 
 func TestPaymentRefund_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/payments/pay-001/refunds", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":           "ref-001",
-			"refundNumber": "R-00001",
-			"amount":       50.00,
-			"status":       "Processed",
-			"success":      true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "POST", "/v1/payments/pay-001/refunds", map[string]interface{}{
+		"id":           "ref-001",
+		"refundNumber": "R-00001",
+		"amount":       50.00,
+		"status":       "Processed",
+		"success":      true,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "R-00001")
-	assert.Contains(t, out.String(), "Processed")
+	assert.Contains(t, stdout, "R-00001")
+	assert.Contains(t, stdout, "Processed")
 }
 
 func TestPaymentRefund_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"payment", "refund", "pay-001"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "refund", "pay-001")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")
 }

@@ -2,7 +2,6 @@
 package refund
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -45,42 +44,29 @@ Examples:
 
 func runRefund(cmd *cobra.Command, opts *refundOptions, paymentID string) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Post(fmt.Sprintf("/v1/payments/%s/refunds", url.PathEscape(paymentID)), bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-		{Key: "Refund Number", Value: cmdutil.GetDecimal(raw, "refundNumber")},
-		{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
-		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-		{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	if id := cmdutil.GetDecimal(raw, "id"); id != "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Refund %s created for payment %s.\n", id, paymentID)
-	}
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   fmt.Sprintf("/v1/payments/%s/refunds", url.PathEscape(paymentID)),
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+				{Key: "Refund Number", Value: cmdutil.GetDecimal(raw, "refundNumber")},
+				{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+				{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			if id := cmdutil.GetDecimal(raw, "id"); id != "" {
+				return fmt.Sprintf("Refund %s created for payment %s.\n", id, paymentID)
+			}
+			return ""
+		},
+	})
 }

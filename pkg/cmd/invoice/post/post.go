@@ -2,7 +2,6 @@
 package post
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -30,34 +29,19 @@ Examples:
 }
 
 func runPost(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Put(fmt.Sprintf("/v1/invoices/%s/post", url.PathEscape(invoiceID)), nil)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetString(raw, "id")},
-		{Key: "Invoice Number", Value: cmdutil.GetString(raw, "invoiceNumber")},
-		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Invoice %s posted.\n", invoiceID)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "PUT",
+		Path:   fmt.Sprintf("/v1/invoices/%s/post", url.PathEscape(invoiceID)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Invoice Number", Value: cmdutil.GetString(raw, "invoiceNumber")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Invoice %s posted.\n", invoiceID)
+		},
+	})
 }

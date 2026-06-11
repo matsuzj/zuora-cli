@@ -2,7 +2,6 @@
 package cancel
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -39,33 +38,18 @@ Examples:
 }
 
 func runCancel(cmd *cobra.Command, f *factory.Factory, orderNumber string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Put(fmt.Sprintf("/v1/orders/%s/cancel", url.PathEscape(orderNumber)), nil)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
-		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Order %s cancelled.\n", orderNumber)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "PUT",
+		Path:   fmt.Sprintf("/v1/orders/%s/cancel", url.PathEscape(orderNumber)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Order %s cancelled.\n", orderNumber)
+		},
+	})
 }

@@ -42,7 +42,7 @@ Examples:
 	}
 
 	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
-	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "reversal")
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "reversal (this action is irreversible)")
 
 	return cmd
 }

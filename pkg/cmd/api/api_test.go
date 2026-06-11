@@ -13,19 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newTestRoot is retained for api_extra_test.go and api_coverage_test.go which
-// still reference it. Migrate those files to retire this helper.
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	// Register global persistent flags that api command reads
-	root.PersistentFlags().String("jq", "", "Filter JSON output")
-	root.PersistentFlags().Bool("json", false, "Output as JSON")
-	root.PersistentFlags().String("template", "", "Format output")
-	root.PersistentFlags().Bool("csv", false, "Output as CSV")
-	root.AddCommand(NewCmdAPI(f))
-	return root
-}
-
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdAPI(f) }
 
 func TestAPI_GET(t *testing.T) {

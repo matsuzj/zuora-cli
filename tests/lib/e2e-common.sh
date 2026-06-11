@@ -76,6 +76,28 @@ run_retry() {
   return "$RUN_RC"
 }
 
+# run_retry_nonempty <attempts> <command...> — like run_retry, but ALSO
+# retries when the command exits 0 with EMPTY stdout (defense-in-depth for
+# read checks whose empty success output is never legitimate). Sleeps
+# escalate (2,4,8,...s). NOTE: the 2026-06-12 query-CSV "flake" this was
+# first written for turned out to be a pipefail+EPIPE bug in the CHECK
+# pipeline (see e2e-zoql-omnichannel.sh), not an empty API response.
+run_retry_nonempty() {
+  local attempts="$1"; shift
+  local i delay=2
+  for ((i=1; i<=attempts; i++)); do
+    run "$@"
+    if [ "$RUN_RC" -eq 0 ] && [ -n "$RUN_OUT" ]; then
+      return 0
+    fi
+    if [ "$RUN_RC" -ne 0 ]; then
+      echo "$RUN_ERR" | grep -qiE "HTTP 429|HTTP 5[0-9][0-9]|rate limit" || return "$RUN_RC"
+    fi
+    sleep "$delay"; delay=$((delay * 2))
+  done
+  return "$RUN_RC"
+}
+
 # expect_ok <description> <expected-substring> -- <command...>
 # Passes when the command exits 0 AND output contains the expected fixed-string.
 expect_ok() {

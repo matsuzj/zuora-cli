@@ -218,8 +218,23 @@ func TestList_HintCursorStyleQuotesAndDefaults(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, stderr, "More results available")
-	assert.Contains(t, stderr, `zr demo list --cursor "cursor with spaces"`)
+	assert.Contains(t, stderr, `zr demo list --cursor 'cursor with spaces'`)
 	assert.NotContains(t, stderr, "--page-size", "default int values are not re-emitted")
+}
+
+func TestList_HintShellSafeQuoting(t *testing.T) {
+	spec := cursorSpec()
+	handler := cmdtest.OK(t, "GET", "/object-query/demo", map[string]interface{}{
+		"data":     []map[string]interface{}{{"id": "a-1"}},
+		"nextPage": "pre$TOKEN`cmd`'q'",
+	})
+
+	_, stderr, err := cmdtest.Run(t, "demo", newCmd(spec), handler, "demo", "list")
+	require.NoError(t, err)
+
+	// Single-quote escaping: $ and backticks must paste verbatim, embedded
+	// single quotes via the standard '\'' sequence.
+	assert.Contains(t, stderr, `--cursor 'pre$TOKEN`+"`cmd`"+`'\''q'\'''`)
 }
 
 func TestList_HintPositionalArgsAndNonDefaultInt(t *testing.T) {

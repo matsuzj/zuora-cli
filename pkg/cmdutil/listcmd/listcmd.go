@@ -271,18 +271,20 @@ func printHint(cmd *cobra.Command, spec Spec, posArgs []string, strVals map[stri
 	fmt.Fprintf(f.IOStreams.ErrOut, "\nMore results available. Next page:\n  %s\n", strings.Join(parts, " "))
 }
 
-// quoteIfNeeded wraps a value in Go-style quotes when it contains characters
-// that would not survive a shell unquoted; plain tokens stay bare so the
-// common hints read naturally.
+// quoteIfNeeded wraps a value in shell single quotes when it contains
+// characters that would not survive a shell unquoted; plain tokens stay bare
+// so the common hints read naturally. Single quotes (not Go/double quoting —
+// review finding) so that $VAR, backticks, and backslashes paste verbatim;
+// embedded single quotes use the standard '\” escape.
 func quoteIfNeeded(s string) string {
 	if s == "" {
-		return `""`
+		return "''"
 	}
 	for _, r := range s {
 		isSafe := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
 			r == '-' || r == '_' || r == '.' || r == ':' || r == '/' || r == '=' || r == ',' || r == '%' || r == '+'
 		if !isSafe {
-			return strconv.Quote(s)
+			return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 		}
 	}
 	return s

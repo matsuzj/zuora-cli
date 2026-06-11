@@ -1,119 +1,59 @@
 package list
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	sub := &cobra.Command{Use: "subscription"}
-	sub.AddCommand(NewCmdList(f))
-	root.AddCommand(sub)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdList(f) }
 
 func TestSubscriptionList_Table(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/subscriptions/accounts/A001", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"subscriptions": []map[string]interface{}{
-				{
-					"id": "sub-1", "subscriptionNumber": "A-S001", "name": "Gold Plan",
-					"status": "Active", "termType": "TERMED",
-					"termStartDate": "2025-01-01", "termEndDate": "2026-01-01",
-				},
+	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/accounts/A001", map[string]interface{}{
+		"subscriptions": []map[string]interface{}{
+			{
+				"id": "sub-1", "subscriptionNumber": "A-S001", "name": "Gold Plan",
+				"status": "Active", "termType": "TERMED",
+				"termStartDate": "2025-01-01", "termEndDate": "2026-01-01",
 			},
-		})
-	}))
-	defer server.Close()
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "list", "--account", "A001"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account", "A001")
 	require.NoError(t, err)
-	output := out.String()
-	assert.Contains(t, output, "Gold Plan")
-	assert.Contains(t, output, "A-S001")
-	assert.Contains(t, output, "Active")
+	assert.Contains(t, stdout, "Gold Plan")
+	assert.Contains(t, stdout, "A-S001")
+	assert.Contains(t, stdout, "Active")
 }
 
 func TestSubscriptionList_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"subscriptions": []map[string]interface{}{
-				{"id": "sub-1", "name": "Gold Plan"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"subscriptions": []map[string]interface{}{
+			{"id": "sub-1", "name": "Gold Plan"},
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "list", "--account", "A001", "--json"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account", "A001", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), `"name"`)
+	assert.Contains(t, stdout, `"name"`)
 }
 
 func TestSubscriptionList_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// HTTP 200 with a success:false envelope must be treated as an error
-		// (the success-flag check is on by default in the API client).
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{
-				{"code": 50000040, "message": "Account not found"},
-			},
-		})
-	}))
-	defer server.Close()
+	// HTTP 200 with a success:false envelope must be treated as an error
+	// (the success-flag check is on by default in the API client).
+	handler := cmdtest.Reasons(t, 50000040, "Account not found")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "list", "--account", "A001"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account", "A001")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Account not found")
 }
 
 func TestSubscriptionList_RequiresAccount(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "list"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "list")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "account")
 }

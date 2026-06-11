@@ -4,31 +4,19 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	root.PersistentFlags().Bool("csv", false, "")
-	inv := &cobra.Command{Use: "invoice"}
-	inv.AddCommand(NewCmdWriteoff(f))
-	root.AddCommand(inv)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdWriteoff(f) }
 
 func TestInvoiceWriteoff_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/v1/invoices/inv-001/write-off", r.URL.Path)
 		body, _ := io.ReadAll(r.Body)
@@ -40,60 +28,37 @@ func TestInvoiceWriteoff_Success(t *testing.T) {
 			"creditMemo": map[string]interface{}{"id": "cm-001", "number": "CM00001"},
 			"success":    true,
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "writeoff", "inv-001", "--confirm", "--body", `{"comment":"bad debt"}`})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "cm-001")
-	assert.Contains(t, out.String(), "CM00001")
+	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "writeoff", "inv-001", "--confirm", "--body", `{"comment":"bad debt"}`)
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "cm-001")
+	assert.Contains(t, stdout, "CM00001")
 }
 
 func TestInvoiceWriteoff_NoBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		body, _ := io.ReadAll(r.Body)
 		assert.Empty(t, body, "no --body should send an empty request body")
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "writeoff", "inv-001", "--confirm"})
-	require.NoError(t, root.Execute())
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "writeoff", "inv-001", "--confirm")
+	require.NoError(t, err)
 }
 
 func TestInvoiceWriteoff_RequiresConfirm(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "writeoff", "inv-001"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "writeoff", "inv-001")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--confirm")
 }
 
 func TestInvoiceWriteoff_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{{"code": 58730040, "message": "Invoice balance is zero"}},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 58730040, "Invoice balance is zero")
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "writeoff", "inv-001", "--confirm"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "writeoff", "inv-001", "--confirm")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "balance is zero")
 }

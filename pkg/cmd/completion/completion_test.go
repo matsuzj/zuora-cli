@@ -4,60 +4,36 @@ import (
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.AddCommand(NewCmdCompletion(f))
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCompletion(f) }
 
 func TestCompletionBash(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
-	f := &factory.Factory{IOStreams: ios}
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"completion", "bash"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "completion", "bash")
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, out.String())
+	assert.NotEmpty(t, stdout)
 }
 
 func TestCompletionZsh(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
-	f := &factory.Factory{IOStreams: ios}
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"completion", "zsh"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "completion", "zsh")
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, out.String())
+	assert.NotEmpty(t, stdout)
 }
 
 func TestCompletionFish(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
-	f := &factory.Factory{IOStreams: ios}
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"completion", "fish"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "completion", "fish")
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, out.String())
+	assert.NotEmpty(t, stdout)
 }
 
 func TestCompletionInvalidShell(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := &factory.Factory{IOStreams: ios}
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"completion", "invalid"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "", newCmd, nil, "completion", "invalid")
 
 	assert.Error(t, err)
 }

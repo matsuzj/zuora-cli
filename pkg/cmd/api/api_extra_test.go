@@ -4,21 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func newCmdAPI(f *factory.Factory) *cobra.Command { return NewCmdAPI(f) }
 
 // TestAPI_Paginate covers the --paginate branch: multiple pages are fetched and
 // their `data` arrays flattened into a single aggregated JSON array.
 func TestAPI_Paginate(t *testing.T) {
 	page := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		page++
 		resp := map[string]interface{}{
 			"data": []map[string]string{{"id": fmt.Sprintf("acct-%d", page)}},
@@ -28,59 +29,35 @@ func TestAPI_Paginate(t *testing.T) {
 		}
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+	stdout, _, err := cmdtest.Run(t, "", newCmdAPI, handler, "api", "/v1/accounts", "--paginate")
+	require.NoError(t, err)
 
-	root := newTestRoot(f)
-	root.SetArgs([]string{"api", "/v1/accounts", "--paginate"})
-	require.NoError(t, root.Execute())
-
-	output := out.String()
-	assert.Contains(t, output, "acct-1")
-	assert.Contains(t, output, "acct-2", "page 2 data must be aggregated into the output")
+	assert.Contains(t, stdout, "acct-1")
+	assert.Contains(t, stdout, "acct-2", "page 2 data must be aggregated into the output")
 }
 
 // TestAPI_Paginate_ObjectQueryRejected covers the guard that --paginate is not
 // supported for Object Query endpoints (cursor-based, not URL-based pagination).
 func TestAPI_Paginate_ObjectQueryRejected(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"api", "/object-query/accounts", "--paginate"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "", newCmdAPI, nil, "api", "/object-query/accounts", "--paginate")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Object Query")
 }
 
 // TestAPI_InvalidHeader covers the malformed -H value guard.
 func TestAPI_InvalidHeader(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"api", "/v1/test", "-H", "NoColonHeader"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "", newCmdAPI, nil, "api", "/v1/test", "-H", "NoColonHeader")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid header format")
 }
 
 // TestAPI_Template covers the --template output branch.
 func TestAPI_Template(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": "acct-9", "name": "Acme"})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{"id": "acct-9", "name": "Acme"})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"api", "/v1/accounts/acct-9", "--template", "{{.name}}"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "Acme")
+	stdout, _, err := cmdtest.Run(t, "", newCmdAPI, handler, "api", "/v1/accounts/acct-9", "--template", "{{.name}}")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Acme")
 }

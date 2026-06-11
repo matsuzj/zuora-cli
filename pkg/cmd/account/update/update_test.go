@@ -1,60 +1,27 @@
 package update
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdUpdate(f))
-	root.AddCommand(acct)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdUpdate(f) }
 
 func TestAccountUpdate_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "PUT", r.Method)
-		assert.Equal(t, "/v1/accounts/A001", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "PUT", "/v1/accounts/A001", map[string]interface{}{"success": true})
 
-	ios, _, _, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "update", "A001", "--body", `{"name":"Updated"}`})
-	err := root.Execute()
-
+	_, stderr, err := cmdtest.Run(t, "account", newCmd, handler, "account", "update", "A001", "--body", `{"name":"Updated"}`)
 	require.NoError(t, err)
-	assert.Contains(t, errOut.String(), "Account A001 updated.")
+	assert.Contains(t, stderr, "Account A001 updated.")
 }
 
 func TestAccountUpdate_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "update", "A001"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "update", "A001")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")
 }

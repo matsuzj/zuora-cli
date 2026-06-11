@@ -3,30 +3,19 @@ package list
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdList(f))
-	root.AddCommand(acct)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdList(f) }
 
 func TestAccountList_Table(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/object-query/accounts", r.URL.Path)
 		assert.Equal(t, "10", r.URL.Query().Get("pageSize"))
 		w.WriteHeader(200)
@@ -35,109 +24,57 @@ func TestAccountList_Table(t *testing.T) {
 				{"id": "id-1", "name": "Acme Corp", "accountNumber": "A001", "status": "Active", "balance": 100.50, "createdDate": "2025-01-01"},
 			},
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "list", "--page-size", "10"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "list", "--page-size", "10")
 	require.NoError(t, err)
-	output := out.String()
-	assert.Contains(t, output, "Acme Corp")
-	assert.Contains(t, output, "A001")
-	assert.Contains(t, output, "Active")
+	assert.Contains(t, stdout, "Acme Corp")
+	assert.Contains(t, stdout, "A001")
+	assert.Contains(t, stdout, "Active")
 }
 
 func TestAccountList_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"data": []map[string]interface{}{
-				{"id": "id-1", "name": "Acme"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"data": []map[string]interface{}{
+			{"id": "id-1", "name": "Acme"},
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "list", "--json"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "list", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), `"name"`)
+	assert.Contains(t, stdout, `"name"`)
 }
 
 func TestAccountList_Filter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		filters := r.URL.Query()["filter[]"]
 		assert.Equal(t, []string{"status.EQ:Active"}, filters)
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{"data": []interface{}{}})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "list", "--filter", "status.EQ:Active"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "list", "--filter", "status.EQ:Active")
 	require.NoError(t, err)
 }
 
 func TestAccountList_JQ(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"data": []map[string]interface{}{
-				{"id": "id-1", "name": "Acme"},
-				{"id": "id-2", "name": "Beta"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"data": []map[string]interface{}{
+			{"id": "id-1", "name": "Acme"},
+			{"id": "id-2", "name": "Beta"},
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "list", "--jq", ".data[].name"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "list", "--jq", ".data[].name")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "Acme")
-	assert.Contains(t, out.String(), "Beta")
+	assert.Contains(t, stdout, "Acme")
+	assert.Contains(t, stdout, "Beta")
 }
 
 func TestAccountList_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Account not found"}},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000040, "Account not found")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "list"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "list")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Account not found")
 }

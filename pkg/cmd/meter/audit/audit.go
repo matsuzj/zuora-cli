@@ -2,7 +2,6 @@
 package audit
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -63,33 +62,20 @@ Examples:
 
 func runAudit(cmd *cobra.Command, opts *auditOptions, meterID string) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/meters/%s/auditTrail/entries", url.PathEscape(meterID))
-	resp, err := client.Get(path,
-		api.WithQuery("exportType", opts.ExportType),
-		api.WithQuery("runType", opts.RunType),
-		api.WithQuery("from", opts.From),
-		api.WithQuery("to", opts.To),
-	)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/meters/%s/auditTrail/entries", url.PathEscape(meterID)),
+		ReqOpts: []api.RequestOption{
+			api.WithQuery("exportType", opts.ExportType),
+			api.WithQuery("runType", opts.RunType),
+			api.WithQuery("from", opts.From),
+			api.WithQuery("to", opts.To),
+		},
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+	})
 }

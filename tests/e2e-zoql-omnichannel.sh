@@ -58,7 +58,13 @@ fi
 
 echo "  Testing: query --csv"
 run_retry_nonempty 5 $ZR query "SELECT Id, Name FROM Account" --csv
-if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | head -1 | grep -qiE 'id|name'; then
+# First line via parameter expansion — NOT `| head -1 |`: under pipefail,
+# head exiting after line 1 EPIPEs printf once RUN_OUT outgrows the pipe
+# buffer (~64KB), failing the whole condition even though the header is
+# present. That was the real cause of this check's "flake" (2026-06-12);
+# it became near-deterministic as the tenant's Account count grew.
+csv_first_line=${RUN_OUT%%$'\n'*}
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$csv_first_line" | grep -qiE 'id|name'; then
   pass "query CSV → has header row"
 else
   fail "query CSV → no header (rc=$RUN_RC) ${RUN_ERR}"

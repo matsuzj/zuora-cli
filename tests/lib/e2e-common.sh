@@ -77,11 +77,11 @@ run_retry() {
 }
 
 # run_retry_nonempty <attempts> <command...> — like run_retry, but ALSO
-# retries when the command exits 0 with EMPTY stdout. The live ZOQL endpoint
-# transiently returns an empty result set with HTTP 200 in BURSTS (observed
-# 2026-06-12, correlated with heavy write activity from the preceding
-# suites); rc stays 0 so run_retry never retries that mode. Sleeps escalate
-# (2,4,8,16s) so a burst that outlives a fixed 2s pause is still survived.
+# retries when the command exits 0 with EMPTY stdout (defense-in-depth for
+# read checks whose empty success output is never legitimate). Sleeps
+# escalate (2,4,8,...s). NOTE: the 2026-06-12 query-CSV "flake" this was
+# first written for turned out to be a pipefail+EPIPE bug in the CHECK
+# pipeline (see e2e-zoql-omnichannel.sh), not an empty API response.
 run_retry_nonempty() {
   local attempts="$1"; shift
   local i delay=2

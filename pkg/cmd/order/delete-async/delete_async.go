@@ -2,7 +2,6 @@
 package deleteasync
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -39,35 +38,20 @@ Examples:
 }
 
 func runDeleteAsync(cmd *cobra.Command, f *factory.Factory, orderNumber string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Delete(fmt.Sprintf("/v1/async/orders/%s", url.PathEscape(orderNumber)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Job ID", Value: cmdutil.GetString(raw, "jobId")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	if jobID := cmdutil.GetString(raw, "jobId"); jobID != "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Async order deletion started. Job ID: %s\n", jobID)
-		fmt.Fprintf(f.IOStreams.ErrOut, "Check status: zr order job-status %s\n", jobID)
-	}
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "DELETE",
+		Path:   fmt.Sprintf("/v1/async/orders/%s", url.PathEscape(orderNumber)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Job ID", Value: cmdutil.GetString(raw, "jobId")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			if jobID := cmdutil.GetString(raw, "jobId"); jobID != "" {
+				return fmt.Sprintf("Async order deletion started. Job ID: %s\nCheck status: zr order job-status %s\n", jobID, jobID)
+			}
+			return ""
+		},
+	})
 }

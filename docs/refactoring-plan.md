@@ -132,6 +132,8 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - `cmdutil.RenderDeleteResult`(または P3 ランナーのオプション)で 204 / 空200 / 非JSON 200 の方針を一本化。**決定事項**: 空200ボディは成功扱いを推奨(WithCheckSuccess が論理失敗を上流で弾くため)。現状は contact/fulfillment×2/omnichannel が成功・order/usage/account がエラーの3方針に分裂しており、どちらに寄せても挙動変更 — 独立コミット+3レスポンス形状のテスト付きで。
 - json.go 内部の重複(prettyJSON 抽出、emptyBody ガード4箇所、sanitizeCell/sanitizeCSVCell 統合)もここで実施(約27行、CWE-1236 等の load-bearing コメントは維持)。
 
+- **実装メモ(2026-06-11, P2-2)**: RenderJSON(JQ>JSON>Template、(handled,error) 戻り値で fall-through 表現)/ RenderSuccess / cmdutil.RenderDeleteResult(204・空200・非JSON200 = 成功、JSON ボディは detail 描画)を新設し、Render/RenderDetail の先頭3分岐を RenderJSON に畳んだ(バイト互換、既存テストで固定)。28ファイルの尾部置換と --csv 明示エラーは計画どおり P3-3。json.go 内部 dedup も同PRで実施: emptyBody ×4(json.go×3 + template.go)、prettyJSON ×2、sanitizeCell/sanitizeCSVCell → sanitizeRunes(preserveNewlines) 統合(load-bearing コメントは wrapper に温存)。**P2-2 完了**。
+
 **P2-3. `cmdutil` の小物ヘルパー**
 - `AddBodyFlag(cmd, &v, required)` / `AddConfirmFlag(cmd, &v)`(--body 定義54ファイル・ヘルプ2変種、--confirm ヘルプ8変種を正準化)、`RequireFlag` 相当は P5 の MarkFlagRequired 移行で吸収するため**ここでは作らない**。
 - `GetBool` / `GetInt` / `GetMoney`(固定2桁)を追加。account/get:87-113 と account/summary:103 の私製 getNumber/getBool/getInt(逐語一致の重複あり)を削除し、`.(string)`/`Sprintf("%v")` バイパス10箇所を置換。**決定事項**: 金額表示は現行の `%.2f`("50.00")を GetMoney で維持(E2E・ユーザースクリプトの互換のため。GetDecimal への正規化は採らない)。

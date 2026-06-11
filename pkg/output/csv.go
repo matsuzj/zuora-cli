@@ -4,8 +4,6 @@ import (
 	"encoding/csv"
 	"io"
 	"regexp"
-	"strings"
-	"unicode"
 )
 
 // PrintCSV writes data as CSV, neutralizing spreadsheet formula injection.
@@ -41,21 +39,7 @@ func PrintCSV(w io.Writer, rows [][]string, columns []Column) error {
 // sanitizeCell collapses newlines because they would break a fixed-width table;
 // CSV keeps them because a quoted field is structurally fine.)
 func sanitizeCSVCell(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.Map(func(r rune) rune {
-		switch r {
-		case '\n':
-			return r // preserved; encoding/csv quotes the field
-		case '\t', '\r', '\u2028', '\u2029':
-			return ' '
-		}
-		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
-			return -1
-		}
-		return r
-	}, s)
+	return sanitizeRunes(s, true)
 }
 
 // sanitizeCSVField neutralizes CSV/spreadsheet formula injection (CWE-1236).

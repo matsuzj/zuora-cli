@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,34 +30,21 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, paymentID string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/payments/%s", url.PathEscape(paymentID)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-		{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
-		{Key: "Effective Date", Value: cmdutil.GetDecimal(raw, "effectiveDate")},
-		{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
-		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-		{Key: "Type", Value: cmdutil.GetDecimal(raw, "type")},
-		{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
-		{Key: "Gateway State", Value: cmdutil.GetDecimal(raw, "gatewayState")},
-		{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/payments/%s", url.PathEscape(paymentID)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+				{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
+				{Key: "Effective Date", Value: cmdutil.GetDecimal(raw, "effectiveDate")},
+				{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+				{Key: "Type", Value: cmdutil.GetDecimal(raw, "type")},
+				{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
+				{Key: "Gateway State", Value: cmdutil.GetDecimal(raw, "gatewayState")},
+				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+			}
+		},
+	})
 }

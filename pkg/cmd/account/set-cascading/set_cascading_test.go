@@ -1,59 +1,28 @@
 package setcascading
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdSetCascading(f))
-	root.AddCommand(acct)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdSetCascading(f) }
 
 func TestSetCascading_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "PUT", r.Method)
-		assert.Equal(t, "/v1/accounts/A001/payment-methods/cascading", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "PUT", "/v1/accounts/A001/payment-methods/cascading", map[string]interface{}{"success": true})
 
-	ios, _, _, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "set-cascading", "A001", "--body", `{"paymentMethodId":"pm-1"}`})
-	err := root.Execute()
+	_, stderr, err := cmdtest.Run(t, "account", newCmd, handler, "account", "set-cascading", "A001", "--body", `{"paymentMethodId":"pm-1"}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, errOut.String(), "Cascading payment methods updated")
+	assert.Contains(t, stderr, "Cascading payment methods updated")
 }
 
 func TestSetCascading_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "set-cascading", "A001"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "set-cascading", "A001")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")

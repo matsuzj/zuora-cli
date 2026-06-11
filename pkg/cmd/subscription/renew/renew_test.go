@@ -1,74 +1,39 @@
 package renew
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	sub := &cobra.Command{Use: "subscription"}
-	sub.AddCommand(NewCmdRenew(f))
-	root.AddCommand(sub)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdRenew(f) }
 
 func TestSubscriptionRenew_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "PUT", r.Method)
-		assert.Equal(t, "/v1/subscriptions/SUB-001/renew", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "PUT", "/v1/subscriptions/SUB-001/renew", map[string]interface{}{
+		"success": true,
+	})
 
-	ios, _, out, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "renew", "SUB-001", "--body", `{"collect":true}`})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "true")
-	assert.Contains(t, errOut.String(), "Subscription SUB-001 renewed.")
+	stdout, stderr, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "renew", "SUB-001", "--body", `{"collect":true}`)
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "true")
+	assert.Contains(t, stderr, "Subscription SUB-001 renewed.")
 }
 
 func TestSubscriptionRenew_WithoutBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "PUT", r.Method)
-		assert.Equal(t, "/v1/subscriptions/SUB-001/renew", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "PUT", "/v1/subscriptions/SUB-001/renew", map[string]interface{}{
+		"success": true,
+	})
 
-	ios, _, _, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "renew", "SUB-001"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, errOut.String(), "Subscription SUB-001 renewed.")
+	_, stderr, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "renew", "SUB-001")
+	require.NoError(t, err)
+	assert.Contains(t, stderr, "Subscription SUB-001 renewed.")
 }
 
 func TestSubscriptionRenew_RequiresArgs(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"subscription", "renew"})
-	assert.Error(t, root.Execute())
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "renew")
+	assert.Error(t, err)
 }

@@ -3,28 +3,19 @@ package query
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	root.AddCommand(NewCmdQuery(f))
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdQuery(f) }
 
 func TestQuery_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/action/query", r.URL.Path)
 
@@ -41,25 +32,18 @@ func TestQuery_Success(t *testing.T) {
 			"size": 2,
 			"done": true,
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"query", "SELECT Id, Name FROM Account", "--json"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--json")
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "001")
-	assert.Contains(t, out.String(), "Acme")
+	assert.Contains(t, stdout, "001")
+	assert.Contains(t, stdout, "Acme")
 }
 
 func TestQuery_Pagination(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		callCount++
 
@@ -87,45 +71,28 @@ func TestQuery_Pagination(t *testing.T) {
 			"size":    1,
 			"done":    true,
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"query", "SELECT Id FROM Account", "--json"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id FROM Account", "--json")
 
 	require.NoError(t, err)
 	assert.Equal(t, 2, callCount)
-	assert.Contains(t, out.String(), "001")
-	assert.Contains(t, out.String(), "002")
+	assert.Contains(t, stdout, "001")
+	assert.Contains(t, stdout, "002")
 }
 
 func TestQuery_Limit(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"records": []map[string]interface{}{
-				{"Id": "001"},
-				{"Id": "002"},
-				{"Id": "003"},
-			},
-			"size": 3,
-			"done": true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"records": []map[string]interface{}{
+			{"Id": "001"},
+			{"Id": "002"},
+			{"Id": "003"},
+		},
+		"size": 3,
+		"done": true,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"query", "SELECT Id FROM Account", "--limit", "2", "--json"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id FROM Account", "--limit", "2", "--json")
 
 	require.NoError(t, err)
 	// Should have only 2 records
@@ -133,47 +100,31 @@ func TestQuery_Limit(t *testing.T) {
 		Records []map[string]interface{} `json:"records"`
 		Size    int                      `json:"size"`
 	}
-	json.Unmarshal(out.Bytes(), &result)
+	json.Unmarshal([]byte(stdout), &result)
 	assert.Equal(t, 2, result.Size)
 	assert.Len(t, result.Records, 2)
 }
 
 func TestQuery_CSV(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"records": []map[string]interface{}{
-				{"Id": "001", "Name": "Acme"},
-			},
-			"size": 1,
-			"done": true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"records": []map[string]interface{}{
+			{"Id": "001", "Name": "Acme"},
+		},
+		"size": 1,
+		"done": true,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"query", "SELECT Id, Name FROM Account", "--csv"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--csv")
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "Id")
-	assert.Contains(t, out.String(), "Name")
-	assert.Contains(t, out.String(), "001")
-	assert.Contains(t, out.String(), "Acme")
+	assert.Contains(t, stdout, "Id")
+	assert.Contains(t, stdout, "Name")
+	assert.Contains(t, stdout, "001")
+	assert.Contains(t, stdout, "Acme")
 }
 
 func TestQuery_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"query"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "", newCmd, nil, "query")
 
 	assert.Error(t, err)
 }

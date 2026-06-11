@@ -1,116 +1,58 @@
 package get
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdGet(f))
-	root.AddCommand(acct)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestAccountGet_Detail(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/accounts/A001", r.URL.Path)
-		w.WriteHeader(200)
-		// Zuora v1 nested response: basicInfo, billingAndPayment, metrics
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"basicInfo": map[string]interface{}{
-				"id": "id-1", "name": "Acme Corp", "accountNumber": "A001",
-				"status": "Active",
-			},
-			"billingAndPayment": map[string]interface{}{
-				"autoPay": true, "billCycleDay": 1, "currency": "USD",
-			},
-			"metrics": map[string]interface{}{
-				"balance": "250.00",
-			},
-			"success": true,
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "GET", "/v1/accounts/A001", map[string]interface{}{
+		"basicInfo": map[string]interface{}{
+			"id": "id-1", "name": "Acme Corp", "accountNumber": "A001",
+			"status": "Active",
+		},
+		"billingAndPayment": map[string]interface{}{
+			"autoPay": true, "billCycleDay": 1, "currency": "USD",
+		},
+		"metrics": map[string]interface{}{
+			"balance": "250.00",
+		},
+		"success": true,
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "get", "A001"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "get", "A001")
 	require.NoError(t, err)
-	output := out.String()
-	assert.Contains(t, output, "Acme Corp")
-	assert.Contains(t, output, "Active")
-	assert.Contains(t, output, "250.00")
+	assert.Contains(t, stdout, "Acme Corp")
+	assert.Contains(t, stdout, "Active")
+	assert.Contains(t, stdout, "250.00")
 }
 
 func TestAccountGet_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id": "id-1", "name": "Acme",
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"id": "id-1", "name": "Acme",
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "get", "A001", "--json"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "get", "A001", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), `"name"`)
+	assert.Contains(t, stdout, `"name"`)
 }
 
 func TestAccountGet_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "get"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "get")
 	assert.Error(t, err)
 }
 
 func TestAccountGet_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Account not found"}},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000040, "Account not found")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "get", "bad-key"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "get", "bad-key")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Account not found")
 }

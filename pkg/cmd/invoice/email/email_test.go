@@ -1,99 +1,52 @@
 package email
 
 import (
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	invoice := &cobra.Command{Use: "invoice"}
-	invoice.AddCommand(NewCmdEmail(f))
-	root.AddCommand(invoice)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdEmail(f) }
 
 func TestInvoiceEmail_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/invoices/inv-001/emails", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		cmdtest.OK(t, "", "", map[string]interface{}{
 			"success": true,
-		})
-	}))
-	defer server.Close()
+		})(w, r)
+	}
 
-	ios, _, out, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "email", "inv-001", "--body", `{"emailAddresses":"user@example.com"}`})
-	err := root.Execute()
+	stdout, stderr, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "email", "inv-001", "--body", `{"emailAddresses":"user@example.com"}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "true")
-	assert.Contains(t, errOut.String(), "Invoice inv-001 email sent.")
+	assert.Contains(t, stdout, "true")
+	assert.Contains(t, stderr, "Invoice inv-001 email sent.")
 }
 
 func TestInvoiceEmail_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "email", "inv-001"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "email", "inv-001")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")
 }
 
 func TestInvoiceEmail_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "email"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "email")
 
 	assert.Error(t, err)
 }
 
 func TestInvoiceEmail_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{
-				{"code": 50000040, "message": "Email sending failed"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000040, "Email sending failed")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"invoice", "email", "inv-001", "--body", `{"emailAddresses":"user@example.com"}`})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "email", "inv-001", "--body", `{"emailAddresses":"user@example.com"}`)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Email sending failed")

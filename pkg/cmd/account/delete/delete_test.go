@@ -2,128 +2,71 @@ package delete
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdDelete(f))
-	root.AddCommand(acct)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdDelete(f) }
 
 func TestAccountDelete_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "DELETE", r.Method)
-		assert.Equal(t, "/v1/accounts/A001", r.URL.Path)
-		w.WriteHeader(204)
-	}))
-	defer server.Close()
+	handler := cmdtest.Status(t, "DELETE", "/v1/accounts/A001", 204, nil)
 
-	ios, _, _, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "delete", "A001", "--confirm"})
-	err := root.Execute()
+	_, stderr, err := cmdtest.Run(t, "account", newCmd, handler, "account", "delete", "A001", "--confirm")
 
 	require.NoError(t, err)
-	assert.Contains(t, errOut.String(), "Account A001 deleted.")
+	assert.Contains(t, stderr, "Account A001 deleted.")
 }
 
 func TestAccountDelete_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(204)
-	}))
-	defer server.Close()
+	handler := cmdtest.Status(t, "", "", 204, nil)
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "delete", "A001", "--confirm", "--json"})
-	err := root.Execute()
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "delete", "A001", "--confirm", "--json")
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), `"success": true`)
+	assert.Contains(t, stdout, `"success": true`)
 }
 
 func TestAccountDelete_RequiresConfirm(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "delete", "A001"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "delete", "A001")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--confirm")
 }
 
 func TestAccountDelete_BodyResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"success":true,"jobId":"job-1","jobStatus":"Pending"}`))
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "delete", "A001", "--confirm"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "job-1")
-	assert.Contains(t, out.String(), "Pending")
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "delete", "A001", "--confirm")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "job-1")
+	assert.Contains(t, stdout, "Pending")
 }
 
 func TestAccountDelete_AsyncRejection(t *testing.T) {
 	// Async account delete returns HTTP 200 {"success":false} when the account
 	// cannot be deleted (e.g. active subscriptions). This must be a non-zero exit,
 	// not a silent success.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"success":false,"reasons":[{"message":"account has active subscriptions"}]}`))
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, "", "account has active subscriptions")
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "delete", "A001", "--confirm"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "delete", "A001", "--confirm")
 	require.Error(t, err)
 }
 
 func TestAccountDelete_UnparseableBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("not json"))
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "delete", "A001", "--confirm"})
-	err := root.Execute()
+	_, stderr, err := cmdtest.Run(t, "account", newCmd, handler, "account", "delete", "A001", "--confirm")
 	require.NoError(t, err, "non-JSON 200 is a completed delete under the unified policy")
-	assert.Contains(t, errOut.String(), "deleted")
+	assert.Contains(t, stderr, "deleted")
 }

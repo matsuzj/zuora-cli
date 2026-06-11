@@ -1,77 +1,38 @@
 package paymentmethods
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	acct := &cobra.Command{Use: "account"}
-	acct.AddCommand(NewCmdPaymentMethods(f))
-	root.AddCommand(acct)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdPaymentMethods(f) }
 
 func TestPaymentMethods_Table(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/accounts/A001/payment-methods", r.URL.Path)
-		w.WriteHeader(200)
+	handler := cmdtest.OK(t, "GET", "/v1/accounts/A001/payment-methods", map[string]interface{}{
+		"success": true,
 		// Zuora API uses "returnedPaymentMethodType" as envelope key
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"returnedPaymentMethodType": []map[string]interface{}{
-				{"id": "pm-1", "type": "CreditCard", "creditCardMaskNumber": "************1234", "isDefault": true, "status": "Active"},
-				{"id": "pm-2", "type": "ACH", "accountNumber": "****5678", "isDefault": false, "status": "Active"},
-			},
-		})
-	}))
-	defer server.Close()
+		"returnedPaymentMethodType": []map[string]interface{}{
+			{"id": "pm-1", "type": "CreditCard", "creditCardMaskNumber": "************1234", "isDefault": true, "status": "Active"},
+			{"id": "pm-2", "type": "ACH", "accountNumber": "****5678", "isDefault": false, "status": "Active"},
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "payment-methods", "A001"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "payment-methods", "A001")
 	require.NoError(t, err)
-	output := out.String()
-	assert.Contains(t, output, "CreditCard")
-	assert.Contains(t, output, "1234")
-	assert.Contains(t, output, "true")
+	assert.Contains(t, stdout, "CreditCard")
+	assert.Contains(t, stdout, "1234")
+	assert.Contains(t, stdout, "true")
 }
 
 func TestPaymentMethods_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Account not found"}},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000040, "Account not found")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"account", "payment-methods", "bad-key"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "payment-methods", "bad-key")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Account not found")
 }

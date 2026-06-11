@@ -2,7 +2,6 @@
 package status
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,32 +30,18 @@ Examples:
 }
 
 func runStatus(cmd *cobra.Command, f *factory.Factory, meterID, version string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/meters/%s/%s/runStatus", url.PathEscape(meterID), url.PathEscape(version))
-	resp, err := client.Get(path)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
-		{Key: "Version", Value: cmdutil.GetString(raw, "version")},
-		{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-		{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
-		{Key: "Start Time", Value: cmdutil.GetString(raw, "startTime")},
-		{Key: "End Time", Value: cmdutil.GetString(raw, "endTime")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/meters/%s/%s/runStatus", url.PathEscape(meterID), url.PathEscape(version)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
+				{Key: "Version", Value: cmdutil.GetString(raw, "version")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
+				{Key: "Start Time", Value: cmdutil.GetString(raw, "startTime")},
+				{Key: "End Time", Value: cmdutil.GetString(raw, "endTime")},
+			}
+		},
+	})
 }

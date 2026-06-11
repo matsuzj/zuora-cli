@@ -57,7 +57,7 @@ else
 fi
 
 echo "  Testing: query --csv"
-run_retry 3 $ZR query "SELECT Id, Name FROM Account" --csv
+run_retry_nonempty 3 $ZR query "SELECT Id, Name FROM Account" --csv
 if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | head -1 | grep -qiE 'id|name'; then
   pass "query CSV → has header row"
 else

@@ -43,6 +43,11 @@ Examples:
 
 func runList(cmd *cobra.Command, opts *listOptions) error {
 	f := opts.Factory
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err
@@ -54,8 +59,6 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 	if err != nil {
 		return err
 	}
-
-	fmtOpts := output.FromCmd(cmd)
 
 	return output.RenderJSONOnly(f.IOStreams, resp.Body, fmtOpts)
 }

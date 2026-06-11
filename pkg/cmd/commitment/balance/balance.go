@@ -29,6 +29,11 @@ Examples:
 }
 
 func runBalance(cmd *cobra.Command, f *factory.Factory, commitmentID string) error {
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err
@@ -38,8 +43,6 @@ func runBalance(cmd *cobra.Command, f *factory.Factory, commitmentID string) err
 	if err != nil {
 		return err
 	}
-
-	fmtOpts := output.FromCmd(cmd)
 
 	return output.RenderJSONOnly(f.IOStreams, resp.Body, fmtOpts)
 }

@@ -2,7 +2,6 @@
 package create
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -44,42 +43,29 @@ Examples:
 
 func runCreate(cmd *cobra.Command, opts *createOptions) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Post("/v1/payments", bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-		{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
-		{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
-		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-		{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	if id := cmdutil.GetDecimal(raw, "id"); id != "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Payment %s created.\n", id)
-	}
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   "/v1/payments",
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+				{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
+				{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+				{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			if id := cmdutil.GetDecimal(raw, "id"); id != "" {
+				return fmt.Sprintf("Payment %s created.\n", id)
+			}
+			return ""
+		},
+	})
 }

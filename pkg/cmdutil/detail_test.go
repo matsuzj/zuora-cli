@@ -164,3 +164,35 @@ func TestRunDetail_JSONFlagBypassesFields(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), `"id": "J"`)
 }
+
+func TestRunDetail_EmptyBodyWithMsgIsSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+
+	ios, _, _, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+
+	err := RunDetail(detailCmd(), f, Action{
+		Method: "PUT", Path: "/v1/things/T-1/activate", Fields: idFields,
+		SuccessMsg: func(map[string]interface{}) string { return "Activated T-1.\n" },
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Activated T-1.\n", errOut.String())
+}
+
+func TestRunDetail_EmptyBodyWithoutMsgIsClearError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
+
+	err := RunDetail(detailCmd(), f, Action{Method: "DELETE", Path: "/v1/things/T-1", Fields: idFields})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response body", "must not surface as 'parsing response: EOF'")
+	assert.Contains(t, err.Error(), "RenderDeleteResult")
+}

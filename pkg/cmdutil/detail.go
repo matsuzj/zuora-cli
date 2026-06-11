@@ -1,6 +1,7 @@
 package cmdutil
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -65,6 +66,18 @@ func RunDetail(cmd *cobra.Command, f *factory.Factory, act Action) error {
 	}
 
 	fmtOpts := output.FromCmd(cmd)
+
+	// An empty 2xx body (204, or an action endpoint's empty 200) has no
+	// detail to render: report success via the message when one is provided
+	// (machine flags get a synthesized {"success":true}); without a message
+	// this Action was mis-targeted — deletes with body-less responses belong
+	// on RenderDeleteResult, not RunDetail.
+	if len(bytes.TrimSpace(resp.Body)) == 0 {
+		if act.SuccessMsg != nil {
+			return output.RenderSuccess(f.IOStreams, fmtOpts, act.SuccessMsg(map[string]interface{}{}))
+		}
+		return fmt.Errorf("empty response body (HTTP %d): this command should render via RenderDeleteResult or provide a SuccessMsg", resp.StatusCode)
+	}
 
 	var raw map[string]interface{}
 	if err := json.Unmarshal(resp.Body, &raw); err != nil {

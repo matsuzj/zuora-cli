@@ -2,7 +2,6 @@
 package delete
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -58,37 +57,18 @@ func runDelete(cmd *cobra.Command, opts *deleteOptions, key string) error {
 
 	fmtOpts := output.FromCmd(cmd)
 
-	// DELETE returns 204 (no body) on success
-	if resp.StatusCode == 204 {
-		synth := []byte(`{"success": true}`)
-		if fmtOpts.JQ != "" {
-			return output.PrintJSON(f.IOStreams, synth, fmtOpts.JQ)
-		}
-		if fmtOpts.JSON {
-			return output.PrintJSON(f.IOStreams, synth, "")
-		}
-		if fmtOpts.Template != "" {
-			return output.PrintTemplate(f.IOStreams, synth, fmtOpts.Template)
-		}
-		fmt.Fprintf(f.IOStreams.ErrOut, "Account %s deleted.\n", key)
-		return nil
-	}
-
-	// Response has a body (Zuora returns 200 with job info for async delete)
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Unexpected response from server while deleting account %s:\n%s\n", key, string(resp.Body))
-		return fmt.Errorf("failed to parse server response for account delete")
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-	if jobID, ok := raw["jobId"].(string); ok {
-		fields = append(fields, output.DetailField{Key: "Job ID", Value: jobID})
-	}
-	if jobStatus, ok := raw["jobStatus"].(string); ok {
-		fields = append(fields, output.DetailField{Key: "Job Status", Value: jobStatus})
-	}
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RenderDeleteResult(f.IOStreams, resp, fmtOpts,
+		fmt.Sprintf("Account %s deleted.\n", key),
+		func(raw map[string]interface{}) []output.DetailField {
+			fields := []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+			if jobID, ok := raw["jobId"].(string); ok {
+				fields = append(fields, output.DetailField{Key: "Job ID", Value: jobID})
+			}
+			if jobStatus, ok := raw["jobStatus"].(string); ok {
+				fields = append(fields, output.DetailField{Key: "Job Status", Value: jobStatus})
+			}
+			return fields
+		})
 }

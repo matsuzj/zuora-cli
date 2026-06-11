@@ -124,7 +124,6 @@ func TestAccountDelete_UnparseableBody(t *testing.T) {
 	root := newTestRoot(f)
 	root.SetArgs([]string{"account", "delete", "A001", "--confirm"})
 	err := root.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parse")
-	assert.Contains(t, errOut.String(), "Unexpected response")
+	require.NoError(t, err, "non-JSON 200 is a completed delete under the unified policy")
+	assert.Contains(t, errOut.String(), "deleted")
 }

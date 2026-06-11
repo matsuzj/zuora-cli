@@ -2,7 +2,6 @@
 package delete
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -50,34 +49,11 @@ func runDelete(cmd *cobra.Command, f *factory.Factory, id string) error {
 
 	fmtOpts := output.FromCmd(cmd)
 
-	// DELETE may return 200 with JSON body or 204 with no body
-	if resp.StatusCode == 204 || len(resp.Body) == 0 {
-		synth := []byte(`{"success": true}`)
-		if fmtOpts.JQ != "" {
-			return output.PrintJSON(f.IOStreams, synth, fmtOpts.JQ)
-		}
-		if fmtOpts.JSON {
-			return output.PrintJSON(f.IOStreams, synth, "")
-		}
-		if fmtOpts.Template != "" {
-			return output.PrintTemplate(f.IOStreams, synth, fmtOpts.Template)
-		}
-		fmt.Fprintf(f.IOStreams.ErrOut, "Contact %s deleted.\n", id)
-		return nil
-	}
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Contact %s deleted.\n", id)
-	return nil
+	return cmdutil.RenderDeleteResult(f.IOStreams, resp, fmtOpts,
+		fmt.Sprintf("Contact %s deleted.\n", id),
+		func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		})
 }

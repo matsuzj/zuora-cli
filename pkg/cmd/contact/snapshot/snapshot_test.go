@@ -1,80 +1,42 @@
 package snapshot
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	sub := &cobra.Command{Use: "contact"}
-	sub.AddCommand(NewCmdSnapshot(f))
-	root.AddCommand(sub)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdSnapshot(f) }
 
 func TestContactSnapshot_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/v1/contact-snapshots/snap-123", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id": "snap-123", "firstName": "John", "lastName": "Doe",
-			"workEmail": "j@example.com", "country": "US", "contactId": "c-456",
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.OK(t, "GET", "/v1/contact-snapshots/snap-123", map[string]interface{}{
+		"id": "snap-123", "firstName": "John", "lastName": "Doe",
+		"workEmail": "j@example.com", "country": "US", "contactId": "c-456",
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "snapshot", "snap-123"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "snap-123")
-	assert.Contains(t, out.String(), "John")
-	assert.Contains(t, out.String(), "Doe")
-	assert.Contains(t, out.String(), "j@example.com")
-	assert.Contains(t, out.String(), "US")
-	assert.Contains(t, out.String(), "c-456")
+	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "snapshot", "snap-123")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "snap-123")
+	assert.Contains(t, stdout, "John")
+	assert.Contains(t, stdout, "Doe")
+	assert.Contains(t, stdout, "j@example.com")
+	assert.Contains(t, stdout, "US")
+	assert.Contains(t, stdout, "c-456")
 }
 
 func TestContactSnapshot_RequiresArgs(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), "http://localhost", "tok")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "snapshot"})
-	assert.Error(t, root.Execute())
+	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "snapshot")
+	assert.Error(t, err)
 }
 
 func TestContactSnapshot_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{{"code": 50000040, "message": "Contact snapshot not found"}},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000040, "Contact snapshot not found")
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "tok")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"contact", "snapshot", "bad-id"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "snapshot", "bad-id")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Contact snapshot not found")
 }

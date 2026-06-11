@@ -3,30 +3,19 @@ package update
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	product := &cobra.Command{Use: "product"}
-	product.AddCommand(NewCmdUpdate(f))
-	root.AddCommand(product)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdUpdate(f) }
 
 func TestProductUpdate_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/commerce/products", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -35,31 +24,18 @@ func TestProductUpdate_Success(t *testing.T) {
 			"id":   "prod-001",
 			"name": "Updated Product",
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"product", "update", "--body", `{"id":"prod-001","name":"Updated Product"}`})
-	err := root.Execute()
+	stdout, stderr, err := cmdtest.Run(t, "product", newCmd, handler, "product", "update", "--body", `{"id":"prod-001","name":"Updated Product"}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "prod-001")
-	assert.Contains(t, out.String(), "Updated Product")
-	assert.Contains(t, errOut.String(), "Product updated.")
+	assert.Contains(t, stdout, "prod-001")
+	assert.Contains(t, stdout, "Updated Product")
+	assert.Contains(t, stderr, "Product updated.")
 }
 
 func TestProductUpdate_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"product", "update"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "product", newCmd, nil, "product", "update")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")

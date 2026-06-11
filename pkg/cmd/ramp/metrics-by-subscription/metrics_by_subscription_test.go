@@ -1,93 +1,44 @@
 package metricsbysubscription
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	ramp := &cobra.Command{Use: "ramp"}
-	ramp.AddCommand(NewCmdMetricsBySubscription(f))
-	root.AddCommand(ramp)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdMetricsBySubscription(f) }
 
 func TestRampMetricsBySubscription_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/v1/subscriptions/A-S00000001/ramp-metrics", r.URL.Path)
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"rampMetrics": []map[string]interface{}{
-				{
-					"rampNumber":         "R-00000001",
-					"subscriptionNumber": "A-S00000001",
-					"totalGrossTcb":      1200.0,
-				},
+	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/A-S00000001/ramp-metrics", map[string]interface{}{
+		"success": true,
+		"rampMetrics": []map[string]interface{}{
+			{
+				"rampNumber":         "R-00000001",
+				"subscriptionNumber": "A-S00000001",
+				"totalGrossTcb":      1200.0,
 			},
-		})
-	}))
-	defer server.Close()
+		},
+	})
 
-	ios, _, out, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"ramp", "metrics-by-subscription", "A-S00000001"})
-	err := root.Execute()
-
+	stdout, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "metrics-by-subscription", "A-S00000001")
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "R-00000001")
-	assert.Contains(t, out.String(), "A-S00000001")
+	assert.Contains(t, stdout, "R-00000001")
+	assert.Contains(t, stdout, "A-S00000001")
 }
 
 func TestRampMetricsBySubscription_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"ramp", "metrics-by-subscription"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "ramp", newCmd, nil, "ramp", "metrics-by-subscription")
 	assert.Error(t, err)
 }
 
 func TestRampMetricsBySubscription_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{
-				{"code": 50000000, "message": "Subscription not found"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 50000000, "Subscription not found")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"ramp", "metrics-by-subscription", "A-INVALID"})
-	err := root.Execute()
-
+	_, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "metrics-by-subscription", "A-INVALID")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Subscription not found")
 }

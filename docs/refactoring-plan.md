@@ -173,6 +173,7 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 **P3-3. 出力分岐テールの掃討**
 - P3-1/2 に乗らない28ファイル(charge/*, plan/*, ramp/*, subscription/changelog*, commitment/*, invoice/files 等の JSON-only コマンド)の手書き分岐を `output.RenderJSON` 呼び出しに置換(**正味約250〜280行**)。query.go:164-172,183-185 の冗長プレディスパッチ(直後の Render が同じ判定を再実行)も削除。
 - **決定事項**: JSON-only コマンドでの `--csv` は「明示エラー」を推奨(黙殺は現状バグ。passthrough より診断的)。挙動変更として CHANGELOG に記載。
+- **実装メモ(2026-06-12, P3-3 挙動保存サブセット完了)**: JSON-only テール **28ファイル全件**を 1コマンド=1PR で `output.RenderJSON` 経由に置換完了(PR #153〜#180。全PR: 既存テスト無変更グリーン + make ci + GitHub CI + Codex クリーン + フル live E2E)。置換形は2種: **read 形**(21ファイル — `if handled, err := output.RenderJSON(...); handled || err != nil { return err }` + 明示デフォルト PrintJSON フォールスルー)と **write 形**(7ファイル: charge create/update/update-tiers, plan create/update, product create/update — デフォルト出力後に stderr 成功メッセージがあり、**--json でもメッセージが出るのが現行挙動**(RunDetail.SuccessMsg と整合)のため `if fmtOpts.JQ != "" || fmtOpts.Template != ""` ガード越しに RenderJSON へ委譲。JSON 分岐まで畳むとメッセージが消えて挙動が変わる)。全フラグ組合せでバイト同一(--json+--template は root で拒否済み、--jq 優先は新旧一致)。**未実施(別判断)**: (1) `--csv` 明示エラー化 — 挙動変更なので中央集約(RenderJSON 側)+ CHANGELOG + ユーザー承認で別PR、(2) delete系7ファイルの RenderDeleteResult 化 — 空ボディ/非JSON 挙動の等価性をファイル毎に精査要、(3) query.go の冗長プレディスパッチ削除 — 別PR。version.go は対象外(独自 JSON 構造)。
 
 **P3-4. テストハーネス移行の完遂**
 - 残りのコマンドテストを cmdtest へ(136ファイルの newTestRoot 削除、426実行ブロックの1行化、44 SuccessFalse のビルダー化)。**正味削減 約2,500〜3,500行(pkg/cmd テストツリーの25〜30%)**。

@@ -159,6 +159,7 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - 検証時の補正を反映した設計上の注意: SuccessMsg は単純な string では足りない(refund.go:83-85 のような「id があるときだけ2値補間」があるため func フィールドにする)。各コマンドは NewCmdX(cobra 配線・フラグ・ドキュメント)を保持し、runX が Action 組み立てに縮む(80行 → 50〜60行/ファイル)。
 - 対象: RenderDetail を使う88ファイル(うち55は末尾まで同一テンプレート)。**正味削減 約1,200〜1,800行**。
 - 手書きのまま残す例外: usage/post(multipart)、account/get・account/summary(ネスト展開とカスタムヘルパー — GetMoney 移行のみ)、meter系の特殊レスポンス。
+- **実装メモ(2026-06-11, P3-1 ランナー)**: cmdutil.Action / RunDetail を実装(別PR)。設計どおり SuccessMsg は func(raw) string(空文字=抑制 — payment/create の id 条件パターン対応)、エラーラップ "parsing response: %w" は既存テスト互換のため逐語維持、Fprint(Fprintf でなく — 動的値の % を書式扱いしない)。success チェックはランナー経由でもデフォルト適用(テストで固定)。移行第1号は contact/get を推奨(純GET・フラット11フィールド)。
 - 移行手順: ランナー+単体テストを先に独立PRで → 1リソース=1PR で機械移行。**既存 _test.go は変更せずグリーン維持**(`parsing response: %w` の文言まで含めて互換)。最初のリソース移行後と全移行後に E2E。
 
 **P3-2. list系ランナー `pkg/cmdutil/listcmd`**

@@ -3,7 +3,6 @@ package post
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -51,11 +50,6 @@ Examples:
 
 func runPost(cmd *cobra.Command, opts *postOptions) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	file, err := os.Open(opts.File)
 	if err != nil {
 		return fmt.Errorf("reading file: %w", err)
@@ -75,30 +69,21 @@ func runPost(cmd *cobra.Command, opts *postOptions) error {
 		return fmt.Errorf("closing multipart writer: %w", err)
 	}
 
-	resp, err := client.Do("POST", "/v1/usage",
-		api.WithBody(&buf),
-		api.WithHeader("Content-Type", writer.FormDataContentType()),
-	)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-		{Key: "Check Import Status", Value: cmdutil.GetString(raw, "checkImportStatus")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Usage file uploaded.\n")
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   "/v1/usage",
+		Body:   &buf,
+		ReqOpts: []api.RequestOption{
+			api.WithHeader("Content-Type", writer.FormDataContentType()),
+		},
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+				{Key: "Check Import Status", Value: cmdutil.GetString(raw, "checkImportStatus")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return "Usage file uploaded.\n"
+		},
+	})
 }

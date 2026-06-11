@@ -51,11 +51,6 @@ Examples:
 
 func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	// Build the JSON body: start with --body if provided, otherwise empty object,
 	// then merge in --run-type.
 	var bodyMap map[string]interface{}
@@ -81,26 +76,18 @@ func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error 
 		return fmt.Errorf("encoding body: %w", err)
 	}
 
-	path := fmt.Sprintf("/meters/%s/summary", url.PathEscape(meterID))
-	resp, err := client.Post(path, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	// The response could be a single object or contain nested data.
-	// Render as detail output with common summary fields.
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
-		{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   fmt.Sprintf("/meters/%s/summary", url.PathEscape(meterID)),
+		Body:   bytes.NewReader(bodyBytes),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// The response could be a single object or contain nested data.
+			// Render as detail output with common summary fields.
+			return []output.DetailField{
+				{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
+				{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+	})
 }

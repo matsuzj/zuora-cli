@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,39 +30,23 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, fulfillmentKey string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/fulfillments/%s", url.PathEscape(fulfillmentKey)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	// GET /v1/fulfillments/{key} nests the fulfillment under a top-level
-	// "fulfillment" object; there is no top-level "key" (it is keyed by
-	// "id"/"fulfillmentNumber"), and the date field is "fulfillmentDate". Fall
-	// back to the top level so an unwrapped response still renders.
-	ful, _ := raw["fulfillment"].(map[string]interface{})
-	if ful == nil {
-		ful = raw
-	}
-	fields := []output.DetailField{
-		{Key: "Fulfillment Number", Value: cmdutil.GetString(ful, "fulfillmentNumber")},
-		{Key: "ID", Value: cmdutil.GetString(ful, "id")},
-		{Key: "State", Value: cmdutil.GetString(ful, "state")},
-		{Key: "Order Line Item ID", Value: cmdutil.GetString(ful, "orderLineItemId")},
-		{Key: "Quantity", Value: cmdutil.GetDecimal(ful, "quantity")},
-		{Key: "Date", Value: cmdutil.GetString(ful, "fulfillmentDate")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/fulfillments/%s", url.PathEscape(fulfillmentKey)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// back to the top level so an unwrapped response still renders.
+			ful, _ := raw["fulfillment"].(map[string]interface{})
+			if ful == nil {
+				ful = raw
+			}
+			return []output.DetailField{
+				{Key: "Fulfillment Number", Value: cmdutil.GetString(ful, "fulfillmentNumber")},
+				{Key: "ID", Value: cmdutil.GetString(ful, "id")},
+				{Key: "State", Value: cmdutil.GetString(ful, "state")},
+				{Key: "Order Line Item ID", Value: cmdutil.GetString(ful, "orderLineItemId")},
+				{Key: "Quantity", Value: cmdutil.GetDecimal(ful, "quantity")},
+				{Key: "Date", Value: cmdutil.GetString(ful, "fulfillmentDate")},
+			}
+		},
+	})
 }

@@ -3,30 +3,19 @@ package update
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	order := &cobra.Command{Use: "order"}
-	order.AddCommand(NewCmdUpdate(f))
-	root.AddCommand(order)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdUpdate(f) }
 
 func TestOrderUpdate_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/v1/orders/O-00000001", r.URL.Path)
 
@@ -40,54 +29,26 @@ func TestOrderUpdate_Success(t *testing.T) {
 			"orderNumber": "O-00000001",
 			"status":      "Completed",
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "update", "O-00000001", "--body", `{"orderDate":"Completed"}`})
-	err := root.Execute()
+	stdout, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "update", "O-00000001", "--body", `{"orderDate":"Completed"}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "O-00000001")
-	assert.Contains(t, errOut.String(), "Order O-00000001 updated.")
+	assert.Contains(t, stdout, "O-00000001")
+	assert.Contains(t, stderr, "Order O-00000001 updated.")
 }
 
 func TestOrderUpdate_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{
-				{"code": 53100020, "message": "Missing required field"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 53100020, "Missing required field")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "update", "O-00000001", "--body", `{"bad":"data"}`})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "update", "O-00000001", "--body", `{"bad":"data"}`)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Missing required field")
 }
 
 func TestOrderUpdate_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"order", "update", "O-00000001"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "update", "O-00000001")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")

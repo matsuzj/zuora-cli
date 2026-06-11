@@ -2,129 +2,73 @@ package delete
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	omni := &cobra.Command{Use: "omnichannel"}
-	omni.AddCommand(NewCmdDelete(f))
-	root.AddCommand(omni)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdDelete(f) }
 
 func TestOmnichannelDelete_Success204(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "DELETE", r.Method)
-		assert.Equal(t, "/v1/omni-channel-subscriptions/S-001", r.URL.Path)
-		w.WriteHeader(204)
-	}))
-	defer server.Close()
+	handler := cmdtest.Status(t, "DELETE", "/v1/omni-channel-subscriptions/S-001", 204, nil)
 
-	ios, _, _, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "S-001", "--confirm"})
-	err := root.Execute()
+	_, stderr, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "delete", "S-001", "--confirm")
 
 	require.NoError(t, err)
-	assert.Contains(t, errOut.String(), "Omni-channel subscription S-001 deleted.")
+	assert.Contains(t, stderr, "Omni-channel subscription S-001 deleted.")
 }
 
 func TestOmnichannelDelete_RequiresConfirm(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "S-001"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, nil, "omnichannel", "delete", "S-001")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--confirm")
 }
 
 func TestOmnichannelDelete_RequiresArg(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "--confirm"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, nil, "omnichannel", "delete", "--confirm")
 
 	assert.Error(t, err)
 }
 
 func TestOmnichannelDelete_JSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(204)
-	}))
-	defer server.Close()
+	handler := cmdtest.Status(t, "", "", 204, nil)
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm", "--json"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), `"success": true`)
+	stdout, _, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "delete", "S-1", "--confirm", "--json")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, `"success": true`)
 }
 
 func TestOmnichannelDelete_BodyResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"success":true}`))
-	}))
-	defer server.Close()
+	handler := cmdtest.Status(t, "", "", http.StatusOK, map[string]interface{}{"success": true})
 
-	ios, _, out, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "true")
+	stdout, _, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "delete", "S-1", "--confirm")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "true")
 }
 
 func TestOmnichannelDelete_NonJSONBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("not json"))
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, errOut := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm"})
-	require.NoError(t, root.Execute())
-	assert.Contains(t, errOut.String(), "Omni-channel subscription S-1 deleted.")
+	_, stderr, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "delete", "S-1", "--confirm")
+	require.NoError(t, err)
+	assert.Contains(t, stderr, "Omni-channel subscription S-1 deleted.")
 }
 
 func TestOmnichannelDelete_UnparseableBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`[1,2,3]`))
-	}))
-	defer server.Close()
+	})
 
-	ios, _, _, _ := iostreams.Test()
-	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
-	root := newTestRoot(f)
-	root.SetArgs([]string{"omnichannel", "delete", "S-1", "--confirm"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "delete", "S-1", "--confirm")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing response")
 }

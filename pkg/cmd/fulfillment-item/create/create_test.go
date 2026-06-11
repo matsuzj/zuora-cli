@@ -3,30 +3,19 @@ package create
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRoot(f *factory.Factory) *cobra.Command {
-	root := &cobra.Command{Use: "zr"}
-	root.PersistentFlags().Bool("json", false, "")
-	root.PersistentFlags().String("jq", "", "")
-	root.PersistentFlags().String("template", "", "")
-	fi := &cobra.Command{Use: "fulfillment-item"}
-	fi.AddCommand(NewCmdCreate(f))
-	root.AddCommand(fi)
-	return root
-}
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCreate(f) }
 
 func TestFulfillmentItemCreate_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/fulfillment-items", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -38,60 +27,32 @@ func TestFulfillmentItemCreate_Success(t *testing.T) {
 		w.WriteHeader(200)
 		// Real shape: bulk endpoint returns created ids under a "fulfillmentItems"
 		// array, not a flat top-level "id".
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"fulfillmentItems": []map[string]interface{}{
 				{"id": "fi-00000001"},
 			},
 		})
-	}))
-	defer server.Close()
+	})
 
-	ios, _, out, errOut := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"fulfillment-item", "create", "--body", `{"fulfillmentKey":"F-001","quantity":5}`})
-	err := root.Execute()
+	stdout, stderr, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "create", "--body", `{"fulfillmentKey":"F-001","quantity":5}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "fi-00000001")
-	assert.Contains(t, errOut.String(), "Fulfillment item fi-00000001 created.")
+	assert.Contains(t, stdout, "fi-00000001")
+	assert.Contains(t, stderr, "Fulfillment item fi-00000001 created.")
 }
 
 func TestFulfillmentItemCreate_RequiresBody(t *testing.T) {
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, "http://localhost", "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"fulfillment-item", "create"})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "create")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--body is required")
 }
 
 func TestFulfillmentItemCreate_SuccessFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"reasons": []map[string]interface{}{
-				{"code": 53100020, "message": "Invalid fulfillment item data"},
-			},
-		})
-	}))
-	defer server.Close()
+	handler := cmdtest.Reasons(t, 53100020, "Invalid fulfillment item data")
 
-	ios, _, _, _ := iostreams.Test()
-	cfg := config.NewMockConfig()
-	f := factory.NewTestFactory(ios, cfg, server.URL, "test-token")
-
-	root := newTestRoot(f)
-	root.SetArgs([]string{"fulfillment-item", "create", "--body", `{"bad":"data"}`})
-	err := root.Execute()
+	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "create", "--body", `{"bad":"data"}`)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Invalid fulfillment item data")

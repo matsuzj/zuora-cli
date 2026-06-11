@@ -2,7 +2,6 @@
 package debug
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,33 +30,17 @@ Examples:
 }
 
 func runDebug(cmd *cobra.Command, f *factory.Factory, meterID, version string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/meters/debug/%s/%s", url.PathEscape(meterID), url.PathEscape(version))
-	resp, err := client.Post(path, nil)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-		{Key: "Message", Value: cmdutil.GetString(raw, "message")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Meter debug started.\n")
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   fmt.Sprintf("/meters/debug/%s/%s", url.PathEscape(meterID), url.PathEscape(version)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+				{Key: "Message", Value: cmdutil.GetString(raw, "message")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return "Meter debug started.\n"
+		},
+	})
 }

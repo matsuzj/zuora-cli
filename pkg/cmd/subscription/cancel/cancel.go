@@ -60,12 +60,8 @@ Examples:
 }
 
 func runCancel(cmd *cobra.Command, f *factory.Factory, opts *cancelOptions, key string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	var bodyReader io.Reader
+	var err error
 	if opts.Body != "" {
 		bodyReader, err = cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 		if err != nil {
@@ -85,27 +81,18 @@ func runCancel(cmd *cobra.Command, f *factory.Factory, opts *cancelOptions, key 
 		bodyReader = bytes.NewReader(data)
 	}
 
-	resp, err := client.Put(fmt.Sprintf("/v1/subscriptions/%s/cancel", url.PathEscape(key)), bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s cancelled.\n", key)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "PUT",
+		Path:   fmt.Sprintf("/v1/subscriptions/%s/cancel", url.PathEscape(key)),
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Subscription %s cancelled.\n", key)
+		},
+	})
 }

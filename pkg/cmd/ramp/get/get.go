@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,36 +30,23 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, rampNumber string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/ramps/%s", url.PathEscape(rampNumber)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	// GET /v1/ramps/{id} wraps the ramp under a top-level "ramp" object, and its
-	// number field is "number" (not "rampNumber"). Fall back to the top level so
-	// an unwrapped response still renders.
-	ramp, _ := raw["ramp"].(map[string]interface{})
-	if ramp == nil {
-		ramp = raw
-	}
-	fields := []output.DetailField{
-		{Key: "Ramp Number", Value: cmdutil.GetString(ramp, "number")},
-		{Key: "Name", Value: cmdutil.GetString(ramp, "name")},
-		{Key: "Description", Value: cmdutil.GetString(ramp, "description")},
-		{Key: "Subscription Number", Value: cmdutil.GetString(ramp, "subscriptionNumber")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/ramps/%s", url.PathEscape(rampNumber)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// GET /v1/ramps/{id} wraps the ramp under a top-level "ramp" object, and its
+			// number field is "number" (not "rampNumber"). Fall back to the top level so
+			// an unwrapped response still renders.
+			ramp, _ := raw["ramp"].(map[string]interface{})
+			if ramp == nil {
+				ramp = raw
+			}
+			return []output.DetailField{
+				{Key: "Ramp Number", Value: cmdutil.GetString(ramp, "number")},
+				{Key: "Name", Value: cmdutil.GetString(ramp, "name")},
+				{Key: "Description", Value: cmdutil.GetString(ramp, "description")},
+				{Key: "Subscription Number", Value: cmdutil.GetString(ramp, "subscriptionNumber")},
+			}
+		},
+	})
 }

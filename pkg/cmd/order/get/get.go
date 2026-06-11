@@ -34,6 +34,11 @@ func runGet(cmd *cobra.Command, f *factory.Factory, orderNumber string) error {
 		Method: "GET",
 		Path:   fmt.Sprintf("/v1/orders/%s", url.PathEscape(orderNumber)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// Zuora GET /v1/orders/{orderNumber} returns data nested under "order" key
+			order, _ := raw["order"].(map[string]interface{})
+			if order == nil {
+				order = raw
+			}
 			return []output.DetailField{
 				{Key: "Order Number", Value: cmdutil.GetString(order, "orderNumber")},
 				{Key: "Status", Value: cmdutil.GetString(order, "status")},

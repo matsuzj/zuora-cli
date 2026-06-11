@@ -160,14 +160,11 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 		return fmt.Errorf("encoding combined results: %w", err)
 	}
 
-	if fmtOpts.JQ != "" {
-		return output.PrintJSON(ios, combined, fmtOpts.JQ)
-	}
-	if fmtOpts.JSON {
-		return output.PrintJSON(ios, combined, "")
-	}
-	if fmtOpts.Template != "" {
-		return output.PrintTemplate(ios, combined, fmtOpts.Template)
+	// NOTE: this must stay ABOVE the --csv branch: with --jq/--json/--template
+	// combined with query's own --csv, the JSON-family flags win today, and
+	// RenderJSON preserves exactly that precedence (JQ > JSON > Template).
+	if handled, err := output.RenderJSON(ios, combined, fmtOpts); handled || err != nil {
+		return err
 	}
 
 	// Extract column headers from records

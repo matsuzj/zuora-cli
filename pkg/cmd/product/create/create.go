@@ -43,6 +43,11 @@ Examples:
 
 func runCreate(cmd *cobra.Command, opts *createOptions) error {
 	f := opts.Factory
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err
@@ -57,8 +62,6 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 	if err != nil {
 		return err
 	}
-
-	fmtOpts := output.FromCmd(cmd)
 
 	if fmtOpts.JQ != "" || fmtOpts.Template != "" {
 		_, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts)

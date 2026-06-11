@@ -29,6 +29,11 @@ Examples:
 }
 
 func runMetricsByOrder(cmd *cobra.Command, f *factory.Factory, orderNumber string) error {
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err
@@ -39,10 +44,5 @@ func runMetricsByOrder(cmd *cobra.Command, f *factory.Factory, orderNumber strin
 		return err
 	}
 
-	fmtOpts := output.FromCmd(cmd)
-
-	if handled, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts); handled || err != nil {
-		return err
-	}
-	return output.PrintJSON(f.IOStreams, resp.Body, "")
+	return output.RenderJSONOnly(f.IOStreams, resp.Body, fmtOpts)
 }

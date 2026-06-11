@@ -2,7 +2,6 @@
 package create
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -44,49 +43,39 @@ Examples:
 
 func runCreate(cmd *cobra.Command, opts *createOptions) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Post("/v1/fulfillment-items", bodyReader)
-	if err != nil {
-		return err
-	}
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   "/v1/fulfillment-items",
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: firstItemID(raw)},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			if itemID := firstItemID(raw); itemID != "" {
+				return fmt.Sprintf("Fulfillment item %s created.\n", itemID)
+			}
+			return ""
+		},
+	})
+}
 
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	// POST /v1/fulfillment-items is the BULK create endpoint: created item ids are
-	// returned under a top-level "fulfillmentItems" array, not a flat top-level
-	// "id". "success" is top-level.
-	var itemID string
+// firstItemID extracts the first created item id from the bulk response.
+// POST /v1/fulfillment-items is the BULK create endpoint: created item ids are
+// returned under a top-level "fulfillmentItems" array, not a flat top-level
+// "id". "success" is top-level.
+func firstItemID(raw map[string]interface{}) string {
 	if arr, ok := raw["fulfillmentItems"].([]interface{}); ok && len(arr) > 0 {
 		if first, ok := arr[0].(map[string]interface{}); ok {
-			itemID = cmdutil.GetString(first, "id")
+			return cmdutil.GetString(first, "id")
 		}
 	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: itemID},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	if itemID != "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Fulfillment item %s created.\n", itemID)
-	}
-	return nil
+	return ""
 }

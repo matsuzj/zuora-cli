@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -26,9 +25,7 @@ func newProbeCmd(f *factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// NOTE: explicit WithCheckSuccess matches main today; PR #71 flips
-			// the default and deletes the option — drop it on update-branch.
-			resp, err := client.Get("/v1/probe/"+args[0], api.WithCheckSuccess())
+			resp, err := client.Get("/v1/probe/" + args[0])
 			if err != nil {
 				return err
 			}
@@ -100,7 +97,7 @@ func newWriteProbeCmd(f *factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = client.Post("/v1/probe", nil, api.WithCheckSuccess())
+			_, err = client.Post("/v1/probe", nil)
 			return err
 		},
 	}

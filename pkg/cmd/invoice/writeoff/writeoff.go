@@ -2,7 +2,6 @@
 package writeoff
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -50,11 +49,6 @@ Examples:
 
 func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) error {
 	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	// The write-off body is optional; only resolve a reader when one was given.
 	var reqOpts []api.RequestOption
 	if opts.Body != "" {
@@ -65,34 +59,27 @@ func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) er
 		reqOpts = append(reqOpts, api.WithBody(bodyReader))
 	}
 
-	resp, err := client.Do("PUT", fmt.Sprintf("/v1/invoices/%s/write-off", url.PathEscape(invoiceID)), reqOpts...)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	// A successful write-off returns the generated credit memo, nested under
-	// "creditMemo". Surface its id when present; the full object is in --json.
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-	if cm, ok := raw["creditMemo"].(map[string]interface{}); ok {
-		fields = append(fields,
-			output.DetailField{Key: "Credit Memo ID", Value: cmdutil.GetString(cm, "id")},
-			output.DetailField{Key: "Credit Memo Number", Value: cmdutil.GetString(cm, "number")},
-		)
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Invoice %s written off.\n", invoiceID)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method:  "PUT",
+		Path:    fmt.Sprintf("/v1/invoices/%s/write-off", url.PathEscape(invoiceID)),
+		ReqOpts: reqOpts,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// A successful write-off returns the generated credit memo, nested
+			// under "creditMemo". Surface its id when present; the full object
+			// is in --json.
+			fields := []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+			if cm, ok := raw["creditMemo"].(map[string]interface{}); ok {
+				fields = append(fields,
+					output.DetailField{Key: "Credit Memo ID", Value: cmdutil.GetString(cm, "id")},
+					output.DetailField{Key: "Credit Memo Number", Value: cmdutil.GetString(cm, "number")},
+				)
+			}
+			return fields
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Invoice %s written off.\n", invoiceID)
+		},
+	})
 }

@@ -55,7 +55,7 @@ func TestSubscriptionGet_Detail(t *testing.T) {
 func TestSubscriptionGet_SuccessFalse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// HTTP 200 with a success:false envelope must be treated as an error
-		// (guards the api.WithCheckSuccess() wiring on this command).
+		// (the success-flag check is on by default in the API client).
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,

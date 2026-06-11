@@ -184,3 +184,41 @@ func TestAPI_ErrorResponse(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Zuora API error")
 }
+
+// Raw GET passthrough must deliver success:false bodies uninterpreted —
+// scripts read raw envelopes; only mutating methods get the default check.
+func TestAPIGet_SuccessFalseBodyPassesThrough(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"success":false,"reasons":[{"code":1,"message":"logical failure"}]}`))
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"api", "/v1/raw-read"})
+	err := root.Execute()
+
+	require.NoError(t, err, "GET passthrough must not interpret the envelope")
+	assert.Contains(t, out.String(), `"success": false`)
+}
+
+func TestAPIPost_SuccessFalseBodyErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"success":false,"reasons":[{"code":1,"message":"write failed"}]}`))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), server.URL, "test-token")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"api", "/v1/raw-write", "-X", "POST", "--body", "{}"})
+	err := root.Execute()
+
+	require.Error(t, err, "mutating methods keep the success check")
+	assert.Contains(t, err.Error(), "write failed")
+}

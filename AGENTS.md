@@ -45,7 +45,7 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 
 When adding/maintaining a command that calls the API:
 
-- Pass `api.WithCheckSuccess()` on every write AND detail call. Zuora returns HTTP 200 with `{"success":false}` on logical failures; without this the command exits 0 on a failed write/read (a recurring bug class). The raw `zr api` path enables it for mutating methods only.
+- The Zuora success-flag check is **ON BY DEFAULT** in the API client: HTTP 200 with `{"success":false}` (or Object-CRUD `{"Success":false}`) becomes a non-zero exit, and it is a no-op for bodies without the flag. Do NOT pass `api.WithoutCheckSuccess()` in typed commands — it exists solely for the raw `zr api` GET/HEAD passthrough, which must deliver bodies uninterpreted. (This used to be an opt-in, `WithCheckSuccess()`, and missing call sites were a recurring bug class — the default flip made that structurally impossible.)
 - Destructive/irreversible commands must gate on `cmdutil.RequireConfirm(confirm)` behind a `--confirm` flag (returns the canonical "this action is irreversible…" error). Do not inline the guard string — call the helper.
 - Render response fields via `cmdutil.GetString` (plain) / `cmdutil.GetDecimal` (monetary/numeric, avoids scientific notation), descending into nested objects/array elements as the real response requires.
 - Zuora rejects **PUT requests carrying an `Idempotency-Key`** — the client adds the key to POST/PATCH only; do not change that.

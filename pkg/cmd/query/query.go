@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -67,7 +66,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 		return fmt.Errorf("encoding query: %w", err)
 	}
 
-	resp, err := client.Post("/v1/action/query", bytes.NewReader(body), api.WithCheckSuccess())
+	resp, err := client.Post("/v1/action/query", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -88,7 +87,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 		if err != nil {
 			return fmt.Errorf("encoding queryMore: %w", err)
 		}
-		resp, err = client.Post("/v1/action/queryMore", bytes.NewReader(moreBody), api.WithCheckSuccess())
+		resp, err = client.Post("/v1/action/queryMore", bytes.NewReader(moreBody))
 		if err != nil {
 			return err
 		}

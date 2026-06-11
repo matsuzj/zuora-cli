@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -40,7 +39,6 @@ func runChangelogVersion(cmd *cobra.Command, f *factory.Factory, subscriptionNum
 			url.PathEscape(subscriptionNumber),
 			url.PathEscape(version),
 		),
-		api.WithCheckSuccess(),
 	)
 	if err != nil {
 		return err

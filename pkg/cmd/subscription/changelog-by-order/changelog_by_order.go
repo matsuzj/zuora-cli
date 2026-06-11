@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -37,7 +36,6 @@ func runChangelogByOrder(cmd *cobra.Command, f *factory.Factory, orderNumber str
 
 	resp, err := client.Get(
 		fmt.Sprintf("/v1/subscription-change-logs/orders/%s", url.PathEscape(orderNumber)),
-		api.WithCheckSuccess(),
 	)
 	if err != nil {
 		return err

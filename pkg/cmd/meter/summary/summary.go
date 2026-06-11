@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -83,7 +82,7 @@ func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error 
 	}
 
 	path := fmt.Sprintf("/meters/%s/summary", url.PathEscape(meterID))
-	resp, err := client.Post(path, bytes.NewReader(bodyBytes), api.WithCheckSuccess())
+	resp, err := client.Post(path, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}

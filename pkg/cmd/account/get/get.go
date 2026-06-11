@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -40,7 +39,7 @@ func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/accounts/%s", url.PathEscape(key)), api.WithCheckSuccess())
+	resp, err := client.Get(fmt.Sprintf("/v1/accounts/%s", url.PathEscape(key)))
 	if err != nil {
 		return err
 	}

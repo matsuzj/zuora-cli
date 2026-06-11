@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -51,7 +50,7 @@ func runUpdateCustomFields(cmd *cobra.Command, f *factory.Factory, num, ver, bod
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/versions/%s/customFields",
 		url.PathEscape(num), url.PathEscape(ver))
-	resp, err := client.Put(path, bodyReader, api.WithCheckSuccess())
+	resp, err := client.Put(path, bodyReader)
 	if err != nil {
 		return err
 	}

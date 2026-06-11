@@ -4,7 +4,6 @@ package preview
 import (
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -47,7 +46,7 @@ func runPreview(cmd *cobra.Command, f *factory.Factory, body string) error {
 		return err
 	}
 
-	resp, err := client.Post("/v1/subscriptions/preview", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post("/v1/subscriptions/preview", bodyReader)
 	if err != nil {
 		return err
 	}

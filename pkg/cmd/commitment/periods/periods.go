@@ -64,7 +64,6 @@ func runPeriods(cmd *cobra.Command, opts *periodsOptions) error {
 	}
 
 	var reqOpts []api.RequestOption
-	reqOpts = append(reqOpts, api.WithCheckSuccess())
 	if opts.Commitment != "" {
 		reqOpts = append(reqOpts, api.WithQuery("commitmentKey", opts.Commitment))
 	} else {

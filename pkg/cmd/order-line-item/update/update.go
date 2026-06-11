@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -48,7 +47,7 @@ func runUpdate(cmd *cobra.Command, f *factory.Factory, itemID, body string) erro
 		return err
 	}
 
-	resp, err := client.Put(fmt.Sprintf("/v1/order-line-items/%s", url.PathEscape(itemID)), bodyReader, api.WithCheckSuccess())
+	resp, err := client.Put(fmt.Sprintf("/v1/order-line-items/%s", url.PathEscape(itemID)), bodyReader)
 	if err != nil {
 		return err
 	}

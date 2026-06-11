@@ -78,7 +78,6 @@ func runPost(cmd *cobra.Command, opts *postOptions) error {
 	resp, err := client.Do("POST", "/v1/usage",
 		api.WithBody(&buf),
 		api.WithHeader("Content-Type", writer.FormDataContentType()),
-		api.WithCheckSuccess(),
 	)
 	if err != nil {
 		return err

@@ -57,7 +57,6 @@ func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) er
 
 	// The write-off body is optional; only resolve a reader when one was given.
 	var reqOpts []api.RequestOption
-	reqOpts = append(reqOpts, api.WithCheckSuccess())
 	if opts.Body != "" {
 		bodyReader, err := cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 		if err != nil {

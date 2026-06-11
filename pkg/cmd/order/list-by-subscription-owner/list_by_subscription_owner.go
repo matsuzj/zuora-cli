@@ -2,27 +2,17 @@
 package listbysubscriptionowner
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
-	"github.com/matsuzj/zuora-cli/pkg/output"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil/listcmd"
 	"github.com/spf13/cobra"
 )
 
-type listOptions struct {
-	Factory  *factory.Factory
-	Page     string
-	PageSize string
-}
-
 // NewCmdListBySubscriptionOwner creates the order list-by-subscription-owner command.
 func NewCmdListBySubscriptionOwner(f *factory.Factory) *cobra.Command {
-	opts := &listOptions{Factory: f}
-
-	cmd := &cobra.Command{
+	return listcmd.New(f, listcmd.Spec{
 		Use:   "list-by-subscription-owner <account-number>",
 		Short: "List orders by subscription owner account",
 		Long: `List Zuora orders for a subscription owner account.
@@ -31,79 +21,21 @@ Examples:
   zr order list-by-subscription-owner A00000001
   zr order list-by-subscription-owner A00000001 --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, opts, args[0])
+		Flags: []listcmd.Flag{
+			{Name: "page", Query: "page", Usage: "Page number"},
+			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page"},
 		},
-	}
-
-	cmd.Flags().StringVar(&opts.Page, "page", "", "Page number")
-	cmd.Flags().StringVar(&opts.PageSize, "page-size", "", "Number of results per page")
-
-	return cmd
-}
-
-func runList(cmd *cobra.Command, opts *listOptions, accountNumber string) error {
-	f := opts.Factory
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	var reqOpts []api.RequestOption
-	if opts.Page != "" {
-		reqOpts = append(reqOpts, api.WithQuery("page", opts.Page))
-	}
-	if opts.PageSize != "" {
-		reqOpts = append(reqOpts, api.WithQuery("pageSize", opts.PageSize))
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/orders/subscriptionOwner/%s", url.PathEscape(accountNumber)), reqOpts...)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var body struct {
-		Orders []struct {
-			OrderNumber   string `json:"orderNumber"`
-			Status        string `json:"status"`
-			CreatedDate   string `json:"createdDate"`
-			AccountNumber string `json:"existingAccountNumber"`
-			OrderDate     string `json:"orderDate"`
-		} `json:"orders"`
-		NextPage string `json:"nextPage"`
-	}
-	if err := json.Unmarshal(resp.Body, &body); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	cols := []output.Column{
-		{Header: "ORDER_NUMBER"},
-		{Header: "STATUS"},
-		{Header: "ORDER_DATE"},
-		{Header: "ACCOUNT"},
-		{Header: "CREATED"},
-	}
-
-	rows := make([][]string, len(body.Orders))
-	for i, o := range body.Orders {
-		rows[i] = []string{
-			o.OrderNumber,
-			o.Status,
-			o.OrderDate,
-			o.AccountNumber,
-			o.CreatedDate,
-		}
-	}
-
-	if err := output.Render(f.IOStreams, resp.Body, fmtOpts, rows, cols); err != nil {
-		return err
-	}
-
-	if body.NextPage != "" && !fmtOpts.JSON && fmtOpts.JQ == "" && fmtOpts.Template == "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "\nMore results available. Use --json to see nextPage URL.\n")
-	}
-
-	return nil
+		Path: func(args []string, flags map[string]string) string {
+			return fmt.Sprintf("/v1/orders/subscriptionOwner/%s", url.PathEscape(args[0]))
+		},
+		ItemsKey: "orders",
+		Columns: []listcmd.ColumnSpec{
+			{Header: "ORDER_NUMBER", Key: "orderNumber"},
+			{Header: "STATUS", Key: "status"},
+			{Header: "ORDER_DATE", Key: "orderDate"},
+			{Header: "ACCOUNT", Key: "existingAccountNumber"},
+			{Header: "CREATED", Key: "createdDate"},
+		},
+		NextPage: listcmd.NextPage{Flag: "page", FromURL: "page"},
+	})
 }

@@ -2,7 +2,6 @@
 package signup
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -39,42 +38,29 @@ Examples:
 }
 
 func runSignup(cmd *cobra.Command, f *factory.Factory, body string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Post("/v1/sign-up", bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
-		{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
-		{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
-		{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	if num := cmdutil.GetString(raw, "accountNumber"); num != "" {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Sign-up complete. Account %s created.\n", num)
-	}
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "POST",
+		Path:   "/v1/sign-up",
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+				{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			if num := cmdutil.GetString(raw, "accountNumber"); num != "" {
+				return fmt.Sprintf("Sign-up complete. Account %s created.\n", num)
+			}
+			return ""
+		},
+	})
 }

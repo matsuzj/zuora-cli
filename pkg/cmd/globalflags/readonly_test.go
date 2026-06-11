@@ -1,4 +1,4 @@
-package root
+package globalflags
 
 import (
 	"os"
@@ -34,7 +34,7 @@ func TestEnvReadOnly(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.val, func(t *testing.T) {
 			t.Setenv("ZR_READ_ONLY", tc.val)
-			assert.Equal(t, tc.want, envReadOnly(), "ZR_READ_ONLY=%q", tc.val)
+			assert.Equal(t, tc.want, EnvReadOnly(), "ZR_READ_ONLY=%q", tc.val)
 		})
 	}
 }
@@ -50,5 +50,5 @@ func TestEnvReadOnly_Unset(t *testing.T) {
 	// to os.LookupEnv.
 	t.Setenv("ZR_READ_ONLY", "")
 	os.Unsetenv("ZR_READ_ONLY")
-	assert.False(t, envReadOnly())
+	assert.False(t, EnvReadOnly())
 }

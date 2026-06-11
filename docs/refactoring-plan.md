@@ -144,6 +144,8 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 - エンベロープビルダー `cmdtest.OK(method, path, body)` / `cmdtest.Reasons(code, msg)` / `cmdtest.Status(code, body)`: `"success": true` 手書き75ファイル、`"reasons"` 手書き45ファイル、同形の SuccessFalse テスト44本を1行化。OK() は expected method/path を取り、既存のリクエスト assert を保てる署名にする。
 - 代表レスポンスのゴールデンフィクスチャ `pkg/cmdtest/fixtures/*.json`: E2E(実テナント)から採取・サニタイズして登録。AGENTS.md の fixture masking 警告への構造的対策(同一ファイル内に同じフィクスチャを2回ペーストしている例: invoice/list/list_test.go:33-45 と 65-77)。
 
+- **実装メモ(2026-06-11, P2-4)**: pkg/cmdtest 新設(Run / OK / Reasons / Status + fixtures/ 雛形)。Run は root.go と同一の8 persistent flag を持つスタブ root + httptest + NewTestFactory を1呼び出しに(handler nil でバリデーション系も可)。OK は method/path の任意 assert 付き(既存テストのリクエスト形状 assert を保てる署名)。既存テストの移行は計画どおり P3-4。probe テストは main 現行 API(明示 WithCheckSuccess)— #71 マージ後に1行調整。追補: Codex P2 を受け root の PersistentPreRunE/フラグ登録/EnvReadOnly/envOverrideConfig を **pkg/cmd/globalflags に抽出**し、ハーネスは本物の Apply を実行(--read-only ブロック・--json+--template 拒否を self-test で固定)。既知制約として記録: NewTestFactory は f.Config を参照せず HttpClient を直結するため **--env の上書き/検証はユニットテストでは効かない**(全既存テスト共通)— P3-4 でファクトリを Config 経由に再配線する際の検討事項。**P2-4 完了(ハーネス部)**。
+
 **フェーズ2完了条件**: 新ヘルパー全部に単体テスト、`make ci` グリーン、既存コマンドは P2-1 以外無変更。
 
 ---### フェーズ3: コマンド大移行(PR 20〜25本、本丸)

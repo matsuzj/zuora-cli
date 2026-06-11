@@ -2,12 +2,6 @@
 package root
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
-	"github.com/matsuzj/zuora-cli/internal/api"
-	"github.com/matsuzj/zuora-cli/internal/config"
 	accountcmd "github.com/matsuzj/zuora-cli/pkg/cmd/account"
 	aliascmd "github.com/matsuzj/zuora-cli/pkg/cmd/alias"
 	apicmd "github.com/matsuzj/zuora-cli/pkg/cmd/api"
@@ -23,6 +17,7 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	fulfillmentcmd "github.com/matsuzj/zuora-cli/pkg/cmd/fulfillment"
 	fulfillmentitemcmd "github.com/matsuzj/zuora-cli/pkg/cmd/fulfillment-item"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	invoicecmd "github.com/matsuzj/zuora-cli/pkg/cmd/invoice"
 	metercmd "github.com/matsuzj/zuora-cli/pkg/cmd/meter"
 	omnichannelcmd "github.com/matsuzj/zuora-cli/pkg/cmd/omnichannel"
@@ -52,67 +47,9 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// --json + --template mutual exclusion. Other combinations are NOT
-			// rejected: per the documented precedence (--jq implies JSON and wins;
-			// --json/--jq/--template all win over --csv), the renderer deliberately
-			// picks one, so e.g. `--json --jq .x` and `--csv --jq .x` are valid.
-			jsonFlag, _ := cmd.Flags().GetBool("json")
-			tmpl, _ := cmd.Flags().GetString("template")
-			if jsonFlag && tmpl != "" {
-				return fmt.Errorf("cannot use --json and --template together")
-			}
-
-			// --env override (transient, does not persist to config.yml)
-			if envName, _ := cmd.Flags().GetString("env"); envName != "" {
-				origConfig := f.Config
-				f.Config = func() (config.Config, error) {
-					cfg, err := origConfig()
-					if err != nil {
-						return nil, err
-					}
-					// Validate environment exists
-					if _, err := cfg.Environment(envName); err != nil {
-						return nil, fmt.Errorf("invalid environment %q: %w", envName, err)
-					}
-					return &envOverrideConfig{Config: cfg, env: envName}, nil
-				}
-			}
-
-			zv, _ := cmd.Flags().GetString("zuora-version")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-
-			// --read-only flag takes precedence over the ZR_READ_ONLY env var.
-			readOnly, _ := cmd.Flags().GetBool("read-only")
-			if !cmd.Flags().Changed("read-only") {
-				readOnly = envReadOnly()
-			}
-
-			// Apply all client overrides (context, version, verbose, read-only)
-			// in a single wrapper captured from the original once, so the
-			// overrides are not stacked cumulatively across invocations.
-			ctx := cmd.Context()
-			origHttpClient := f.HttpClient
-			f.HttpClient = func() (*api.Client, error) {
-				client, err := origHttpClient()
-				if err != nil {
-					return nil, err
-				}
-				if ctx != nil {
-					client.SetContext(ctx)
-				}
-				if zv != "" {
-					client.SetZuoraVersion(zv)
-				}
-				if verbose {
-					client.SetVerbose(f.IOStreams.ErrOut)
-				}
-				if readOnly {
-					client.SetReadOnly(true)
-				}
-				return client, nil
-			}
-
-			return nil
+			// The global-flag semantics live in pkg/cmd/globalflags so the
+			// cmdtest harness applies the identical behavior.
+			return globalflags.Apply(f, cmd)
 		},
 	}
 
@@ -121,15 +58,8 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	// where SetOut causes some error messages to go to stdout instead of stderr.
 	// Commands should write to f.IOStreams.Out/ErrOut directly instead.
 
-	// Global flags
-	cmd.PersistentFlags().StringP("env", "e", "", "Environment name")
-	cmd.PersistentFlags().Bool("json", false, "Output as JSON")
-	cmd.PersistentFlags().String("jq", "", "Filter JSON output with a jq expression")
-	cmd.PersistentFlags().String("template", "", "Format output with a Go template")
-	cmd.PersistentFlags().Bool("csv", false, "Output as CSV")
-	cmd.PersistentFlags().String("zuora-version", "", "Override Zuora API version header")
-	cmd.PersistentFlags().Bool("verbose", false, "Enable verbose/debug output")
-	cmd.PersistentFlags().Bool("read-only", false, "Block write operations (POST/PUT/DELETE/PATCH)")
+	// Global flags (registration shared with the cmdtest harness)
+	globalflags.Register(cmd)
 
 	// Subcommands
 	cmd.AddCommand(version.NewCmdVersion(f))
@@ -165,36 +95,4 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(aliascmd.NewCmdAlias(f))
 
 	return cmd
-}
-
-// envReadOnly reports whether ZR_READ_ONLY requests read-only mode. It accepts
-// the conventional truthy/falsy spellings and, critically, fails safe: a
-// non-empty but unrecognized value enables read-only rather than silently
-// allowing writes.
-func envReadOnly() bool {
-	v := strings.TrimSpace(os.Getenv("ZR_READ_ONLY"))
-	if v == "" {
-		return false
-	}
-	switch strings.ToLower(v) {
-	case "0", "f", "false", "no", "n", "off":
-		return false
-	default:
-		// "1", "t", "true", "yes", "y", "on", and anything unrecognized.
-		return true
-	}
-}
-
-// envOverrideConfig wraps a Config to override ActiveEnvironment() without mutating the original.
-type envOverrideConfig struct {
-	config.Config
-	env string
-}
-
-func (c *envOverrideConfig) ActiveEnvironment() string { return c.env }
-
-// SetActiveEnvironment delegates to the underlying config so that
-// explicit "config set active_environment" still persists.
-func (c *envOverrideConfig) SetActiveEnvironment(name string) error {
-	return c.Config.SetActiveEnvironment(name)
 }

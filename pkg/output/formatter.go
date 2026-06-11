@@ -2,6 +2,7 @@
 package output
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -56,6 +57,29 @@ func RenderJSON(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions) (b
 		return true, PrintTemplate(ios, rawJSON, opts.Template)
 	}
 	return false, nil
+}
+
+// ErrCSVUnsupportedJSONOnly rejects --csv on commands whose output is JSON
+// only. Silently ignoring the flag was a bug (the user asked for CSV and got
+// JSON); an explicit error is diagnostic. Mirrors zr api's raw-output
+// message. Decided in docs/refactoring-plan.md P3-3; behavior change to be
+// noted in the next release tag.
+var ErrCSVUnsupportedJSONOnly = errors.New("--csv is not supported for JSON-only output; use --jq or --template to shape the response")
+
+// RenderJSONOnly renders a JSON-only command's response: --jq/--json/
+// --template dispatch through RenderJSON FIRST (the documented precedence —
+// README: the JSON-family flags win over --csv, cf. the PR #54 regression),
+// then a bare --csv is rejected, and the default is pretty-printed JSON. JSON-only read commands should end with exactly this
+// call; write commands with a trailing stderr message keep their guard form
+// and reject opts.CSV before it.
+func RenderJSONOnly(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions) error {
+	if handled, err := RenderJSON(ios, rawJSON, opts); handled || err != nil {
+		return err
+	}
+	if opts.CSV {
+		return ErrCSVUnsupportedJSONOnly
+	}
+	return PrintJSON(ios, rawJSON, "")
 }
 
 // RenderSuccess renders the result of an operation whose response carries no

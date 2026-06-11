@@ -53,8 +53,5 @@ func runPreview(cmd *cobra.Command, f *factory.Factory, body string) error {
 
 	fmtOpts := output.FromCmd(cmd)
 
-	if handled, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts); handled || err != nil {
-		return err
-	}
-	return output.PrintJSON(f.IOStreams, resp.Body, "")
+	return output.RenderJSONOnly(f.IOStreams, resp.Body, fmtOpts)
 }

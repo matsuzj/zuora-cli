@@ -64,6 +64,11 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 		_, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts)
 		return err
 	}
+	if fmtOpts.CSV && !fmtOpts.JSON {
+		// Bare --csv is an explicit error on JSON-only commands; the
+		// JSON-family flags keep their documented precedence over --csv.
+		return output.ErrCSVUnsupportedJSONOnly
+	}
 
 	if err := output.PrintJSON(f.IOStreams, resp.Body, ""); err != nil {
 		return err

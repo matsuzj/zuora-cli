@@ -2,7 +2,6 @@
 package get
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,36 +30,23 @@ Examples:
 }
 
 func runGet(cmd *cobra.Command, f *factory.Factory, billRunID string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Get(fmt.Sprintf("/v1/bill-runs/%s", url.PathEscape(billRunID)))
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-		{Key: "Bill Run Number", Value: cmdutil.GetDecimal(raw, "billRunNumber")},
-		{Key: "Name", Value: cmdutil.GetDecimal(raw, "name")},
-		{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-		{Key: "Invoice Date", Value: cmdutil.GetDecimal(raw, "invoiceDate")},
-		{Key: "Target Date", Value: cmdutil.GetDecimal(raw, "targetDate")},
-		{Key: "Auto Post", Value: cmdutil.GetDecimal(raw, "autoPost")},
-		{Key: "Auto Email", Value: cmdutil.GetDecimal(raw, "autoEmail")},
-		{Key: "Bill Cycle Day", Value: cmdutil.GetDecimal(raw, "billCycleDay")},
-		{Key: "Scheduled Execution Time", Value: cmdutil.GetDecimal(raw, "scheduledExecutionTime")},
-		{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
-	}
-
-	return output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields)
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "GET",
+		Path:   fmt.Sprintf("/v1/bill-runs/%s", url.PathEscape(billRunID)),
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+				{Key: "Bill Run Number", Value: cmdutil.GetDecimal(raw, "billRunNumber")},
+				{Key: "Name", Value: cmdutil.GetDecimal(raw, "name")},
+				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
+				{Key: "Invoice Date", Value: cmdutil.GetDecimal(raw, "invoiceDate")},
+				{Key: "Target Date", Value: cmdutil.GetDecimal(raw, "targetDate")},
+				{Key: "Auto Post", Value: cmdutil.GetDecimal(raw, "autoPost")},
+				{Key: "Auto Email", Value: cmdutil.GetDecimal(raw, "autoEmail")},
+				{Key: "Bill Cycle Day", Value: cmdutil.GetDecimal(raw, "billCycleDay")},
+				{Key: "Scheduled Execution Time", Value: cmdutil.GetDecimal(raw, "scheduledExecutionTime")},
+				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+			}
+		},
+	})
 }

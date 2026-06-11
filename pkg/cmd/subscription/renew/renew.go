@@ -2,7 +2,6 @@
 package renew
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -40,42 +39,29 @@ Examples:
 }
 
 func runRenew(cmd *cobra.Command, f *factory.Factory, key, body string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	var bodyReader io.Reader
 	if body != "" {
-		bodyReader, err = cmdutil.ResolveBody(body, f.IOStreams.In)
+		r, err := cmdutil.ResolveBody(body, f.IOStreams.In)
 		if err != nil {
 			return err
 		}
+		bodyReader = r
 	} else {
 		bodyReader = strings.NewReader("{}")
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/renew", url.PathEscape(key))
-	resp, err := client.Put(path, bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s renewed.\n", key)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "PUT",
+		Path:   path,
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Subscription %s renewed.\n", key)
+		},
+	})
 }

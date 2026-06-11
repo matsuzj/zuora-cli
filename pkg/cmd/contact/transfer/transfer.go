@@ -2,7 +2,6 @@
 package transfer
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -38,36 +37,22 @@ Examples:
 }
 
 func runTransfer(cmd *cobra.Command, f *factory.Factory, id, body string) error {
-	client, err := f.HttpClient()
-	if err != nil {
-		return err
-	}
-
 	bodyReader, err := cmdutil.ResolveBody(body, f.IOStreams.In)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Put(fmt.Sprintf("/v1/contacts/%s/transfer", url.PathEscape(id)), bodyReader)
-	if err != nil {
-		return err
-	}
-
-	fmtOpts := output.FromCmd(cmd)
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Contact %s transferred.\n", id)
-	return nil
+	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
+		Method: "PUT",
+		Path:   fmt.Sprintf("/v1/contacts/%s/transfer", url.PathEscape(id)),
+		Body:   bodyReader,
+		Fields: func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		},
+		SuccessMsg: func(raw map[string]interface{}) string {
+			return fmt.Sprintf("Contact %s transferred.\n", id)
+		},
+	})
 }

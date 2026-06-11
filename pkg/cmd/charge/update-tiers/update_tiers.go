@@ -43,6 +43,11 @@ Examples:
 
 func runUpdateTiers(cmd *cobra.Command, opts *updateTiersOptions) error {
 	f := opts.Factory
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err
@@ -58,16 +63,9 @@ func runUpdateTiers(cmd *cobra.Command, opts *updateTiersOptions) error {
 		return err
 	}
 
-	fmtOpts := output.FromCmd(cmd)
-
 	if fmtOpts.JQ != "" || fmtOpts.Template != "" {
 		_, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts)
 		return err
-	}
-	if fmtOpts.CSV && !fmtOpts.JSON {
-		// Bare --csv is an explicit error on JSON-only commands; the
-		// JSON-family flags keep their documented precedence over --csv.
-		return output.ErrCSVUnsupportedJSONOnly
 	}
 
 	if err := output.PrintJSON(f.IOStreams, resp.Body, ""); err != nil {

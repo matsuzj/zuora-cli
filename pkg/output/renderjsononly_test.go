@@ -63,3 +63,13 @@ func TestRenderJSONOnly(t *testing.T) {
 		assert.Contains(t, out.String(), `"amount"`)
 	})
 }
+
+// TestRejectBareCSV pins the pre-request gate write commands use: only a
+// BARE --csv is rejected; any JSON-family flag wins by documented precedence.
+func TestRejectBareCSV(t *testing.T) {
+	assert.ErrorIs(t, RejectBareCSV(FormatOptions{CSV: true}), ErrCSVUnsupportedJSONOnly)
+	assert.NoError(t, RejectBareCSV(FormatOptions{CSV: true, JQ: ".id"}))
+	assert.NoError(t, RejectBareCSV(FormatOptions{CSV: true, JSON: true}))
+	assert.NoError(t, RejectBareCSV(FormatOptions{CSV: true, Template: "{{.id}}"}))
+	assert.NoError(t, RejectBareCSV(FormatOptions{}))
+}

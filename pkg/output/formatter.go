@@ -82,6 +82,18 @@ func RenderJSONOnly(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions
 	return PrintJSON(ios, rawJSON, "")
 }
 
+// RejectBareCSV returns ErrCSVUnsupportedJSONOnly when --csv is set without
+// any JSON-family flag (which would win by documented precedence). JSON-only
+// WRITE commands must call this BEFORE issuing the mutation — rejecting at
+// render time would run the POST/PUT first and invite duplicate-create
+// retries (review finding on PR #197).
+func RejectBareCSV(opts FormatOptions) error {
+	if opts.CSV && opts.JQ == "" && !opts.JSON && opts.Template == "" {
+		return ErrCSVUnsupportedJSONOnly
+	}
+	return nil
+}
+
 // RenderSuccess renders the result of an operation whose response carries no
 // usable body (HTTP 204, an empty 200, or a non-JSON 200 — treated as success
 // per the delete-policy decision in docs/refactoring-plan.md). Machine-readable

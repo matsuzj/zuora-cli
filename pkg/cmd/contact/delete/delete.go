@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -44,7 +43,7 @@ func runDelete(cmd *cobra.Command, f *factory.Factory, id string) error {
 	}
 
 	// Zuora DELETE /v1/contacts returns HTTP 200 with {"success": true/false}
-	resp, err := client.Delete(fmt.Sprintf("/v1/contacts/%s", url.PathEscape(id)), api.WithCheckSuccess())
+	resp, err := client.Delete(fmt.Sprintf("/v1/contacts/%s", url.PathEscape(id)))
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ package updatetiers
 import (
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -54,7 +53,7 @@ func runUpdateTiers(cmd *cobra.Command, opts *updateTiersOptions) error {
 		return err
 	}
 
-	resp, err := client.Put("/commerce/tiers", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Put("/commerce/tiers", bodyReader)
 	if err != nil {
 		return err
 	}

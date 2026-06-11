@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -62,7 +61,7 @@ func runDeplete(cmd *cobra.Command, opts *depleteOptions) error {
 		return err
 	}
 
-	resp, err := client.Post("/v1/prepaid-balance-funds/deplete", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post("/v1/prepaid-balance-funds/deplete", bodyReader)
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -35,7 +34,7 @@ func runMetricsByOrder(cmd *cobra.Command, f *factory.Factory, orderNumber strin
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/orders/%s/ramp-metrics", url.PathEscape(orderNumber)), api.WithCheckSuccess())
+	resp, err := client.Get(fmt.Sprintf("/v1/orders/%s/ramp-metrics", url.PathEscape(orderNumber)))
 	if err != nil {
 		return err
 	}

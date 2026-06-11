@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -38,7 +37,7 @@ func runStatus(cmd *cobra.Command, f *factory.Factory, meterID, version string) 
 	}
 
 	path := fmt.Sprintf("/meters/%s/%s/runStatus", url.PathEscape(meterID), url.PathEscape(version))
-	resp, err := client.Get(path, api.WithCheckSuccess())
+	resp, err := client.Get(path)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ package update
 import (
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -56,7 +55,7 @@ func runUpdate(cmd *cobra.Command, opts *updateOptions) error {
 		return err
 	}
 
-	resp, err := client.Put("/commerce/plans", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Put("/commerce/plans", bodyReader)
 	if err != nil {
 		return err
 	}

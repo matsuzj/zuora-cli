@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ func runUsageRateDetail(cmd *cobra.Command, f *factory.Factory, itemID string) e
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/invoices/invoice-item/%s/usage-rate-detail", url.PathEscape(itemID)), api.WithCheckSuccess())
+	resp, err := client.Get(fmt.Sprintf("/v1/invoices/invoice-item/%s/usage-rate-detail", url.PathEscape(itemID)))
 	if err != nil {
 		return err
 	}

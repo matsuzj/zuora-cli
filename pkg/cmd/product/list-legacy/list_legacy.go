@@ -4,7 +4,6 @@ package listlegacy
 import (
 	"fmt"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -54,7 +53,7 @@ func runListLegacy(cmd *cobra.Command, opts *listLegacyOptions) error {
 		return err
 	}
 
-	resp, err := client.Post("/commerce/legacy/products/list", bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post("/commerce/legacy/products/list", bodyReader)
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -82,7 +81,7 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 
 	lastStatus := "unknown"
 	for {
-		resp, err := client.Get(path, api.WithCheckSuccess())
+		resp, err := client.Get(path)
 		if err != nil {
 			// A deadline that fires mid-request must read like the one that
 			// fires mid-sleep, not as a raw "context deadline exceeded".

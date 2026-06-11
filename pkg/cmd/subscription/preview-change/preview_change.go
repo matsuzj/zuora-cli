@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -49,7 +48,7 @@ func runPreviewChange(cmd *cobra.Command, f *factory.Factory, key, body string) 
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/preview", url.PathEscape(key))
-	resp, err := client.Post(path, bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post(path, bodyReader)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -56,7 +55,7 @@ func runRefund(cmd *cobra.Command, opts *refundOptions, paymentID string) error 
 		return err
 	}
 
-	resp, err := client.Post(fmt.Sprintf("/v1/payments/%s/refunds", url.PathEscape(paymentID)), bodyReader, api.WithCheckSuccess())
+	resp, err := client.Post(fmt.Sprintf("/v1/payments/%s/refunds", url.PathEscape(paymentID)), bodyReader)
 	if err != nil {
 		return err
 	}

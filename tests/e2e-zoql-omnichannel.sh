@@ -86,8 +86,11 @@ header "Step 2.5: v0.4.0 contracts — pagination hint + env credentials"
 # ─────────────────────────────────────────
 # Canonical nextPage hint (P3-2 listcmd): a copy-pasteable command on stderr.
 # The tenant has thousands of accounts, so --page-size 1 always has a next page.
+# --json=false: an EXPLICIT format flag defeats the default_output wiring, so
+# the check stays table-mode (hint emitted) even on a runner whose real config
+# has default_output=json — in JSON mode listcmd suppresses the hint (Codex).
 echo "  Testing: account list --page-size 1 → canonical nextPage hint"
-run $ZR account list --page-size 1
+run $ZR account list --page-size 1 --json=false
 HINT_LINE=$(printf '%s\n' "$RUN_ERR" | grep -A1 -F "More results available. Next page:" | tail -1)
 if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_ERR" | grep -qF "More results available. Next page:" \
    && printf '%s' "$HINT_LINE" | grep -qF "account list --page-size 1 --cursor "; then
@@ -101,7 +104,7 @@ fi
 PAGE1_ROW=$(printf '%s\n' "$RUN_OUT" | sed -n '4p')
 CURSOR=$(printf '%s' "$HINT_LINE" | sed -E "s/.*--cursor '?([^ ']+)'?[[:space:]]*$/\1/")
 if [ -n "$CURSOR" ] && [ "$CURSOR" != "$HINT_LINE" ]; then
-  run $ZR account list --page-size 1 --cursor "$CURSOR"
+  run $ZR account list --page-size 1 --cursor "$CURSOR" --json=false
   PAGE2_ROW=$(printf '%s\n' "$RUN_OUT" | sed -n '4p')
   if [ "$RUN_RC" -eq 0 ] && [ -n "$PAGE2_ROW" ] && [ "$PAGE2_ROW" != "$PAGE1_ROW" ]; then
     pass "hinted --cursor follow → page 2 fetched (row differs from page 1)"
@@ -114,8 +117,10 @@ fi
 
 # EnvCredentials are both-or-nothing since #215: a PARTIAL pair (only
 # ZR_CLIENT_ID) must be ignored, falling back to the keyring — not half-used.
+# ZR_CLIENT_SECRET is explicitly BLANKED: if the runner exports a real secret,
+# bogus-ID + real-secret would form a complete (broken) env pair (Codex).
 echo "  Testing: partial ZR_CLIENT_ID is ignored (both-or-nothing → keyring)"
-run env ZR_CLIENT_ID=bogus-e2e-partial $ZR query "SELECT Id FROM Account" --jq '.records | length'
+run env ZR_CLIENT_ID=bogus-e2e-partial ZR_CLIENT_SECRET= $ZR query "SELECT Id FROM Account" --jq '.records | length'
 if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
   pass "partial env credential → ignored, keyring auth still works"
 else

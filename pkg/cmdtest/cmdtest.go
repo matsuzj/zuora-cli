@@ -39,6 +39,7 @@ func Run(t *testing.T, parent string, newCmd func(*factory.Factory) *cobra.Comma
 	// itself use their own harness, not Run.
 	t.Setenv("ZR_READ_ONLY", "")
 	t.Setenv("ZR_DEBUG", "")
+	t.Setenv("ZR_ENV", "")
 
 	serverURL := "http://localhost"
 	if handler != nil {

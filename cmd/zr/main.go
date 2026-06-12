@@ -43,6 +43,11 @@ type exitCoder interface {
 }
 
 func exitCode(err error) int {
+	// Ctrl-C: the conventional 128+SIGINT code, checked before exitCoder so
+	// a wrapped cancellation is not misreported as an API failure.
+	if errors.Is(err, context.Canceled) {
+		return 130
+	}
 	var ec exitCoder
 	if errors.As(err, &ec) {
 		return ec.ExitCode()

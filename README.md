@@ -245,7 +245,9 @@ environments:
     base_url: https://rest.na.zuora.com   # absolute http(s) URL, required
 ```
 
-Select an environment per-invocation with `-e/--env <name>`, or persistently with
+Select an environment per-invocation with `-e/--env <name>` or the `ZR_ENV`
+environment variable (the flag wins; an unknown name errors rather than
+falling back), or persistently with
 `zr config set active_environment <name>` / `zr config env <name>`.
 
 ### Credentials
@@ -264,7 +266,7 @@ For each setting, values are resolved highest-to-lowest:
 
 | Setting | Flag | Env var | Config file key |
 |---------|------|---------|-----------------|
-| Environment | `-e, --env` | — | `config.yml: active_environment` |
+| Environment | `-e, --env` | `ZR_ENV` | `config.yml: active_environment` |
 | API version | `--zuora-version` | — | `config.yml: zuora_version` |
 | Output format | `--json` / `--template` | — | `config.yml: default_output` |
 | Read-only | `--read-only` | `ZR_READ_ONLY` | — |

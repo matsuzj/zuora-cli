@@ -295,6 +295,24 @@ fi
 # ─────────────────────────────────────────
 header "Step 5.5: global --env flag"
 # ─────────────────────────────────────────
+# ZR_ENV (P6-4): env-var form of --env; flag > ZR_ENV > config, exact-match.
+echo "  Testing: ZR_ENV with an unknown environment fails loudly"
+ZRENV_RC=0
+ZRENV_OUT=$(ZR_ENV=no-such-env $ZR query "SELECT Id FROM Account" 2>&1) || ZRENV_RC=$?
+if [ "$ZRENV_RC" -ne 0 ] && echo "$ZRENV_OUT" | grep -qF 'invalid environment "no-such-env"'; then
+  pass "ZR_ENV unknown name → fails loudly (no silent fallback)"
+else
+  fail "ZR_ENV unknown name → rc=$ZRENV_RC: $(echo "$ZRENV_OUT" | head -1)"
+fi
+
+echo "  Testing: ZR_ENV naming the active environment works"
+run env ZR_ENV=apac-sandbox $ZR query "SELECT Id FROM Account" --jq '.records | length'
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+  pass "ZR_ENV valid name → query works"
+else
+  fail "ZR_ENV valid name → rc=$RUN_RC: ${RUN_ERR:-$RUN_OUT}"
+fi
+
 # --env overrides the active environment for a single invocation.
 echo "  Testing: query --env apac-sandbox (explicit env)"
 run_retry 3 $ZR query "SELECT Id FROM Account" --env apac-sandbox --json

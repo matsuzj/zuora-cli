@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -128,4 +130,12 @@ func TestResolveAliasArgs(t *testing.T) {
 		assert.Equal(t, []string{"zr", "broken"}, got)
 		assert.Contains(t, errOut.String(), "malformed expansion")
 	})
+}
+
+// TestExitCode_ContextCanceled pins the 128+SIGINT convention (P6-4): a
+// cancellation — even wrapped — exits 130, not an API-error code.
+func TestExitCode_ContextCanceled(t *testing.T) {
+	assert.Equal(t, 130, exitCode(context.Canceled))
+	assert.Equal(t, 130, exitCode(fmt.Errorf("wrapped: %w", context.Canceled)))
+	assert.Equal(t, 1, exitCode(fmt.Errorf("plain failure")))
 }

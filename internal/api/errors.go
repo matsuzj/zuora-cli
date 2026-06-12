@@ -22,7 +22,13 @@ type APIError struct {
 	// retried automatically, to tell the user the command can be safely re-run
 	// because it carries an Idempotency-Key.
 	SafeToRetry bool
+	// Err is the underlying transport error, when this APIError wraps one
+	// (StatusCode 0). Response-derived errors leave it nil.
+	Err error
 }
+
+// Unwrap exposes the underlying transport error to errors.Is/As chains.
+func (e *APIError) Unwrap() error { return e.Err }
 
 func (e *APIError) Error() string {
 	// A 2xx response carrying success=false means the HTTP call succeeded but

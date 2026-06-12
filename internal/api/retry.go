@@ -29,9 +29,14 @@ func isIdempotent(method string) bool {
 }
 
 // carriesIdempotencyKey reports whether Do attaches an Idempotency-Key to the
-// method (POST/PATCH). Only these are safe to re-run after a non-retried
-// failure: the key deduplicates a server-side success. PUT carries no key, so a
-// failed PUT must NOT be advertised as safe-to-retry.
+// method (POST/PATCH). Single source of truth: Do uses it to decide WHEN to
+// attach the key, and the retry layer uses it for the SafeToRetry promise —
+// only keyed methods are safe to re-run after a non-retried failure, because
+// the key deduplicates a server-side success. PUT is deliberately EXCLUDED:
+// Zuora rejects PUT requests carrying an Idempotency-Key with "HTTP 400:
+// Request method 'PUT' not supported with Idempotency-Key header" (verified
+// against a live tenant), so a failed PUT must NOT be advertised as
+// safe-to-retry.
 func carriesIdempotencyKey(method string) bool {
 	return method == http.MethodPost || method == http.MethodPatch
 }
@@ -93,7 +98,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				if ctxErr := ctx.Err(); ctxErr != nil {
 					return nil, ctxErr
 				}
-				return nil, &APIError{Message: err.Error(), SafeToRetry: carriesIdempotencyKey(req.Method)}
+				return nil, &APIError{Message: err.Error(), Err: err, SafeToRetry: carriesIdempotencyKey(req.Method)}
 			}
 			lastErr = err
 			continue

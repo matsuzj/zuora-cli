@@ -62,25 +62,12 @@ func WithZuoraVersion(v string) ClientOption {
 	return func(c *Client) { c.zuoraVersion = v }
 }
 
-// WithVerbose enables verbose request/response logging.
-func WithVerbose(w io.Writer) ClientOption {
-	return func(c *Client) { c.verbose = true; c.verboseWriter = w }
-}
-
-// WithHTTPClient sets a custom http.Client.
+// WithHTTPClient sets a custom http.Client. This is the deliberate test
+// injection seam (httptest server clients, redirect-policy probes); the other
+// runtime knobs go through the production Set* methods instead so tests
+// exercise the same paths the CLI wires.
 func WithHTTPClient(hc *http.Client) ClientOption {
 	return func(c *Client) { c.httpClient = hc }
-}
-
-// WithReadOnly enables read-only mode, blocking write operations.
-func WithReadOnly() ClientOption {
-	return func(c *Client) { c.readOnly = true }
-}
-
-// WithContext sets the base context used for all requests, so cancellation
-// (e.g. Ctrl-C) propagates to in-flight requests and retry backoff.
-func WithContext(ctx context.Context) ClientOption {
-	return func(c *Client) { c.ctx = ctx }
 }
 
 // NewClient creates a new API client.
@@ -248,11 +235,9 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 
 	// Idempotency-Key for mutating methods so any retry (429/401/5xx) is
 	// deduplicated server-side, preventing duplicate orders/payments/refunds.
-	// PUT is deliberately EXCLUDED: Zuora rejects PUT requests that carry an
-	// Idempotency-Key with "HTTP 400: Request method 'PUT' not supported with
-	// Idempotency-Key header" (verified against a live tenant). The key is stable
-	// across retries because it is set once on the request.
-	if method == http.MethodPost || method == http.MethodPatch {
+	// carriesIdempotencyKey is the single source of truth for WHICH methods —
+	// the SafeToRetry promise in retry.go depends on this being the same set.
+	if carriesIdempotencyKey(method) {
 		if req.Header.Get("Idempotency-Key") == "" {
 			req.Header.Set("Idempotency-Key", newIdempotencyKey())
 		}

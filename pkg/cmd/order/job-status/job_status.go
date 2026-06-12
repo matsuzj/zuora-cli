@@ -127,7 +127,10 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 
 func isTerminalStatus(status string) bool {
 	switch status {
-	case "Completed", "Failed", "Error", "Cancelled":
+	// Zuora emits the US spelling "Canceled" for async order jobs; treat
+	// both spellings as terminal so --watch cannot poll a cancelled job
+	// forever.
+	case "Completed", "Failed", "Error", "Cancelled", "Canceled":
 		return true
 	}
 	return false

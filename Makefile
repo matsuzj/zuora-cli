@@ -7,7 +7,7 @@ LDFLAGS := -s -w \
 	-X github.com/matsuzj/zuora-cli/internal/build.Commit=$(COMMIT) \
 	-X github.com/matsuzj/zuora-cli/internal/build.Date=$(DATE)
 
-.PHONY: build test e2e lint vuln cover clean fmt fmtcheck modverify check ci
+.PHONY: build test e2e lint vuln cover clean fmt fmtcheck modverify check ci release-check
 
 build:
 	mkdir -p bin
@@ -127,8 +127,11 @@ ci: modverify fmtcheck lint vuln cover build
 release-check: ci e2e
 	@if command -v goreleaser >/dev/null 2>&1; then \
 		out="$$(goreleaser check 2>&1)"; rc=$$?; \
-		if [ $$rc -ne 0 ] && ! echo "$$out" | grep -q "brews"; then \
-			echo "$$out"; exit 1; \
+		if [ $$rc -ne 0 ]; then \
+			other="$$(echo "$$out" | grep -iE "DEPRECATED|error=" | grep -viE "brews|deprecated properties|configuration file\(s\) have issues")"; \
+			if [ -n "$$other" ]; then \
+				echo "$$out"; exit 1; \
+			fi; \
 		fi; \
 		echo "goreleaser config OK (known brews deprecation tolerated)"; \
 	else \

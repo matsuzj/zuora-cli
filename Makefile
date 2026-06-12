@@ -128,8 +128,11 @@ release-check: ci e2e
 	@if command -v goreleaser >/dev/null 2>&1; then \
 		out="$$(goreleaser check 2>&1)"; rc=$$?; \
 		if [ $$rc -ne 0 ]; then \
-			other="$$(echo "$$out" | grep -iE "DEPRECATED|error=" | grep -viE "brews|deprecated properties|configuration file\(s\) have issues")"; \
-			if [ -n "$$other" ]; then \
+			dep_other="$$(echo "$$out" | grep "DEPRECATED:" | grep -vi "brews")"; \
+			err_other="$$(echo "$$out" | grep -i "error=" \
+				| grep -vE "error=configuration is valid, but uses deprecated properties[[:space:]]*$$" \
+				| grep -vE "error=[0-9]+ out of [0-9]+ configuration file\(s\) have issues[[:space:]]*$$")"; \
+			if [ -n "$$dep_other" ] || [ -n "$$err_other" ]; then \
 				echo "$$out"; exit 1; \
 			fi; \
 		fi; \

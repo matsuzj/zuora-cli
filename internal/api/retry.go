@@ -70,7 +70,9 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 			if !skipBackoff {
 				backoff := time.Duration(1<<(attempt-1)) * time.Second
 				jitter := time.Duration(rand.Int64N(int64(backoff / 2)))
-				if err := c.sleep(ctx, backoff+jitter); err != nil {
+				total := backoff + jitter
+				c.vlogf("retrying after %.1fs backoff (attempt %d/%d)", total.Seconds(), attempt+1, maxRetries+1)
+				if err := c.sleep(ctx, total); err != nil {
 					return nil, err
 				}
 			}
@@ -98,8 +100,10 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				if ctxErr := ctx.Err(); ctxErr != nil {
 					return nil, ctxErr
 				}
+				c.vlogf("transport error on non-idempotent %s, not retrying: %v", req.Method, err)
 				return nil, &APIError{Message: err.Error(), Err: err, SafeToRetry: carriesIdempotencyKey(req.Method)}
 			}
+			c.vlogf("transport error, will retry: %v", err)
 			lastErr = err
 			continue
 		}
@@ -113,6 +117,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				if d > maxRetryAfter {
 					d = maxRetryAfter
 				}
+				c.vlogf("HTTP 429, honoring Retry-After: %.0fs (cap %.0fs)", d.Seconds(), maxRetryAfter.Seconds())
 				if err := c.sleep(ctx, d); err != nil {
 					// Cancelled (Ctrl-C) while honoring Retry-After: surface the
 					// cancellation, not a stale "HTTP 429" — matching the backoff
@@ -120,6 +125,8 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 					return nil, err
 				}
 				skipBackoff = true
+			} else {
+				c.vlogf("HTTP 429 rate-limited, retrying with backoff")
 			}
 			continue
 
@@ -132,11 +139,15 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				refreshFn = c.tokenSource
 			}
 			if refreshFn != nil {
+				c.vlogf("HTTP 401, refreshing token and resending")
 				token, err := refreshFn(ctx)
 				if err != nil {
 					return nil, err
 				}
 				req.Header.Set("Authorization", "Bearer "+token)
+				// The literal "Bearer ***" is hardcoded: the refreshed token
+				// value must never reach the verbose stream.
+				c.vlogf("token refreshed, resending with new credentials (Bearer ***)")
 				tokenRefreshed = true
 				skipBackoff = true
 				continue
@@ -145,6 +156,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 
 		case resp.StatusCode >= 500 && isIdempotent(req.Method):
 			// Only retry 5xx for idempotent methods to avoid duplicate mutations.
+			c.vlogf("HTTP %d on idempotent %s, will retry", resp.StatusCode, req.Method)
 			lastErr = readAPIError(resp)
 			continue
 

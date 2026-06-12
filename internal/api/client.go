@@ -144,6 +144,16 @@ func (c *Client) SetZuoraVersion(v string) { c.zuoraVersion = v }
 // SetVerbose enables verbose logging to the given writer.
 func (c *Client) SetVerbose(w io.Writer) { c.verbose = true; c.verboseWriter = w }
 
+// vlogf writes a gh-style diagnostic line (prefix "* ") to the verbose writer.
+// No-op when verbose is off. Used by the retry loop to surface its decision
+// points (backoff, Retry-After, token refresh) — values derived from secrets
+// must never be passed here.
+func (c *Client) vlogf(format string, args ...any) {
+	if c.verbose && c.verboseWriter != nil {
+		fmt.Fprintf(c.verboseWriter, "* "+format+"\n", args...)
+	}
+}
+
 // SetReadOnly enables or disables read-only mode.
 func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
 

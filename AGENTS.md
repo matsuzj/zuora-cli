@@ -66,7 +66,7 @@ When adding/maintaining a command that calls the API:
 
 ## Architecture
 
-- Follow gh CLI patterns (see `docs/plans/README.md`). Commands in `pkg/cmd/<resource>/<action>/`; infra in `internal/{api,auth,config}`; shared helpers in `pkg/cmdutil` and `pkg/output`. Use the Factory for DI; keep `cmd/zr/main.go` minimal.
+- See `docs/architecture.md` for the current structure (gh CLI patterns). Commands in `pkg/cmd/<resource>/<action>/` use the declarative runners (`cmdutil.RunDetail` / `listcmd.Spec` — hand-written runE only for documented exceptions); infra in `internal/{api,auth,config}`; shared helpers in `pkg/cmdutil` and `pkg/output`. Use the Factory for DI; keep `cmd/zr/main.go` minimal.
 
 ## Release process
 

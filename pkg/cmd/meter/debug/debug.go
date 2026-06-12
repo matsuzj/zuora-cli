@@ -14,7 +14,7 @@ import (
 // NewCmdDebug creates the meter debug command.
 func NewCmdDebug(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "debug <meterId> <version>",
+		Use:   "debug <meter-id> <version>",
 		Short: "Debug a usage meter",
 		Long:  `Debug a usage meter by meter ID and version.`,
 		Example: `  zr meter debug 402880e44c... 1

@@ -30,7 +30,7 @@ func TestChargeGet_Success(t *testing.T) {
 		})
 	})
 
-	stdout, _, err := cmdtest.Run(t, "charge", newCmd, handler, "charge", "get", "--key", "CK-001")
+	stdout, _, err := cmdtest.Run(t, "charge", newCmd, handler, "charge", "get", "CK-001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "charge-001")
 	assert.Contains(t, stdout, "Monthly Charge")
@@ -39,5 +39,13 @@ func TestChargeGet_Success(t *testing.T) {
 func TestChargeGet_RequiresKey(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "charge", newCmd, nil, "charge", "get")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--key is required")
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
+}
+
+// TestChargeGet_DeprecatedKeyFlagStillWorks pins the P5-3c deprecation
+// contract: --key keeps working through v0.5.x (removed in v0.6.0).
+func TestChargeGet_DeprecatedKeyFlagStillWorks(t *testing.T) {
+	handler := cmdtest.OK(t, "POST", "", map[string]interface{}{"success": true})
+	_, _, err := cmdtest.Run(t, "charge", newCmd, handler, "charge", "get", "--key", "CK-001")
+	require.NoError(t, err)
 }

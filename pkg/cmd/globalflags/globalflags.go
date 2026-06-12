@@ -53,8 +53,9 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	// deliberately ignored here (the command itself surfaces it) — applying
 	// a cosmetic default must never gate on config parsing (the alias
 	// expansion lesson).
-	// A subcommand can SHADOW a root persistent flag with a local one (query's
-	// own --csv); cmd.Flags().Changed then consults the local flag and misses
+	// A subcommand could SHADOW a root persistent flag with a local one
+	// (query's --csv did until P5-3c); cmd.Flags().Changed then consults the
+	// local flag and misses
 	// an explicit root-level `zr --csv query ...`, so check the root's
 	// persistent flags too (review finding).
 	formatFlagChanged := func(name string) bool {

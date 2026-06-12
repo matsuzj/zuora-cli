@@ -22,7 +22,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		Flags: []listcmd.Flag{
 			{Name: "account-key", Usage: "Account key (ID or account number)", Required: true, DeprecatedName: "account"},
 			{Name: "page", Query: "page", Usage: "Page number"},
-			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page"},
+			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page", Int: true, OmitZero: true},
 		},
 		Path: func(args []string, flags map[string]string) string {
 			return fmt.Sprintf("/v1/transactions/invoices/accounts/%s", url.PathEscape(flags["account-key"]))

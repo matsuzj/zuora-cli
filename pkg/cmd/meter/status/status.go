@@ -14,7 +14,7 @@ import (
 // NewCmdStatus creates the meter status command.
 func NewCmdStatus(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "status <meterId> <version>",
+		Use:   "status <meter-id> <version>",
 		Short: "Get meter run status",
 		Long:  `Get the run status of a usage meter by meter ID and version.`,
 		Example: `  zr meter status 402880e44c... 1

@@ -14,7 +14,7 @@ import (
 // NewCmdGet creates the usage get command.
 func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <id>",
+		Use:   "get <usage-id>",
 		Short: "Get a usage record",
 		Long:  `Get a usage record by ID via the CRUD API.`,
 		Example: `  zr usage get 2c92a0f96bd...

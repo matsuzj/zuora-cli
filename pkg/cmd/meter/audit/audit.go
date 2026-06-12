@@ -25,7 +25,7 @@ func NewCmdAudit(f *factory.Factory) *cobra.Command {
 	opts := &auditOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "audit <meterId>",
+		Use:   "audit <meter-id>",
 		Short: "Get meter audit trail entries",
 		Long: `Get audit trail entries for a usage meter.
 

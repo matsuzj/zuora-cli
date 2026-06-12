@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -49,7 +50,7 @@ func TestForceRefresh_IgnoresValidCacheAndFetchesNew(t *testing.T) {
 	require.Equal(t, int32(0), atomic.LoadInt32(&hits), "Token must serve a valid cache without a network call")
 
 	// ForceRefresh must bypass that valid cache and fetch anew.
-	forced, err := ts.ForceRefresh("sandbox")
+	forced, err := ts.ForceRefreshContext(context.Background(), "sandbox")
 	require.NoError(t, err)
 	assert.Equal(t, "forced-token", forced, "ForceRefresh must return the freshly fetched token, not the cache")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&hits), "ForceRefresh must contact the OAuth endpoint exactly once")

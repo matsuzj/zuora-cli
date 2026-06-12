@@ -276,7 +276,7 @@ func TestClient_ReadOnly_PATCHBlocked(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
-	_, err := client.Patch("/v1/accounts/123", strings.NewReader(`{}`))
+	_, err := client.Do(http.MethodPatch, "/v1/accounts/123", WithBody(strings.NewReader(`{}`)))
 	require.Error(t, err)
 	var roErr *ReadOnlyError
 	require.ErrorAs(t, err, &roErr)

@@ -106,13 +106,6 @@ func (s *Store) All() []AliasEntry {
 	return entries
 }
 
-// Len returns the number of aliases.
-func (s *Store) Len() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.data)
-}
-
 // AliasEntry is a name-command pair.
 type AliasEntry struct {
 	Name    string

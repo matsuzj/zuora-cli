@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,7 +30,7 @@ func TestRefresh_EmptyAccessToken_ErrorsAndDoesNotCache(t *testing.T) {
 	defer srv.Close()
 
 	ts := newTokenSource(t, srv.URL)
-	_, err := ts.Refresh("sandbox")
+	_, err := ts.refresh(context.Background(), "sandbox")
 	require.Error(t, err, "an empty access_token must be rejected, not cached")
 
 	cached, _ := ts.Config.Token("sandbox")
@@ -46,7 +47,7 @@ func TestRefresh_NonJSON200_Errors(t *testing.T) {
 	defer srv.Close()
 
 	ts := newTokenSource(t, srv.URL)
-	_, err := ts.Refresh("sandbox")
+	_, err := ts.refresh(context.Background(), "sandbox")
 	require.Error(t, err)
 }
 
@@ -58,7 +59,7 @@ func TestRefresh_HTTPError_TruncatesBody(t *testing.T) {
 	defer srv.Close()
 
 	ts := newTokenSource(t, srv.URL)
-	_, err := ts.Refresh("sandbox")
+	_, err := ts.refresh(context.Background(), "sandbox")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
 }
@@ -71,7 +72,7 @@ func TestRefresh_StoresExpiry(t *testing.T) {
 	defer srv.Close()
 
 	ts := newTokenSource(t, srv.URL)
-	tok, err := ts.Refresh("sandbox")
+	tok, err := ts.refresh(context.Background(), "sandbox")
 	require.NoError(t, err)
 	assert.Equal(t, "tok", tok)
 

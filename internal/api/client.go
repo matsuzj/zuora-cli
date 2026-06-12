@@ -83,11 +83,6 @@ func WithContext(ctx context.Context) ClientOption {
 	return func(c *Client) { c.ctx = ctx }
 }
 
-// WithUserAgent overrides the User-Agent header.
-func WithUserAgent(ua string) ClientOption {
-	return func(c *Client) { c.userAgent = ua }
-}
-
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
@@ -338,11 +333,6 @@ func (c *Client) Put(path string, body io.Reader, opts ...RequestOption) (*Respo
 // Delete performs a DELETE request.
 func (c *Client) Delete(path string, opts ...RequestOption) (*Response, error) {
 	return c.Do(http.MethodDelete, path, opts...)
-}
-
-// Patch performs a PATCH request.
-func (c *Client) Patch(path string, body io.Reader, opts ...RequestOption) (*Response, error) {
-	return c.Do(http.MethodPatch, path, append(opts, WithBody(body))...)
 }
 
 func (c *Client) buildURL(path string, query url.Values) string {

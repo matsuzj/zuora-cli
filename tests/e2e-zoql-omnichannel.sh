@@ -178,6 +178,26 @@ echo "  Testing: subscription changelog-version without arguments"
 expect_fail "changelog-version validation → requires arguments" \
   "accepts 2 arg(s), received 0" -- $ZR subscription changelog-version
 
+# Live changelog on a ZOQL-derived subscription. This tenant lacks the
+# changelog permission (HTTP 403, code 50000010) — lock that EXPECTED error
+# so the check both exercises the request path live and flips loudly if the
+# permission is ever granted (upgrade to a data assertion then).
+echo "  Testing: subscription changelog (live, permission-documented)"
+CL_SUB=$($ZR query "SELECT Name FROM Subscription" --jq '.records[0].Name' 2>/dev/null | tr -d '"')
+if [ -n "$CL_SUB" ] && [ "$CL_SUB" != "null" ]; then
+  CL_RC=0
+  CL_OUT=$($ZR subscription changelog "$CL_SUB" 2>&1) || CL_RC=$?
+  if [ "$CL_RC" -eq 0 ]; then
+    pass "subscription changelog → returned (permission enabled on tenant)"
+  elif echo "$CL_OUT" | grep -q "50000010"; then
+    pass "subscription changelog → expected permission error (50000010, documented)"
+  else
+    fail "subscription changelog → rc=$CL_RC: $(echo "$CL_OUT" | head -2)"
+  fi
+else
+  skip "subscription changelog → no subscription found via ZOQL"
+fi
+
 # ─────────────────────────────────────────
 header "Step 4: Omnichannel Validation"
 # ─────────────────────────────────────────

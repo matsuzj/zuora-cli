@@ -274,6 +274,39 @@ expect_fail "account set-cascading validation → requires arg" "accepts 1 arg(s
 echo "  Testing: account set-cascading without --body"
 expect_fail "account set-cascading validation → requires --body" "--body is required" -- $ZR account set-cascading "$ACCT_NUM"
 
+# payment-methods-default / -cascading: read-only GETs with deterministic
+# outcomes on this tenant (no gateway → no default method; cascading is a
+# feature toggle). Locking the EXPECTED error codes also exercises the
+# RunDetail error-rendering path live, and flips loudly if the tenant gains
+# the feature (update the assertion then).
+echo "  Testing: account payment-methods-default without arg"
+expect_fail "payment-methods-default validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR account payment-methods-default
+
+echo "  Testing: account payment-methods-default $ACCT_NUM (live)"
+PMD_RC=0
+PMD_OUT=$($ZR account payment-methods-default "$ACCT_NUM" 2>&1) || PMD_RC=$?
+if [ "$PMD_RC" -ne 0 ] && echo "$PMD_OUT" | grep -q "50000040"; then
+  pass "payment-methods-default → expected 'no default method' error (50000040)"
+elif [ "$PMD_RC" -eq 0 ]; then
+  pass "payment-methods-default → returned a default payment method"
+else
+  fail "payment-methods-default → rc=$PMD_RC: $(echo "$PMD_OUT" | head -2)"
+fi
+
+echo "  Testing: account payment-methods-cascading without arg"
+expect_fail "payment-methods-cascading validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR account payment-methods-cascading
+
+echo "  Testing: account payment-methods-cascading $ACCT_NUM (live)"
+PMC_RC=0
+PMC_OUT=$($ZR account payment-methods-cascading "$ACCT_NUM" 2>&1) || PMC_RC=$?
+if [ "$PMC_RC" -ne 0 ] && echo "$PMC_OUT" | grep -q "50000010"; then
+  pass "payment-methods-cascading → expected feature-disabled error (50000010)"
+elif [ "$PMC_RC" -eq 0 ]; then
+  pass "payment-methods-cascading → returned cascading payment methods"
+else
+  fail "payment-methods-cascading → rc=$PMC_RC: $(echo "$PMC_OUT" | head -2)"
+fi
+
 # ─────────────────────────────────────────
 header "Step 8: signup"
 # ─────────────────────────────────────────

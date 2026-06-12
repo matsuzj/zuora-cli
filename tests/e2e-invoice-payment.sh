@@ -175,6 +175,79 @@ else
 fi
 
 # ─────────────────────────────────────────
+header "Step 4.5: invoice lifecycle (post / reverse / writeoff guards)"
+# ─────────────────────────────────────────
+echo "  Testing: invoice post without arg"
+expect_fail "invoice post validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR invoice post
+
+echo "  Testing: invoice reverse without arg"
+expect_fail "invoice reverse validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR invoice reverse
+
+echo "  Testing: invoice writeoff without arg"
+expect_fail "invoice writeoff validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR invoice writeoff
+
+if [ -n "$INV_ID" ]; then
+  echo "  Testing: invoice reverse/writeoff --confirm guards (no API call)"
+  expect_fail "invoice reverse → requires --confirm" "Use --confirm to proceed" -- $ZR invoice reverse "$INV_ID"
+  expect_fail "invoice writeoff → requires --confirm" "Use --confirm to proceed" -- $ZR invoice writeoff "$INV_ID"
+
+  # Live post of the suite's own invoice. runBilling creates Draft invoices
+  # (autoPost defaults false), and posting is the normal forward operation.
+  # This is the permanent live gate for the #220 415 fix on invoice post:
+  # before the fix every bodyless invoice lifecycle PUT failed with HTTP 415.
+  INV_STATUS=$($ZR invoice get "$INV_ID" --jq '.status' 2>/dev/null | tr -d '"')
+  echo "  Testing: invoice post $INV_ID (status=$INV_STATUS)"
+  if [ "$INV_STATUS" = "Draft" ]; then
+    POST_RC=0
+    POST_OUT=$($ZR invoice post "$INV_ID" 2>&1) || POST_RC=$?
+    if [ "$POST_RC" -eq 0 ] && echo "$POST_OUT" | grep -qF "posted."; then
+      pass "invoice post → Draft invoice posted (bodyless PUT carries Content-Type + {})"
+    elif echo "$POST_OUT" | grep -q "HTTP 415\|50000045"; then
+      fail "invoice post → 415 REGRESSION (empty-JSON body lost, cf. #220): $(echo "$POST_OUT" | head -2)"
+    else
+      fail "invoice post → rc=$POST_RC: $(echo "$POST_OUT" | head -2)"
+    fi
+  else
+    skip "invoice post → invoice already '$INV_STATUS' (tenant auto-post?); 415 contract still guarded by billrun suite"
+  fi
+else
+  skip "invoice lifecycle live checks → no invoice ID"
+fi
+
+# ─────────────────────────────────────────
+header "Step 4.6: creditmemo / debitmemo (read paths)"
+# ─────────────────────────────────────────
+echo "  Testing: creditmemo get without arg"
+expect_fail "creditmemo get validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR creditmemo get
+
+echo "  Testing: debitmemo get without arg"
+expect_fail "debitmemo get validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR debitmemo get
+
+if [ -n "$ACCT_NUM" ]; then
+  # Fresh suite-created account → empty memo arrays are the correct result;
+  # the shape assertion still catches error-object/shape regressions in the
+  # listcmd-migrated commands (P3-2: zero E2E contact until now).
+  echo "  Testing: creditmemo list --account-number $ACCT_NUM"
+  run $ZR creditmemo list --account-number "$ACCT_NUM" --json
+  if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.creditmemos | type == "array"' >/dev/null 2>&1; then
+    pass "creditmemo list → .creditmemos array (n=$(echo "$RUN_OUT" | jq '.creditmemos | length'))"
+  else
+    fail "creditmemo list (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+  fi
+
+  echo "  Testing: debitmemo list --account-number $ACCT_NUM"
+  run $ZR debitmemo list --account-number "$ACCT_NUM" --json
+  if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.debitmemos | type == "array"' >/dev/null 2>&1; then
+    pass "debitmemo list → .debitmemos array (n=$(echo "$RUN_OUT" | jq '.debitmemos | length'))"
+  else
+    fail "debitmemo list (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+  fi
+else
+  skip "creditmemo list → no account number"
+  skip "debitmemo list → no account number"
+fi
+
+# ─────────────────────────────────────────
 header "Step 5: payment list"
 # ─────────────────────────────────────────
 # No payment gateway on this tenant → an empty .payments array is the correct

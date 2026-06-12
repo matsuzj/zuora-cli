@@ -3,7 +3,9 @@ package writeoff
 
 import (
 	"fmt"
+	"io"
 	"net/url"
+	"strings"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -49,19 +51,27 @@ Examples:
 
 func runWriteoff(cmd *cobra.Command, opts *writeoffOptions, invoiceID string) error {
 	f := opts.Factory
-	// The write-off body is optional; only resolve a reader when one was given.
+	// The write-off body is optional. Without one, still send an explicit
+	// empty JSON object: Zuora's write-off endpoint binds a Map body
+	// parameter and returns HTTP 415 when the request carries no
+	// Content-Type, which the client sets only when a body is present
+	// (live-verified 2026-06-12).
 	var reqOpts []api.RequestOption
+	var emptyBody io.Reader
 	if opts.Body != "" {
 		bodyReader, err := cmdutil.ResolveBody(opts.Body, f.IOStreams.In)
 		if err != nil {
 			return err
 		}
 		reqOpts = append(reqOpts, api.WithBody(bodyReader))
+	} else {
+		emptyBody = strings.NewReader("{}")
 	}
 
 	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
 		Method:  "PUT",
 		Path:    fmt.Sprintf("/v1/invoices/%s/write-off", url.PathEscape(invoiceID)),
+		Body:    emptyBody,
 		ReqOpts: reqOpts,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			// A successful write-off returns the generated credit memo, nested

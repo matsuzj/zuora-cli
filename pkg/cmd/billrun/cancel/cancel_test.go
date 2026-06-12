@@ -1,6 +1,8 @@
 package cancel
 
 import (
+	"io"
+	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -33,4 +35,23 @@ func TestBillRunCancel_RequiresConfirm(t *testing.T) {
 func TestBillRunCancel_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "cancel")
 	assert.Error(t, err)
+}
+
+// TestBillRunCancel_SendsEmptyJSONBody pins the 415 fix: Zuora's endpoint binds a Map body parameter
+// and rejects requests without a Content-Type, which the client sets only
+// when a body is present — the command must send an explicit "{}".
+func TestBillRunCancel_SendsEmptyJSONBody(t *testing.T) {
+	inner := cmdtest.OK(t, "PUT", "/v1/bill-runs/br-001/cancel", map[string]interface{}{
+		"id": "br-001", "status": "Cancelled", "success": true,
+	})
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.Equal(t, "{}", string(b))
+		inner(w, r)
+	}
+
+	_, _, err := cmdtest.Run(t, "billrun", newCmd, handler, "billrun", "cancel", "br-001", "--confirm")
+	require.NoError(t, err)
 }

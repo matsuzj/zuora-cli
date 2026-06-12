@@ -1,6 +1,8 @@
 package post
 
 import (
+	"io"
+	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -36,4 +38,23 @@ func TestInvoicePost_SuccessFalse(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not in draft status")
+}
+
+// TestInvoicePost_SendsEmptyJSONBody pins the 415 fix: Zuora's endpoint binds a Map body parameter
+// and rejects requests without a Content-Type, which the client sets only
+// when a body is present — the command must send an explicit "{}".
+func TestInvoicePost_SendsEmptyJSONBody(t *testing.T) {
+	inner := cmdtest.OK(t, "PUT", "/v1/invoices/inv-001/post", map[string]interface{}{
+		"id": "inv-001", "status": "Posted", "success": true,
+	})
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.Equal(t, "{}", string(b))
+		inner(w, r)
+	}
+
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001")
+	require.NoError(t, err)
 }

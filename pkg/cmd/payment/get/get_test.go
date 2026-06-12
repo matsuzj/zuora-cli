@@ -15,7 +15,7 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 func TestPaymentGet_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/payments/pay-001", map[string]interface{}{
 		"id":            "pay-001",
-		"paymentNumber": "P-00000001",
+		"number":        "P-00000001", // real field is "number" (live-verified); "paymentNumber" never existed
 		"effectiveDate": "2026-01-15",
 		"amount":        100.00,
 		"status":        "Processed",
@@ -29,6 +29,7 @@ func TestPaymentGet_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "pay-001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "P-00000001")
+	assert.Contains(t, stdout, "100.00", "amount must render with cents")
 	assert.Contains(t, stdout, "Processed")
 }
 

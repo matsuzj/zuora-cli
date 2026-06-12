@@ -49,9 +49,11 @@ func runUpdate(cmd *cobra.Command, opts *updateOptions, fulfillmentKey string) e
 		Path:   fmt.Sprintf("/v1/fulfillments/%s", url.PathEscape(fulfillmentKey)),
 		Body:   bodyReader,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// PUT /v1/fulfillments/{key} returns only {processId, requestId,
+			// success, reasons} — no "key" field (sibling of the #56 class).
 			return []output.DetailField{
-				{Key: "Key", Value: cmdutil.GetString(raw, "key")},
 				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+				{Key: "Process ID", Value: cmdutil.GetString(raw, "processId")},
 			}
 		},
 		SuccessMsg: func(raw map[string]interface{}) string {

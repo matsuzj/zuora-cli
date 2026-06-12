@@ -36,11 +36,17 @@ func TestInvoiceWriteoff_Success(t *testing.T) {
 	assert.Contains(t, stdout, "CM00001")
 }
 
+// TestInvoiceWriteoff_NoBody pins the 415 fix: without --body the command
+// must still send an explicit "{}" (with Content-Type), because Zuora's
+// write-off endpoint rejects requests carrying no Content-Type — and the
+// client only sets one when a body is present. The previous version of this
+// test asserted an EMPTY body, locking in the broken live behavior.
 func TestInvoiceWriteoff_NoBody(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		body, _ := io.ReadAll(r.Body)
-		assert.Empty(t, body, "no --body should send an empty request body")
+		assert.Equal(t, "{}", string(body), "no --body must send an empty JSON object, not an empty body")
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 	})

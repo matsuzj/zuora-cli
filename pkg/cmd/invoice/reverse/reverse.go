@@ -4,6 +4,7 @@ package reverse
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
@@ -41,6 +42,11 @@ func runReverse(cmd *cobra.Command, f *factory.Factory, invoiceID string) error 
 	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
 		Method: "PUT",
 		Path:   fmt.Sprintf("/v1/invoices/%s/reverse", url.PathEscape(invoiceID)),
+		// Zuora's invoice reverse endpoint binds a Map body parameter and
+		// returns HTTP 415 when the request carries no Content-Type. The
+		// client sets Content-Type only when a body is present, so send an
+		// explicit empty JSON object (live-verified 2026-06-12).
+		Body: strings.NewReader("{}"),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
 				{Key: "ID", Value: cmdutil.GetString(raw, "id")},

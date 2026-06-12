@@ -1,6 +1,8 @@
 package reverse
 
 import (
+	"io"
+	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -33,4 +35,23 @@ func TestInvoiceReverse_RequiresConfirm(t *testing.T) {
 func TestInvoiceReverse_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "reverse")
 	assert.Error(t, err)
+}
+
+// TestInvoiceReverse_SendsEmptyJSONBody pins the 415 fix: Zuora's endpoint binds a Map body parameter
+// and rejects requests without a Content-Type, which the client sets only
+// when a body is present — the command must send an explicit "{}".
+func TestInvoiceReverse_SendsEmptyJSONBody(t *testing.T) {
+	inner := cmdtest.OK(t, "PUT", "/v1/invoices/inv-001/reverse", map[string]interface{}{
+		"id": "inv-001", "status": "Reversed", "success": true,
+	})
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.Equal(t, "{}", string(b))
+		inner(w, r)
+	}
+
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "reverse", "inv-001", "--confirm")
+	require.NoError(t, err)
 }

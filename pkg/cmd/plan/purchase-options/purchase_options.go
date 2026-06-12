@@ -4,7 +4,6 @@ package purchaseoptions
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -28,14 +27,12 @@ func NewCmdPurchaseOptions(f *factory.Factory) *cobra.Command {
   zr plan purchase-options --plan 402880e... --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Plan == "" {
-				return fmt.Errorf("--plan is required")
-			}
 			return runPurchaseOptions(cmd, opts)
 		},
 	}
 
 	cmd.Flags().StringVar(&opts.Plan, "plan", "", "Rate plan ID (prp_id)")
+	_ = cmd.MarkFlagRequired("plan")
 
 	return cmd
 }

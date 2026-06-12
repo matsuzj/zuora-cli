@@ -58,7 +58,7 @@ func TestUsagePost_RequiresFile(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "post")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--file is required")
+	assert.Contains(t, err.Error(), `required flag(s) "file" not set`)
 }
 
 func TestUsagePost_FileNotFound(t *testing.T) {

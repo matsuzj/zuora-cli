@@ -36,8 +36,11 @@ Use --policy and --effective-date flags, or --body for full control.`,
   zr sub cancel A-S001 --body @cancel.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Cobra's group check passes on EXPLICITLY-EMPTY values
+			// (--policy ""); enforce the disjunction on the values too,
+			// with cobra's wording (Codex, P5-2).
 			if opts.Body == "" && opts.Policy == "" {
-				return fmt.Errorf("--policy or --body is required")
+				return fmt.Errorf("at least one of the flags in the group [body policy] is required")
 			}
 			if opts.Body == "" && opts.Policy == "SpecificDate" && opts.EffectiveDate == "" {
 				return fmt.Errorf("--effective-date is required when --policy is SpecificDate")
@@ -49,8 +52,11 @@ Use --policy and --effective-date flags, or --body for full control.`,
 		},
 	}
 
-	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
+	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Cancellation policy (EndOfCurrentTerm, EndOfLastInvoicePeriod, SpecificDate)")
+	// body OR policy: cobra enforces the disjunction; the policy-conditional
+	// date/period requirements stay handwritten in RunE.
+	cmd.MarkFlagsOneRequired("body", "policy")
 	cmd.Flags().StringVar(&opts.EffectiveDate, "effective-date", "", "Cancellation date (required for SpecificDate, YYYY-MM-DD)")
 	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "cancellation")
 

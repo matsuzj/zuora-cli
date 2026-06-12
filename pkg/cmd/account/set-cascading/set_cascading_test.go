@@ -25,5 +25,5 @@ func TestSetCascading_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "set-cascading", "A001")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

@@ -48,5 +48,5 @@ func TestOrderPreview_SuccessFalse(t *testing.T) {
 func TestOrderPreview_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "preview")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

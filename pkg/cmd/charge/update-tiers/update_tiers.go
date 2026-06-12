@@ -27,9 +27,6 @@ func NewCmdUpdateTiers(f *factory.Factory) *cobra.Command {
   zr charge update-tiers --body '{"charge_id":"...","tiers":[...]}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdateTiers(cmd, opts)
 		},
 	}

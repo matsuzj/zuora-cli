@@ -27,9 +27,6 @@ func NewCmdSetCascading(f *factory.Factory) *cobra.Command {
 		Example: `  zr account set-cascading A00000001 --body @cascading.json`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runSetCascading(cmd, opts, args[0])
 		},
 	}

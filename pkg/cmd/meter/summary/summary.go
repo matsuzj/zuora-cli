@@ -34,14 +34,12 @@ An optional --body flag can provide additional filter criteria.`,
   zr meter summary 402880e44c... --run-type FULL --body '{"startDate":"2026-01-01"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.RunType == "" {
-				return fmt.Errorf("--run-type is required")
-			}
 			return runSummary(cmd, opts, args[0])
 		},
 	}
 
 	cmd.Flags().StringVar(&opts.RunType, "run-type", "", "Run type (required)")
+	_ = cmd.MarkFlagRequired("run-type")
 	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 
 	return cmd

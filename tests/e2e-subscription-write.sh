@@ -243,7 +243,7 @@ header "Step 6: subscription cancel (SUB_A)"
 # 6a: Missing --policy or --body
 echo "  Testing: cancel without --policy or --body"
 CANCEL_ERR=$($ZR subscription cancel "$SUB_A" 2>&1) || true
-if echo "$CANCEL_ERR" | grep -q "\-\-policy or \-\-body is required"; then
+if echo "$CANCEL_ERR" | grep -q "at least one of the flags in the group"; then
   pass "cancel validation → requires --policy or --body"
 else
   fail "cancel validation → unexpected: $CANCEL_ERR"
@@ -304,7 +304,7 @@ header "Step 7: subscription suspend (SUB_B)"
 # 7a: Missing --policy
 echo "  Testing: suspend without --policy"
 SUSP_ERR=$($ZR subscription suspend "$SUB_B" 2>&1) || true
-if echo "$SUSP_ERR" | grep -q "\-\-policy or \-\-body is required"; then
+if echo "$SUSP_ERR" | grep -q "at least one of the flags in the group"; then
   pass "suspend validation → requires --policy or --body"
 else
   fail "suspend validation → unexpected: $SUSP_ERR"
@@ -346,7 +346,7 @@ header "Step 8: subscription resume (SUB_B)"
 # 8a: Missing --policy
 echo "  Testing: resume without --policy"
 RES_ERR=$($ZR subscription resume "$SUB_B" 2>&1) || true
-if echo "$RES_ERR" | grep -q "\-\-policy or \-\-body is required"; then
+if echo "$RES_ERR" | grep -q "at least one of the flags in the group"; then
   pass "resume validation → requires --policy or --body"
 else
   fail "resume validation → unexpected: $RES_ERR"
@@ -436,7 +436,7 @@ EOF
 # 10a: Missing --body
 echo "  Testing: preview without --body"
 PREV_ERR=$($ZR subscription preview 2>&1) || true
-if echo "$PREV_ERR" | grep -q "\-\-body is required"; then
+if echo "$PREV_ERR" | grep -qF 'required flag(s) "body" not set'; then
   pass "preview validation → requires --body"
 else
   fail "preview validation → unexpected: $PREV_ERR"
@@ -467,7 +467,7 @@ fi
 # 11b: Missing --body
 echo "  Testing: preview-change $SUB_B without --body"
 PC_ERR2=$($ZR subscription preview-change "$SUB_B" 2>&1) || true
-if echo "$PC_ERR2" | grep -q "\-\-body is required"; then
+if echo "$PC_ERR2" | grep -qF 'required flag(s) "body" not set'; then
   pass "preview-change validation → requires --body"
 else
   fail "preview-change validation → unexpected: $PC_ERR2"
@@ -516,7 +516,7 @@ fi
 # 12b: Missing --body
 echo "  Testing: update-custom-fields $SUB_B 1 without --body"
 UCF_ERR2=$($ZR subscription update-custom-fields "$SUB_B" 1 2>&1) || true
-if echo "$UCF_ERR2" | grep -q "\-\-body is required"; then
+if echo "$UCF_ERR2" | grep -qF 'required flag(s) "body" not set'; then
   pass "update-custom-fields validation → requires --body"
 else
   fail "update-custom-fields validation → unexpected: $UCF_ERR2"

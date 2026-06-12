@@ -22,9 +22,6 @@ func NewCmdUpdateTriggerDates(f *factory.Factory) *cobra.Command {
 		Example: `  zr order update-trigger-dates O-00000001 --body @dates.json`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdateTriggerDates(cmd, f, args[0], body)
 		},
 	}

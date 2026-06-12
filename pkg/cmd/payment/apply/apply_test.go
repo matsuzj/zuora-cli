@@ -38,7 +38,7 @@ func TestPaymentApply_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "apply", "pay-001")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestPaymentApply_RequiresArg(t *testing.T) {

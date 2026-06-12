@@ -15,6 +15,13 @@ import (
 //   - "@file" reads from the specified file
 //   - any other string is treated as literal JSON
 func ResolveBody(body string, stdin io.Reader) (io.Reader, error) {
+	// An explicitly-empty value (--body "", or --body "$VAR" with VAR unset)
+	// satisfies cobra's required check (the flag WAS provided) but cannot be
+	// a meaningful request body — fail fast locally instead of sending an
+	// empty body to Zuora (Codex, P5-2).
+	if body == "" {
+		return nil, fmt.Errorf("request body is empty")
+	}
 	if body == "-" {
 		return stdin, nil
 	}

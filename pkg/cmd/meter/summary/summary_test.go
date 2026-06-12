@@ -65,7 +65,7 @@ func TestMeterSummary_RequiresRunType(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "meter", newCmd, nil, "meter", "summary", "meter123")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--run-type is required")
+	assert.Contains(t, err.Error(), `required flag(s) "run-type" not set`)
 }
 
 func TestMeterSummary_RequiresArg(t *testing.T) {

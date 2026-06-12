@@ -75,7 +75,7 @@ else
 fi
 
 echo "  Testing: account update validation (no --body)"
-expect_fail "account update validation → requires --body" "--body is required" -- $ZR account update "$ACCT_NUM"
+expect_fail "account update validation → requires --body" 'required flag(s) "body" not set' -- $ZR account update "$ACCT_NUM"
 
 echo "  Testing: account update $ACCT_NUM (live, read-back)"
 run $ZR account update "$ACCT_NUM" --body '{"name":"E2E-Contact-Test-Updated"}' --json
@@ -99,7 +99,7 @@ expect_fail "account delete validation → requires --confirm" \
 header "Step 2: contact create"
 # ─────────────────────────────────────────
 echo "  Testing: contact create validation (no --body)"
-expect_fail "contact create validation → requires --body" "--body is required" -- $ZR contact create
+expect_fail "contact create validation → requires --body" 'required flag(s) "body" not set' -- $ZR contact create
 
 CONTACT_BODY=$(cat <<JSON
 {
@@ -159,7 +159,7 @@ fi
 header "Step 5: contact update"
 # ─────────────────────────────────────────
 echo "  Testing: contact update validation (no --body)"
-expect_fail "contact update validation → requires --body" "--body is required" -- $ZR contact update C-FAKE
+expect_fail "contact update validation → requires --body" 'required flag(s) "body" not set' -- $ZR contact update C-FAKE
 
 if [ -n "$CONTACT_ID" ]; then
   echo "  Testing: contact update $CONTACT_ID"
@@ -245,7 +245,7 @@ echo "  Testing: contact transfer without arg"
 expect_fail "contact transfer validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR contact transfer
 
 echo "  Testing: contact transfer without --body"
-expect_fail "contact transfer validation → requires --body" "--body is required" -- $ZR contact transfer C-FAKE
+expect_fail "contact transfer validation → requires --body" 'required flag(s) "body" not set' -- $ZR contact transfer C-FAKE
 
 echo "  Testing: account list"
 run $ZR account list --json
@@ -272,7 +272,7 @@ echo "  Testing: account set-cascading without arg"
 expect_fail "account set-cascading validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR account set-cascading
 
 echo "  Testing: account set-cascading without --body"
-expect_fail "account set-cascading validation → requires --body" "--body is required" -- $ZR account set-cascading "$ACCT_NUM"
+expect_fail "account set-cascading validation → requires --body" 'required flag(s) "body" not set' -- $ZR account set-cascading "$ACCT_NUM"
 
 # payment-methods-default / -cascading: read-only GETs with deterministic
 # outcomes on this tenant (no gateway → no default method; cascading is a
@@ -311,7 +311,7 @@ fi
 header "Step 8: signup"
 # ─────────────────────────────────────────
 echo "  Testing: signup validation (no --body)"
-expect_fail "signup validation → requires --body" "--body is required" -- $ZR signup
+expect_fail "signup validation → requires --body" 'required flag(s) "body" not set' -- $ZR signup
 
 echo "  Testing: signup --body (tenant may reject with HTTP 500)"
 SIGNUP_BODY=$(cat <<JSON

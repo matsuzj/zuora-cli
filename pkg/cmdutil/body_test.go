@@ -43,10 +43,13 @@ func TestResolveBody_MissingFile(t *testing.T) {
 }
 
 func TestResolveBody_Empty(t *testing.T) {
-	r, err := ResolveBody("", nil)
-	require.NoError(t, err)
-	b, _ := io.ReadAll(r)
-	assert.Empty(t, string(b))
+	// CONTRACT CHANGE (P5-2): an empty body used to resolve to an empty
+	// reader; with cobra-required flags an explicitly-empty --body ("", or
+	// an unset shell variable) satisfies the required check, so ResolveBody
+	// now fails fast instead of letting an empty body reach Zuora.
+	_, err := ResolveBody("", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "request body is empty")
 }
 
 func TestResolveBody_MidStringAtIsLiteral(t *testing.T) {

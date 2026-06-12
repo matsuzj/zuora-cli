@@ -27,9 +27,6 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
   zr payment create --body '{"amount":100,"accountId":"2c92c0f8...","effectiveDate":"2026-01-01"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runCreate(cmd, opts)
 		},
 	}

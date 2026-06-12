@@ -50,5 +50,5 @@ func TestOrderUpdateTriggerDates_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "update-trigger-dates", "O-00000001")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

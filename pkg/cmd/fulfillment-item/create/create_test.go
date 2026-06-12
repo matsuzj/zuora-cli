@@ -46,7 +46,7 @@ func TestFulfillmentItemCreate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "create")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestFulfillmentItemCreate_SuccessFalse(t *testing.T) {

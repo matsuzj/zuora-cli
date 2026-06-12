@@ -21,9 +21,6 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Example: `  zr subscription create --body @subscription.json
   zr sub create --body '{"accountKey":"A001","termType":"TERMED",...}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runCreate(cmd, f, body)
 		},
 	}

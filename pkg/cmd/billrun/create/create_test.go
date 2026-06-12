@@ -38,7 +38,7 @@ func TestBillRunCreate_Success(t *testing.T) {
 func TestBillRunCreate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "create")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestBillRunCreate_SuccessFalse(t *testing.T) {

@@ -27,9 +27,6 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
   zr fulfillment create --body '{"orderLineItemId":"..."}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runCreate(cmd, opts)
 		},
 	}

@@ -2,8 +2,6 @@
 package preview
 
 import (
-	"fmt"
-
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -22,9 +20,6 @@ func NewCmdPreview(f *factory.Factory) *cobra.Command {
   zr sub preview --body '{"accountKey":"A001","termType":"TERMED",...}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runPreview(cmd, f, body)
 		},
 	}

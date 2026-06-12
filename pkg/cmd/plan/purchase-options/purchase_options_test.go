@@ -54,5 +54,5 @@ func TestPlanPurchaseOptions_Success(t *testing.T) {
 func TestPlanPurchaseOptions_RequiresPlan(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "plan", newCmd, nil, "plan", "purchase-options")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--plan is required")
+	assert.Contains(t, err.Error(), `required flag(s) "plan" not set`)
 }

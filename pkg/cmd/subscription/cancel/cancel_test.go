@@ -41,11 +41,21 @@ func TestCancel_WithBody(t *testing.T) {
 func TestCancel_RequiresPolicyOrBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "cancel", "A-S001")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--policy or --body")
+	assert.Contains(t, err.Error(), "at least one of the flags in the group [body policy] is required")
 }
 
 func TestCancel_SpecificDateRequiresEffectiveDate(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "cancel", "A-S001", "--policy", "SpecificDate", "--confirm")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--effective-date is required")
+}
+
+// TestSubscriptionCancel_ExplicitEmptyPolicyAndBodyRejected pins the P5-2
+// edge case: --policy "" satisfies cobra's group check (the flag WAS
+// provided) but the disjunction is enforced on the values too.
+func TestSubscriptionCancel_ExplicitEmptyPolicyAndBodyRejected(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil,
+		"subscription", "cancel", "A-S001", "--policy", "", "--confirm")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one of the flags in the group [body policy] is required")
 }

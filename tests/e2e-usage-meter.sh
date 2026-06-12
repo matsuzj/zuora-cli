@@ -31,7 +31,7 @@ require_auth
 header "Step 1: Usage Validation"
 # ─────────────────────────────────────────
 echo "  Testing: usage post without --file"
-expect_fail "usage post validation → requires --file" "--file is required" -- $ZR usage post
+expect_fail "usage post validation → requires --file" 'required flag(s) "file" not set' -- $ZR usage post
 
 echo "  Testing: usage post with nonexistent file (local IO error, not API)"
 expect_fail "usage post validation → file not found (local)" \
@@ -41,7 +41,7 @@ echo "  Testing: usage get without argument"
 expect_fail "usage get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR usage get
 
 echo "  Testing: usage create without --body"
-expect_fail "usage create validation → requires --body" "--body is required" -- $ZR usage create
+expect_fail "usage create validation → requires --body" 'required flag(s) "body" not set' -- $ZR usage create
 
 echo "  Testing: usage update without argument"
 expect_fail "usage update validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR usage update
@@ -70,7 +70,7 @@ expect_fail "meter summary validation → requires argument" "accepts 1 arg(s), 
 # With the positional present, the missing required --run-type flag is reported.
 echo "  Testing: meter summary without --run-type"
 expect_fail "meter summary validation → requires --run-type" \
-  "--run-type is required" -- $ZR meter summary FAKE-ID
+  'required flag(s) "run-type" not set' -- $ZR meter summary FAKE-ID
 
 echo "  Testing: meter audit without required flags"
 # meter audit validates required flags only after the positional arg is supplied,
@@ -78,7 +78,7 @@ echo "  Testing: meter audit without required flags"
 # rather than a loose alternation that included the substring 'to' (matches almost
 # any output) — the old predicate could not detect the flag check regressing.
 expect_fail "meter audit validation → requires --export-type" \
-  "--export-type is required" -- $ZR meter audit FAKE-ID
+  'required flag(s) "export-type", "from", "run-type", "to" not set' -- $ZR meter audit FAKE-ID
 
 echo "  Testing: meter audit without argument"
 expect_fail "meter audit validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR meter audit

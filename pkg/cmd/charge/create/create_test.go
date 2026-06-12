@@ -37,5 +37,5 @@ func TestChargeCreate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "charge", newCmd, nil, "charge", "create")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

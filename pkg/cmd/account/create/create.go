@@ -26,9 +26,6 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Example: `  zr account create --body @account.json
   zr account create --body '{"name":"Acme Corp","currency":"USD","billCycleDay":1}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runCreate(cmd, opts)
 		},
 	}

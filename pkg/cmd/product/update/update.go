@@ -29,9 +29,6 @@ The product ID is specified in the request body.`,
   zr product update --body '{"id":"...","name":"Updated Product"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdate(cmd, opts)
 		},
 	}

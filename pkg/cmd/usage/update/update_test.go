@@ -39,7 +39,7 @@ func TestUsageUpdate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "update", "usage123")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestUsageUpdate_RequiresArgs(t *testing.T) {

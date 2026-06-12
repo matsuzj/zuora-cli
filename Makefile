@@ -43,7 +43,7 @@ e2e: build
 lint:
 	go vet ./...
 	go tool staticcheck ./...
-	@dead="$$(go tool deadcode -test ./...)"; \
+	@dead="$$(go tool deadcode -test ./...)" || { echo "deadcode failed to run"; exit 1; }; \
 	if [ -n "$$dead" ]; then \
 		echo "deadcode found unreachable code (delete it or wire it):"; \
 		echo "$$dead"; exit 1; \

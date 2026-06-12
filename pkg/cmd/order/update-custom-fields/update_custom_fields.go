@@ -23,9 +23,6 @@ func NewCmdUpdateCustomFields(f *factory.Factory) *cobra.Command {
   zr order update-custom-fields O-00000001 --body '{"cf_MyField__c":"value"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdateCustomFields(cmd, f, args[0], body)
 		},
 	}

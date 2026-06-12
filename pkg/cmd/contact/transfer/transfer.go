@@ -23,9 +23,6 @@ func NewCmdTransfer(f *factory.Factory) *cobra.Command {
   zr contact transfer 8aca822f12345 --body @transfer.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runTransfer(cmd, f, args[0], body)
 		},
 	}

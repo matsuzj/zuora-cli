@@ -2,8 +2,6 @@
 package listlegacy
 
 import (
-	"fmt"
-
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -27,9 +25,6 @@ func NewCmdListLegacy(f *factory.Factory) *cobra.Command {
   zr product list-legacy --body '{"page":0,"page_size":20}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runListLegacy(cmd, opts)
 		},
 	}

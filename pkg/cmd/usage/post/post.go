@@ -34,14 +34,12 @@ The file is uploaded via multipart/form-data to POST /v1/usage.`,
 		Example: `  zr usage post --file usage.csv`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.File == "" {
-				return fmt.Errorf("--file is required")
-			}
 			return runPost(cmd, opts)
 		},
 	}
 
 	cmd.Flags().StringVarP(&opts.File, "file", "f", "", "Path to CSV file to upload (required)")
+	_ = cmd.MarkFlagRequired("file")
 
 	return cmd
 }

@@ -35,9 +35,6 @@ func NewCmdSuspend(f *factory.Factory) *cobra.Command {
   zr sub suspend A-S001 --body @suspend.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" && opts.Policy == "" {
-				return fmt.Errorf("--policy or --body is required")
-			}
 			if opts.Body == "" {
 				switch opts.Policy {
 				case "SpecificDate":
@@ -54,8 +51,11 @@ func NewCmdSuspend(f *factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
+	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Suspend policy (Today, EndOfLastInvoicePeriod, SpecificDate, FixedPeriodsFromToday)")
+	// body OR policy: cobra enforces the disjunction; the policy-conditional
+	// date/period requirements stay handwritten in RunE.
+	cmd.MarkFlagsOneRequired("body", "policy")
 	cmd.Flags().StringVar(&opts.SuspendDate, "suspend-date", "", "Suspend date (for SpecificDate, YYYY-MM-DD)")
 	cmd.Flags().IntVar(&opts.Periods, "periods", 0, "Number of periods (for FixedPeriodsFromToday)")
 	cmd.Flags().StringVar(&opts.PeriodsType, "periods-type", "", "Period type (Day, Week, Month, Year)")

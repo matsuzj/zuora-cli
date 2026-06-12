@@ -37,7 +37,7 @@ require_auth
 header "Step 1: Validation (no API calls)"
 # ─────────────────────────────────────────
 echo "  Testing: billrun create without --body"
-expect_fail "create validation → requires --body" "--body is required" -- $ZR billrun create
+expect_fail "create validation → requires --body" 'required flag(s) "body" not set' -- $ZR billrun create
 
 echo "  Testing: billrun get without arg"
 expect_fail "get validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR billrun get

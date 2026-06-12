@@ -24,9 +24,6 @@ account creation, payment method setup, and subscription creation in a single ca
 		Example: `  zr signup --body @signup.json
   zr signup --body '{"accountInfo":{...},"subscriptionInfo":{...}}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runSignup(cmd, f, body)
 		},
 	}

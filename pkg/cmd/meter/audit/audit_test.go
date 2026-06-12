@@ -51,7 +51,7 @@ func TestMeterAudit_RequiresExportType(t *testing.T) {
 	)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--export-type is required")
+	assert.Contains(t, err.Error(), `required flag(s) "export-type" not set`)
 }
 
 func TestMeterAudit_RequiresRunType(t *testing.T) {
@@ -63,7 +63,7 @@ func TestMeterAudit_RequiresRunType(t *testing.T) {
 	)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--run-type is required")
+	assert.Contains(t, err.Error(), `required flag(s) "run-type" not set`)
 }
 
 func TestMeterAudit_RequiresFrom(t *testing.T) {
@@ -75,7 +75,7 @@ func TestMeterAudit_RequiresFrom(t *testing.T) {
 	)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--from is required")
+	assert.Contains(t, err.Error(), `required flag(s) "from" not set`)
 }
 
 func TestMeterAudit_RequiresTo(t *testing.T) {
@@ -87,7 +87,7 @@ func TestMeterAudit_RequiresTo(t *testing.T) {
 	)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--to is required")
+	assert.Contains(t, err.Error(), `required flag(s) "to" not set`)
 }
 
 func TestMeterAudit_RequiresArg(t *testing.T) {

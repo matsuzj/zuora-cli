@@ -28,9 +28,6 @@ func NewCmdRefund(f *factory.Factory) *cobra.Command {
   zr payment refund 2c92c0f8... --body '{"amount":50,"type":"External"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runRefund(cmd, opts, args[0])
 		},
 	}

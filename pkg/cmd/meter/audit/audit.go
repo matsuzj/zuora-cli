@@ -34,18 +34,6 @@ All flags (--export-type, --run-type, --from, --to) are required.`,
   zr meter audit 402880e44c... --export-type CSV --run-type FULL --from 2026-01-01 --to 2026-01-31 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.ExportType == "" {
-				return fmt.Errorf("--export-type is required")
-			}
-			if opts.RunType == "" {
-				return fmt.Errorf("--run-type is required")
-			}
-			if opts.From == "" {
-				return fmt.Errorf("--from is required")
-			}
-			if opts.To == "" {
-				return fmt.Errorf("--to is required")
-			}
 			return runAudit(cmd, opts, args[0])
 		},
 	}
@@ -54,6 +42,10 @@ All flags (--export-type, --run-type, --from, --to) are required.`,
 	cmd.Flags().StringVar(&opts.RunType, "run-type", "", "Run type (required)")
 	cmd.Flags().StringVar(&opts.From, "from", "", "Start date (required)")
 	cmd.Flags().StringVar(&opts.To, "to", "", "End date (required)")
+	_ = cmd.MarkFlagRequired("export-type")
+	_ = cmd.MarkFlagRequired("run-type")
+	_ = cmd.MarkFlagRequired("from")
+	_ = cmd.MarkFlagRequired("to")
 
 	return cmd
 }

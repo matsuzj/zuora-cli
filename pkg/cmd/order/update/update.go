@@ -30,9 +30,6 @@ in the request body will be deleted.`,
 		Example: `  zr order update O-00000001 --body @order.json`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdate(cmd, opts, args[0])
 		},
 	}

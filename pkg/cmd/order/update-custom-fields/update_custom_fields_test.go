@@ -40,7 +40,7 @@ func TestOrderUpdateCustomFields_Success(t *testing.T) {
 func TestOrderUpdateCustomFields_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "update-custom-fields", "O-00000001")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestOrderUpdateCustomFields_RequiresArgs(t *testing.T) {

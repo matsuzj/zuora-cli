@@ -21,9 +21,6 @@ func NewCmdPreviewAsync(f *factory.Factory) *cobra.Command {
 		Example: `  zr order preview-async --body @preview.json`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runPreviewAsync(cmd, f, body)
 		},
 	}

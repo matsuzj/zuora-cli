@@ -21,9 +21,6 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Example: `  zr contact create --body @contact.json
   zr contact create --body '{"accountId":"...","firstName":"John","lastName":"Doe","country":"US"}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runCreate(cmd, f, body)
 		},
 	}

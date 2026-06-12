@@ -10,7 +10,9 @@ import (
 // RunE guards keep enforcing it.
 func AddBodyFlag(cmd *cobra.Command, dest *string, required bool) {
 	cmd.Flags().StringVarP(dest, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
-	_ = required
+	if required {
+		_ = cmd.MarkFlagRequired("body")
+	}
 }
 
 // AddConfirmFlag registers the canonical --confirm flag. operation is the

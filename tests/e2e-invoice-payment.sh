@@ -40,7 +40,7 @@ echo "  Testing: invoice email without argument"
 expect_fail "invoice email validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR invoice email
 
 echo "  Testing: payment create without --body"
-expect_fail "payment create validation → requires --body" "--body is required" -- $ZR payment create
+expect_fail "payment create validation → requires --body" 'required flag(s) "body" not set' -- $ZR payment create
 
 echo "  Testing: payment apply without argument"
 expect_fail "payment apply validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR payment apply

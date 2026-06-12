@@ -26,9 +26,6 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Example: `  zr billrun create --body @billrun.json
   zr billrun create --body '{"batches":["AllBatches"],"targetDate":"2026-06-30"}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runCreate(cmd, opts)
 		},
 	}

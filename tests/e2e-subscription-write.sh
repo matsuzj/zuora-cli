@@ -243,7 +243,7 @@ header "Step 6: subscription cancel (SUB_A)"
 # 6a: Missing --policy or --body
 echo "  Testing: cancel without --policy or --body"
 CANCEL_ERR=$($ZR subscription cancel "$SUB_A" 2>&1) || true
-if echo "$CANCEL_ERR" | grep -q "\-\-policy or \-\-body is required"; then
+if echo "$CANCEL_ERR" | grep -q "at least one of the flags in the group"; then
   pass "cancel validation → requires --policy or --body"
 else
   fail "cancel validation → unexpected: $CANCEL_ERR"
@@ -304,7 +304,7 @@ header "Step 7: subscription suspend (SUB_B)"
 # 7a: Missing --policy
 echo "  Testing: suspend without --policy"
 SUSP_ERR=$($ZR subscription suspend "$SUB_B" 2>&1) || true
-if echo "$SUSP_ERR" | grep -q "\-\-policy or \-\-body is required"; then
+if echo "$SUSP_ERR" | grep -q "at least one of the flags in the group"; then
   pass "suspend validation → requires --policy or --body"
 else
   fail "suspend validation → unexpected: $SUSP_ERR"
@@ -346,7 +346,7 @@ header "Step 8: subscription resume (SUB_B)"
 # 8a: Missing --policy
 echo "  Testing: resume without --policy"
 RES_ERR=$($ZR subscription resume "$SUB_B" 2>&1) || true
-if echo "$RES_ERR" | grep -q "\-\-policy or \-\-body is required"; then
+if echo "$RES_ERR" | grep -q "at least one of the flags in the group"; then
   pass "resume validation → requires --policy or --body"
 else
   fail "resume validation → unexpected: $RES_ERR"

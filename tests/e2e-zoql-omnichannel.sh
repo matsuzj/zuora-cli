@@ -238,7 +238,7 @@ echo "  Testing: omnichannel get without argument"
 expect_fail "omnichannel get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR omnichannel get
 
 echo "  Testing: omnichannel create without --body"
-expect_fail "omnichannel create validation → requires --body" "--body is required" -- $ZR omnichannel create
+expect_fail "omnichannel create validation → requires --body" 'required flag(s) "body" not set' -- $ZR omnichannel create
 
 echo "  Testing: omnichannel delete without argument"
 expect_fail "omnichannel delete validation → requires argument" \

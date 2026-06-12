@@ -2,8 +2,6 @@
 package rollover
 
 import (
-	"fmt"
-
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -27,9 +25,6 @@ func NewCmdRollover(f *factory.Factory) *cobra.Command {
   zr prepaid rollover --body '{"subscriptionNumber":"A-S001"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runRollover(cmd, opts)
 		},
 	}

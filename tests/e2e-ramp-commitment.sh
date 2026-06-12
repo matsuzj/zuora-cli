@@ -110,13 +110,13 @@ fi
 header "Step 4: Fulfillment Validation"
 # ─────────────────────────────────────────
 echo "  Testing: fulfillment create without --body"
-expect_fail "fulfillment create validation → requires --body" "--body is required" -- $ZR fulfillment create
+expect_fail "fulfillment create validation → requires --body" 'required flag(s) "body" not set' -- $ZR fulfillment create
 
 echo "  Testing: fulfillment get without argument"
 expect_fail "fulfillment get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR fulfillment get
 
 echo "  Testing: fulfillment update without --body"
-expect_fail "fulfillment update validation → requires --body" "--body is required" -- $ZR fulfillment update FAKE-ID
+expect_fail "fulfillment update validation → requires --body" 'required flag(s) "body" not set' -- $ZR fulfillment update FAKE-ID
 
 echo "  Testing: fulfillment delete without --confirm"
 expect_fail "fulfillment delete validation → requires --confirm" \
@@ -126,7 +126,7 @@ expect_fail "fulfillment delete validation → requires --confirm" \
 header "Step 5: Fulfillment-Item Validation"
 # ─────────────────────────────────────────
 echo "  Testing: fulfillment-item create without --body"
-expect_fail "fulfillment-item create validation → requires --body" "--body is required" -- $ZR fulfillment-item create
+expect_fail "fulfillment-item create validation → requires --body" 'required flag(s) "body" not set' -- $ZR fulfillment-item create
 
 echo "  Testing: fulfillment-item get without argument"
 expect_fail "fulfillment-item get validation → requires argument" \
@@ -134,7 +134,7 @@ expect_fail "fulfillment-item get validation → requires argument" \
 
 echo "  Testing: fulfillment-item update without --body"
 expect_fail "fulfillment-item update validation → requires --body" \
-  "--body is required" -- $ZR fulfillment-item update FAKE-ID
+  'required flag(s) "body" not set' -- $ZR fulfillment-item update FAKE-ID
 
 echo "  Testing: fulfillment-item delete without --confirm"
 expect_fail "fulfillment-item delete validation → requires --confirm" \
@@ -144,13 +144,13 @@ expect_fail "fulfillment-item delete validation → requires --confirm" \
 header "Step 6: Prepaid Validation"
 # ─────────────────────────────────────────
 echo "  Testing: prepaid rollover without --body"
-expect_fail "prepaid rollover validation → requires --body" "--body is required" -- $ZR prepaid rollover
+expect_fail "prepaid rollover validation → requires --body" 'required flag(s) "body" not set' -- $ZR prepaid rollover
 
 echo "  Testing: prepaid deplete without --body"
-expect_fail "prepaid deplete validation → requires --body" "--body is required" -- $ZR prepaid deplete
+expect_fail "prepaid deplete validation → requires --body" 'required flag(s) "body" not set' -- $ZR prepaid deplete
 
 echo "  Testing: prepaid reverse-rollover without --body"
-expect_fail "prepaid reverse-rollover validation → requires --body" "--body is required" -- $ZR prepaid reverse-rollover
+expect_fail "prepaid reverse-rollover validation → requires --body" 'required flag(s) "body" not set' -- $ZR prepaid reverse-rollover
 
 # ─────────────────────────────────────────
 header "Summary"

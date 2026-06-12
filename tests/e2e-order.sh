@@ -267,7 +267,7 @@ echo "  Testing: order get without arg"
 expect_fail "order get validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order get
 
 echo "  Testing: order create without --body"
-expect_fail "order create validation → requires --body" "--body is required" -- $ZR order create
+expect_fail "order create validation → requires --body" 'required flag(s) "body" not set' -- $ZR order create
 
 echo "  Testing: order activate without arg"
 expect_fail "order activate validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order activate
@@ -283,7 +283,7 @@ echo "  Testing: order update without arg"
 expect_fail "order update validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order update
 
 echo "  Testing: order update without --body"
-expect_fail "order update validation → requires --body" "--body is required" -- $ZR order update O-FAKE
+expect_fail "order update validation → requires --body" 'required flag(s) "body" not set' -- $ZR order update O-FAKE
 
 echo "  Testing: order update-custom-fields without arg"
 expect_fail "order update-custom-fields validation → requires arg" \
@@ -291,7 +291,7 @@ expect_fail "order update-custom-fields validation → requires arg" \
 
 echo "  Testing: order update-custom-fields without --body"
 expect_fail "order update-custom-fields validation → requires --body" \
-  "--body is required" -- $ZR order update-custom-fields O-FAKE
+  'required flag(s) "body" not set' -- $ZR order update-custom-fields O-FAKE
 
 echo "  Testing: order update-trigger-dates without arg"
 expect_fail "order update-trigger-dates validation → requires arg" \
@@ -299,16 +299,16 @@ expect_fail "order update-trigger-dates validation → requires arg" \
 
 echo "  Testing: order update-trigger-dates without --body"
 expect_fail "order update-trigger-dates validation → requires --body" \
-  "--body is required" -- $ZR order update-trigger-dates O-FAKE
+  'required flag(s) "body" not set' -- $ZR order update-trigger-dates O-FAKE
 
 echo "  Testing: order revert without arg"
 expect_fail "order revert validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order revert
 
 echo "  Testing: order create-async without --body"
-expect_fail "order create-async validation → requires --body" "--body is required" -- $ZR order create-async
+expect_fail "order create-async validation → requires --body" 'required flag(s) "body" not set' -- $ZR order create-async
 
 echo "  Testing: order preview-async without --body"
-expect_fail "order preview-async validation → requires --body" "--body is required" -- $ZR order preview-async
+expect_fail "order preview-async validation → requires --body" 'required flag(s) "body" not set' -- $ZR order preview-async
 
 echo "  Testing: order delete-async without arg"
 expect_fail "order delete-async validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order delete-async
@@ -333,7 +333,7 @@ echo "  Testing: order-line-item update without arg"
 expect_fail "order-line-item update validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order-line-item update
 
 echo "  Testing: order-line-item bulk-update without --body"
-expect_fail "order-line-item bulk-update validation → requires --body" "--body is required" -- $ZR order-line-item bulk-update
+expect_fail "order-line-item bulk-update validation → requires --body" 'required flag(s) "body" not set' -- $ZR order-line-item bulk-update
 
 # ─────────────────────────────────────────
 header "Step 9: order list-by-* (live reads)"

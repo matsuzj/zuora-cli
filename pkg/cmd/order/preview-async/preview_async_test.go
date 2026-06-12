@@ -39,5 +39,5 @@ func TestOrderPreviewAsync_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "preview-async")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

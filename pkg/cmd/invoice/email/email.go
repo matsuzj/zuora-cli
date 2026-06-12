@@ -28,9 +28,6 @@ func NewCmdEmail(f *factory.Factory) *cobra.Command {
   zr invoice email 2c92c0f8... --body @email.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runEmail(cmd, opts, args[0])
 		},
 	}

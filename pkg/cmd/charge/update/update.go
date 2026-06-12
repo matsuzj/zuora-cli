@@ -29,9 +29,6 @@ The charge ID is specified in the request body.`,
   zr charge update --body '{"id":"...","name":"Updated Charge"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdate(cmd, opts)
 		},
 	}

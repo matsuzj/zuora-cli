@@ -41,7 +41,7 @@ func TestCancel_WithBody(t *testing.T) {
 func TestCancel_RequiresPolicyOrBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "cancel", "A-S001")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--policy or --body")
+	assert.Contains(t, err.Error(), "at least one of the flags in the group [body policy] is required")
 }
 
 func TestCancel_SpecificDateRequiresEffectiveDate(t *testing.T) {

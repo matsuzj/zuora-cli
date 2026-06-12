@@ -2,8 +2,6 @@
 package deplete
 
 import (
-	"fmt"
-
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -30,9 +28,6 @@ This irreversibly consumes prepaid balance. Use --confirm to proceed.`,
   zr prepaid deplete --body '{"amount":100,"currency":"USD"}' --confirm`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
 				return err
 			}

@@ -31,16 +31,16 @@ echo "  Testing: product get without argument"
 expect_fail "product get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR product get
 
 echo "  Testing: product list-legacy without --body"
-expect_fail "product list-legacy validation → requires --body" "--body is required" -- $ZR product list-legacy
+expect_fail "product list-legacy validation → requires --body" 'required flag(s) "body" not set' -- $ZR product list-legacy
 
 echo "  Testing: plan get without --key"
 expect_fail "plan get validation → requires --key" "--key is required" -- $ZR plan get
 
 echo "  Testing: plan list without --body"
-expect_fail "plan list validation → requires --body" "--body is required" -- $ZR plan list
+expect_fail "plan list validation → requires --body" 'required flag(s) "body" not set' -- $ZR plan list
 
 echo "  Testing: plan purchase-options without --plan"
-expect_fail "plan purchase-options validation → requires --plan" "--plan is required" -- $ZR plan purchase-options
+expect_fail "plan purchase-options validation → requires --plan" 'required flag(s) "plan" not set' -- $ZR plan purchase-options
 
 echo "  Testing: charge get without --key"
 expect_fail "charge get validation → requires --key" "--key is required" -- $ZR charge get
@@ -52,25 +52,25 @@ expect_fail "rateplan get validation → requires argument" "accepts 1 arg(s), r
 header "Step 2: Validation (mutating commands)"
 # ─────────────────────────────────────────
 echo "  Testing: product create without --body"
-expect_fail "product create validation → requires --body" "--body is required" -- $ZR product create
+expect_fail "product create validation → requires --body" 'required flag(s) "body" not set' -- $ZR product create
 
 echo "  Testing: product update without --body"
-expect_fail "product update validation → requires --body" "--body is required" -- $ZR product update
+expect_fail "product update validation → requires --body" 'required flag(s) "body" not set' -- $ZR product update
 
 echo "  Testing: plan create without --body"
-expect_fail "plan create validation → requires --body" "--body is required" -- $ZR plan create
+expect_fail "plan create validation → requires --body" 'required flag(s) "body" not set' -- $ZR plan create
 
 echo "  Testing: plan update without --body"
-expect_fail "plan update validation → requires --body" "--body is required" -- $ZR plan update
+expect_fail "plan update validation → requires --body" 'required flag(s) "body" not set' -- $ZR plan update
 
 echo "  Testing: charge create without --body"
-expect_fail "charge create validation → requires --body" "--body is required" -- $ZR charge create
+expect_fail "charge create validation → requires --body" 'required flag(s) "body" not set' -- $ZR charge create
 
 echo "  Testing: charge update without --body"
-expect_fail "charge update validation → requires --body" "--body is required" -- $ZR charge update
+expect_fail "charge update validation → requires --body" 'required flag(s) "body" not set' -- $ZR charge update
 
 echo "  Testing: charge update-tiers without --body"
-expect_fail "charge update-tiers validation → requires --body" "--body is required" -- $ZR charge update-tiers
+expect_fail "charge update-tiers validation → requires --body" 'required flag(s) "body" not set' -- $ZR charge update-tiers
 
 # ─────────────────────────────────────────
 header "Step 3: NoArgs rejection (stray positional)"

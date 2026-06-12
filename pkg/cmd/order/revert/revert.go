@@ -27,9 +27,6 @@ This action is irreversible. Use --confirm to proceed.`,
   zr order revert O-00000001 --body @revert.json --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err
 			}

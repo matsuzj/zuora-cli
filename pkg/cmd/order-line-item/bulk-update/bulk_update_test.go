@@ -64,6 +64,6 @@ func TestOrderLineItemBulkUpdate_RequiresBody(t *testing.T) {
 		"order-line-item", "bulk-update")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 	assert.False(t, called, "no HTTP call should be made when --body is omitted")
 }

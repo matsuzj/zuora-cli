@@ -29,9 +29,6 @@ The plan ID is specified in the request body.`,
   zr plan update --body '{"id":"...","name":"Updated Plan"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdate(cmd, opts)
 		},
 	}

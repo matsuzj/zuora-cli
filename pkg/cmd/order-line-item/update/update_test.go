@@ -42,7 +42,7 @@ func TestOrderLineItemUpdate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order-line-item", newCmd, nil, "order-line-item", "update", "OLI-001")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestOrderLineItemUpdate_RequiresArg(t *testing.T) {

@@ -28,9 +28,6 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
   zr fulfillment-item update 2c92c0f8... --body '{"quantity":10}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runUpdate(cmd, opts, args[0])
 		},
 	}

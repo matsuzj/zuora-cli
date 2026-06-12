@@ -43,5 +43,5 @@ func TestUsageCreate_SuccessFalse(t *testing.T) {
 func TestUsageCreate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "create")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

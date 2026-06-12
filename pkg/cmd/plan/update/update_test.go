@@ -38,5 +38,5 @@ func TestPlanUpdate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "plan", newCmd, nil, "plan", "update")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--body is required")
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

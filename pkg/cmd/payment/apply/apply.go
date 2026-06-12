@@ -28,9 +28,6 @@ func NewCmdApply(f *factory.Factory) *cobra.Command {
   zr payment apply 2c92c0f8... --body '{"invoices":[{"invoiceId":"2c92c0f8...","amount":50}]}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Body == "" {
-				return fmt.Errorf("--body is required")
-			}
 			return runApply(cmd, opts, args[0])
 		},
 	}

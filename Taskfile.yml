@@ -25,6 +25,11 @@ tasks:
     desc: Run E2E suites against the authenticated tenant (requires `zr auth login`)
     cmds:
       - make e2e ARGS="{{.CLI_ARGS}}"
+  release-check:
+    desc: Full pre-tag gate (ci + live e2e + goreleaser config)
+    cmds:
+      - make release-check
+
 
   lint:
     desc: Run linters (go vet + staticcheck pinned via go.mod's tool directive)

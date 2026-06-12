@@ -15,7 +15,9 @@ func NewCmdChangelogVersion(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changelog-version <subscription-number> <version>",
 		Short: "Get subscription change log for a specific version",
-		Long:  `Get change log for a specific subscription version.`,
+		Long: `Get change log for a specific subscription version.
+
+This endpoint accepts a subscription NUMBER (e.g. A-S00000001), not a subscription ID.`,
 		Example: `  zr subscription changelog-version S-00000001 1
   zr subscription changelog-version S-00000001 2 --json`,
 		Args: cobra.ExactArgs(2),

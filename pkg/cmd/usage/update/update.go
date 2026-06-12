@@ -21,7 +21,7 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	opts := &updateOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "update <id>",
+		Use:   "update <usage-id>",
 		Short: "Update a usage record",
 		Long:  `Update a usage record by ID via the CRUD API.`,
 		Example: `  zr usage update 2c92a0f96bd... --body @usage.json

@@ -429,3 +429,30 @@ func TestList_DeprecatedAliasHiddenAndMarked(t *testing.T) {
 	assert.False(t, canonical.Hidden)
 	assert.Empty(t, canonical.Deprecated)
 }
+
+// TestList_OmitZeroIntFlagSkippedWhenUnset pins the P5-3c page-size
+// normalization: an Int+OmitZero flag is sent only when non-zero.
+func TestList_OmitZeroIntFlagSkippedWhenUnset(t *testing.T) {
+	spec := listcmd.Spec{
+		Use: "list",
+		Flags: []listcmd.Flag{
+			{Name: "page-size", Query: "pageSize", Usage: "n", Int: true, OmitZero: true},
+		},
+		Path:     func([]string, map[string]string) string { return "/v1/demo" },
+		ItemsKey: "items",
+		Columns:  []listcmd.ColumnSpec{{Header: "ID", Key: "id"}},
+	}
+	var got url.Values
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+		fmt.Fprint(w, `{"items": []}`)
+	}
+
+	_, _, err := cmdtest.Run(t, "demo", newCmd(spec), handler, "demo", "list")
+	require.NoError(t, err)
+	assert.False(t, got.Has("pageSize"), "zero value must not be sent")
+
+	_, _, err = cmdtest.Run(t, "demo", newCmd(spec), handler, "demo", "list", "--page-size", "5")
+	require.NoError(t, err)
+	assert.Equal(t, "5", got.Get("pageSize"))
+}

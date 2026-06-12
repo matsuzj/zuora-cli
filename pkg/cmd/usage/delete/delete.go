@@ -21,7 +21,7 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 	opts := &deleteOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "delete <id>",
+		Use:   "delete <usage-id>",
 		Short: "Delete a usage record",
 		Long: `Delete a usage record by ID via the CRUD API.
 

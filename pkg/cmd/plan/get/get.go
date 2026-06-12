@@ -21,21 +21,29 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	opts := &getOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "get",
+		Use:   "get <rate-plan-key>",
 		Short: "Get a commerce plan by key",
 		Long:  `Get a Zuora commerce plan by querying with a rate plan key.`,
-		Example: `  zr plan get --key RPK-001
-  zr plan get --key RPK-001 --json`,
-		Args: cobra.NoArgs,
+		Example: `  zr plan get RPK-001
+  zr plan get RPK-001 --json`,
+		// One positional key; RangeArgs keeps the deprecated --key form
+		// parseable through v0.5.x (removed in v0.6.0).
+		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				opts.Key = args[0]
+			}
 			if opts.Key == "" {
-				return fmt.Errorf("--key is required")
+				// cobra's ExactArgs(1) wording — what this command becomes
+				// once the deprecated --key alias is removed.
+				return fmt.Errorf("accepts 1 arg(s), received 0")
 			}
 			return runGet(cmd, opts)
 		},
 	}
 
 	cmd.Flags().StringVar(&opts.Key, "key", "", "Rate plan key (product_rate_plan_key)")
+	_ = cmd.Flags().MarkDeprecated("key", "pass the key as a positional argument instead")
 
 	return cmd
 }

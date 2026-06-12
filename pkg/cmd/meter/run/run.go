@@ -14,7 +14,7 @@ import (
 // NewCmdRun creates the meter run command.
 func NewCmdRun(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run <meterId> <version>",
+		Use:   "run <meter-id> <version>",
 		Short: "Run a usage meter",
 		Long:  `Run a usage meter by meter ID and version.`,
 		Example: `  zr meter run 402880e44c...  1

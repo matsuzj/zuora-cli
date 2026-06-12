@@ -59,6 +59,11 @@ type Flag struct {
 	// Enum registers shell completion offering these fixed values (P5-3b).
 	// Suggestions only — values are not validated client-side.
 	Enum []string
+	// OmitZero (Int flags only) skips the query parameter when the value is
+	// 0 — the "not specified" state for flags converted from string to Int
+	// (P5-3c). Plain Int flags without OmitZero are ALWAYS sent, matching
+	// account list's --page-size default 20.
+	OmitZero bool
 }
 
 // NextPage declares how the canonical pagination hint carries the next-page
@@ -194,6 +199,9 @@ func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, st
 		}
 		switch {
 		case fl.Int:
+			if fl.OmitZero && *intVals[fl.Name] == 0 {
+				continue
+			}
 			reqOpts = append(reqOpts, api.WithQuery(fl.Query, strconv.Itoa(*intVals[fl.Name])))
 		case fl.Repeatable:
 			if vals := *arrVals[fl.Name]; len(vals) > 0 {

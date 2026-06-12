@@ -24,7 +24,7 @@ func NewCmdSummary(f *factory.Factory) *cobra.Command {
 	opts := &summaryOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "summary <meterId>",
+		Use:   "summary <meter-id>",
 		Short: "Get meter run summary",
 		Long: `Get a summary of meter runs for a usage meter.
 

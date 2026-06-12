@@ -22,7 +22,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 			{Name: "account-number", Query: "accountNumber", Usage: "Filter by account number"},
 			{Name: "status", Query: "status", Usage: "Filter by status (e.g. Draft, Posted, Cancelled)", Enum: []string{"Draft", "Posted", "Cancelled"}},
 			{Name: "page", Query: "page", Usage: "Page number"},
-			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page"},
+			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page", Int: true, OmitZero: true},
 		},
 		Path: func(args []string, flags map[string]string) string {
 			return "/v1/creditmemos"

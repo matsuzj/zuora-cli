@@ -21,7 +21,7 @@ func NewCmdListByInvoiceOwner(f *factory.Factory) *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		Flags: []listcmd.Flag{
 			{Name: "page", Query: "page", Usage: "Page number"},
-			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page"},
+			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page", Int: true, OmitZero: true},
 		},
 		Path: func(args []string, flags map[string]string) string {
 			return fmt.Sprintf("/v1/orders/invoiceOwner/%s", url.PathEscape(args[0]))

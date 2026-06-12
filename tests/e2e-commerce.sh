@@ -34,7 +34,7 @@ echo "  Testing: product list-legacy without --body"
 expect_fail "product list-legacy validation → requires --body" 'required flag(s) "body" not set' -- $ZR product list-legacy
 
 echo "  Testing: plan get without --key"
-expect_fail "plan get validation → requires --key" "--key is required" -- $ZR plan get
+expect_fail "plan get validation → requires the key arg" "accepts 1 arg(s), received 0" -- $ZR plan get
 
 echo "  Testing: plan list without --body"
 expect_fail "plan list validation → requires --body" 'required flag(s) "body" not set' -- $ZR plan list
@@ -43,7 +43,7 @@ echo "  Testing: plan purchase-options without --plan"
 expect_fail "plan purchase-options validation → requires --plan" 'required flag(s) "plan" not set' -- $ZR plan purchase-options
 
 echo "  Testing: charge get without --key"
-expect_fail "charge get validation → requires --key" "--key is required" -- $ZR charge get
+expect_fail "charge get validation → requires the key arg" "accepts 1 arg(s), received 0" -- $ZR charge get
 
 echo "  Testing: rateplan get without argument"
 expect_fail "rateplan get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR rateplan get

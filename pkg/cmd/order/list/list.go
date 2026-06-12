@@ -19,7 +19,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		Flags: []listcmd.Flag{
 			{Name: "status", Query: "status", Usage: "Filter by order status"},
 			{Name: "page", Query: "page", Usage: "Page number"},
-			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page"},
+			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page", Int: true, OmitZero: true},
 		},
 		Path: func(args []string, flags map[string]string) string {
 			return "/v1/orders"

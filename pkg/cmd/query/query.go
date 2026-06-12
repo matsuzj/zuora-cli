@@ -18,7 +18,6 @@ import (
 
 type queryOptions struct {
 	Factory *factory.Factory
-	CSV     bool
 	Export  string
 	Limit   int
 }
@@ -44,7 +43,6 @@ Automatically paginates through all results using queryMore.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.CSV, "csv", false, "Output as CSV")
 	cmd.Flags().StringVar(&opts.Export, "export", "", "Export results to file")
 	cmd.Flags().IntVar(&opts.Limit, "limit", 0, "Maximum number of rows (0 = all)")
 
@@ -159,7 +157,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 	}
 
 	// NOTE: this must stay ABOVE the --csv branch: with --jq/--json/--template
-	// combined with query's own --csv, the JSON-family flags win today, and
+	// combined with the inherited global --csv, the JSON-family flags win today, and
 	// RenderJSON preserves exactly that precedence (JQ > JSON > Template).
 	if handled, err := output.RenderJSON(ios, combined, fmtOpts); handled || err != nil {
 		return err
@@ -174,7 +172,7 @@ func runQuery(cmd *cobra.Command, opts *queryOptions, zoql string) (retErr error
 		cols[i] = output.Column{Header: c}
 	}
 
-	if opts.CSV {
+	if fmtOpts.CSV {
 		return output.PrintCSV(outWriter, rows, cols)
 	}
 

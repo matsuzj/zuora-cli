@@ -1,0 +1,456 @@
+package auth
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/matsuzj/zuora-cli/internal/config"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// ——— moved verbatim from auth_test.go (P4-3 test consolidation) ———
+
+func TestToken_CachedValid(t *testing.T) {
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: "http://unused"}
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "cached-token",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+	}))
+
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  NewMockCredentialStore(),
+	}
+
+	token, err := ts.Token("sandbox")
+	assert.NoError(t, err)
+	assert.Equal(t, "cached-token", token)
+}
+
+func TestToken_CachedExpired_Refresh(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/oauth/token", r.URL.Path)
+		assert.Equal(t, "POST", r.Method)
+
+		require.NoError(t, r.ParseForm())
+		assert.Equal(t, "client_credentials", r.PostForm.Get("grant_type"))
+		assert.Equal(t, "test-id", r.PostForm.Get("client_id"))
+		assert.Equal(t, "test-secret", r.PostForm.Get("client_secret"))
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "new-token",
+			"token_type":   "bearer",
+			"expires_in":   3600,
+		})
+	}))
+	defer server.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "old-token",
+		ExpiresAt:   time.Now().Add(-1 * time.Hour),
+	}))
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", "test-secret"))
+
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  creds,
+	}
+
+	token, err := ts.Token("sandbox")
+	assert.NoError(t, err)
+	assert.Equal(t, "new-token", token)
+
+	// Verify token was persisted
+	cached, err := cfg.Token("sandbox")
+	assert.NoError(t, err)
+	assert.Equal(t, "new-token", cached.AccessToken)
+	assert.True(t, cached.IsValid())
+	assert.Equal(t, 1, cfg.SaveCallCount)
+}
+
+func TestToken_NoCredentials(t *testing.T) {
+	cfg := config.NewMockConfig()
+	creds := NewMockCredentialStore()
+
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  creds,
+	}
+
+	_, err := ts.Token("sandbox")
+	assert.Error(t, err)
+
+	var authErr *AuthError
+	assert.ErrorAs(t, err, &authErr)
+	assert.Contains(t, authErr.Hint, "zr auth login")
+}
+
+func TestToken_AuthFailed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"invalid_client"}`))
+	}))
+	defer server.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "bad-id", "bad-secret"))
+
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  creds,
+	}
+
+	_, err := ts.Token("sandbox")
+	assert.Error(t, err)
+
+	var authErr *AuthError
+	assert.ErrorAs(t, err, &authErr)
+	assert.Equal(t, 2, authErr.ExitCode())
+}
+
+// TestToken_ServerError_ExitCode covers that a 5xx from the OAuth server is
+// classified as a server error (exit 4, matching APIError) rather than a
+// credential error (exit 2), and that the status is recorded on the AuthError.
+func TestToken_ServerError_ExitCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable) // 503
+		w.Write([]byte(`{"error":"temporarily_unavailable"}`))
+	}))
+	defer server.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "id", "secret"))
+
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  creds,
+	}
+
+	_, err := ts.Token("sandbox")
+	require.Error(t, err)
+
+	var authErr *AuthError
+	require.ErrorAs(t, err, &authErr)
+	assert.Equal(t, 503, authErr.StatusCode)
+	assert.Equal(t, 4, authErr.ExitCode(), "OAuth 5xx must map to the server exit code (4)")
+}
+
+// ——— moved verbatim from oauth_force_test.go (P4-3 test consolidation) ———
+
+// ForceRefresh must fetch a brand-new token from the OAuth endpoint even when a
+// still-valid token is cached. This is the distinguishing behavior from Token,
+// which would return the cached value without contacting the server. A regression
+// that made ForceRefresh consult the cache (like Token does) would silently keep
+// returning a stale/revoked token after a 401, which is exactly what ForceRefresh
+// exists to avoid.
+func TestForceRefresh_IgnoresValidCacheAndFetchesNew(t *testing.T) {
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		require.Equal(t, "/oauth/token", r.URL.Path)
+		require.Equal(t, http.MethodPost, r.Method)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"forced-token","token_type":"bearer","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: srv.URL}
+	// Seed a still-valid cached token. Token() would return this untouched.
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "cached-token",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+	}))
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", "test-secret"))
+	ts := &TokenSource{Config: cfg, Creds: creds}
+
+	// Sanity guard: with the same valid cache, Token returns the cached value
+	// and does NOT hit the server.
+	tok, err := ts.Token("sandbox")
+	require.NoError(t, err)
+	require.Equal(t, "cached-token", tok)
+	require.Equal(t, int32(0), atomic.LoadInt32(&hits), "Token must serve a valid cache without a network call")
+
+	// ForceRefresh must bypass that valid cache and fetch anew.
+	forced, err := ts.ForceRefreshContext(context.Background(), "sandbox")
+	require.NoError(t, err)
+	assert.Equal(t, "forced-token", forced, "ForceRefresh must return the freshly fetched token, not the cache")
+	assert.Equal(t, int32(1), atomic.LoadInt32(&hits), "ForceRefresh must contact the OAuth endpoint exactly once")
+
+	// The new token must replace the cached one and be persisted.
+	cached, err := cfg.Token("sandbox")
+	require.NoError(t, err)
+	assert.Equal(t, "forced-token", cached.AccessToken, "ForceRefresh must overwrite the cached token")
+	assert.Equal(t, 1, cfg.SaveCallCount, "the refreshed token must be saved")
+}
+
+// ForceRefreshContext is the cancellable variant; it must thread the context to
+// the OAuth request. A context cancelled before the call must abort without
+// contacting the server, proving the forced path honours cancellation rather
+// than blocking on the HTTP client timeout.
+func TestForceRefreshContext_CancelledBeforeCall_Aborts(t *testing.T) {
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.Write([]byte(`{"access_token":"x","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: srv.URL}
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "id", "secret"))
+	ts := &TokenSource{Config: cfg, Creds: creds}
+
+	ctx, cancel := newCancelledContext()
+	defer cancel()
+
+	start := time.Now()
+	_, err := ts.ForceRefreshContext(ctx, "sandbox")
+	elapsed := time.Since(start)
+
+	require.Error(t, err, "a cancelled context must abort the forced refresh")
+	assert.Less(t, elapsed, 2*time.Second, "must fail fast, not wait for the client timeout")
+	assert.Equal(t, int32(0), atomic.LoadInt32(&hits), "no OAuth request should be sent once the context is cancelled")
+}
+
+// ——— moved verbatim from oauth_edge_test.go (P4-3 test consolidation) ———
+
+// newTokenSource builds a TokenSource whose "sandbox" environment points at the
+// given test server, with credentials already present.
+func newTokenSource(t *testing.T, baseURL string) *TokenSource {
+	t.Helper()
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: baseURL}
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", "test-secret"))
+	return &TokenSource{Config: cfg, Creds: creds}
+}
+
+func TestRefresh_EmptyAccessToken_ErrorsAndDoesNotCache(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"access_token":"","token_type":"bearer","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	ts := newTokenSource(t, srv.URL)
+	_, err := ts.refresh(context.Background(), "sandbox")
+	require.Error(t, err, "an empty access_token must be rejected, not cached")
+
+	cached, _ := ts.Config.Token("sandbox")
+	if cached != nil {
+		assert.Empty(t, cached.AccessToken, "an empty token must not be cached as if valid")
+	}
+}
+
+func TestRefresh_NonJSON200_Errors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`<html>not json</html>`))
+	}))
+	defer srv.Close()
+
+	ts := newTokenSource(t, srv.URL)
+	_, err := ts.refresh(context.Background(), "sandbox")
+	require.Error(t, err)
+}
+
+func TestRefresh_HTTPError_TruncatesBody(t *testing.T) {
+	// The body must be LONGER than the 200-character cut so this test
+	// actually exercises the truncation branch — the original fixture sent
+	// 26 bytes and passed with the branch deleted (hollow-test audit).
+	longBody := `{"error":"invalid_client","detail":"` + strings.Repeat("x", 300) + `"}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(401)
+		w.Write([]byte(longBody))
+	}))
+	defer srv.Close()
+
+	ts := newTokenSource(t, srv.URL)
+	_, err := ts.refresh(context.Background(), "sandbox")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication failed")
+	assert.Contains(t, err.Error(), "...", "long bodies must be truncated with an ellipsis")
+	assert.NotContains(t, err.Error(), strings.Repeat("x", 201), "no more than 200 chars of the body may leak")
+}
+
+func TestRefresh_StoresExpiry(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"access_token":"tok","token_type":"bearer","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	ts := newTokenSource(t, srv.URL)
+	tok, err := ts.refresh(context.Background(), "sandbox")
+	require.NoError(t, err)
+	assert.Equal(t, "tok", tok)
+
+	cached, err := ts.Config.Token("sandbox")
+	require.NoError(t, err)
+	require.NotNil(t, cached)
+	assert.True(t, cached.IsValid(), "a freshly refreshed token must be valid")
+}
+
+// ——— moved verbatim from oauth_redirect_test.go (P4-3 test consolidation) ———
+
+// A redirecting OAuth token endpoint must NOT have its redirect followed, so the
+// client_secret in the POST body can never be forwarded to the redirect target.
+func TestOAuth_DoesNotFollowRedirect_SecretNotLeaked(t *testing.T) {
+	var attackerGotSecret bool
+	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		if r.PostForm.Get("client_secret") != "" {
+			attackerGotSecret = true
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer attacker.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, attacker.URL+"/oauth/token", http.StatusTemporaryRedirect)
+	}))
+	defer origin.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: origin.URL}
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "old-token",
+		ExpiresAt:   time.Now().Add(-1 * time.Hour),
+	}))
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", "SUPERSECRET"))
+
+	// HTTPClient nil => the default client, which refuses to follow redirects.
+	ts := &TokenSource{Config: cfg, Creds: creds}
+
+	_, err := ts.Token("sandbox")
+	require.Error(t, err, "a redirecting token endpoint must not yield a token")
+	assert.False(t, attackerGotSecret, "client_secret must never be forwarded to the redirect target")
+}
+
+// Same protection must apply when the caller INJECTS an http.Client without its
+// own redirect policy — otherwise the client_secret would still leak on a
+// redirect. (Gap found by a second-opinion review of the default-only fix.)
+func TestOAuth_InjectedClient_DoesNotFollowRedirect(t *testing.T) {
+	var attackerGotSecret bool
+	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		if r.PostForm.Get("client_secret") != "" {
+			attackerGotSecret = true
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer attacker.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, attacker.URL+"/oauth/token", http.StatusTemporaryRedirect)
+	}))
+	defer origin.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: origin.URL}
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "old-token",
+		ExpiresAt:   time.Now().Add(-1 * time.Hour),
+	}))
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", "SUPERSECRET"))
+
+	// Injected client with NO CheckRedirect of its own.
+	injected := &http.Client{Timeout: 10 * time.Second}
+	ts := &TokenSource{Config: cfg, Creds: creds, HTTPClient: injected}
+
+	_, err := ts.Token("sandbox")
+	require.Error(t, err)
+	assert.False(t, attackerGotSecret, "client_secret must not leak even with an injected client")
+	assert.Nil(t, injected.CheckRedirect, "the caller's injected client must not be mutated")
+}
+
+// ——— moved verbatim from oauth_ctx_test.go (P4-3 test consolidation) ———
+
+// A context cancelled before the refresh starts must abort immediately with the
+// context error, rather than contacting the OAuth endpoint or blocking until the
+// client timeout.
+func TestTokenContext_AlreadyCancelled_Aborts(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.WriteHeader(200)
+		w.Write([]byte(`{"access_token":"x","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: srv.URL}
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "id", "secret"))
+	ts := &TokenSource{Config: cfg, Creds: creds}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancelled before the call
+
+	start := time.Now()
+	_, err := ts.TokenContext(ctx, "sandbox")
+	elapsed := time.Since(start)
+
+	require.Error(t, err, "a cancelled context must abort the refresh")
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, 2*time.Second, "must fail fast, not wait for the client timeout")
+	assert.Equal(t, 0, hits, "no OAuth request should be sent once the context is cancelled")
+}
+
+// A context cancelled mid-flight (while the OAuth endpoint is slow) must abort
+// well before the 30s client timeout. The server responds after a short delay
+// so the test never hangs even if cancellation propagation regresses.
+func TestTokenContext_CancelMidFlight_AbortsFast(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Respond slowly; a working cancellation should beat this.
+		select {
+		case <-r.Context().Done():
+		case <-time.After(3 * time.Second):
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"access_token":"x","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: srv.URL}
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "id", "secret"))
+	ts := &TokenSource{Config: cfg, Creds: creds}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { time.Sleep(100 * time.Millisecond); cancel() }()
+
+	start := time.Now()
+	_, err := ts.TokenContext(ctx, "sandbox")
+	elapsed := time.Since(start)
+
+	require.Error(t, err, "a cancelled mid-flight refresh must return an error")
+	assert.Less(t, elapsed, 2*time.Second, "cancellation must abort well before the 30s client timeout")
+}

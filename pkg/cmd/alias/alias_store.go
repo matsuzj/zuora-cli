@@ -3,6 +3,7 @@ package alias
 
 import (
 	"fmt"
+	"github.com/matsuzj/zuora-cli/internal/config"
 	"os"
 	"path/filepath"
 	"sort"
@@ -63,7 +64,9 @@ func (s *Store) Save() error {
 	if err != nil {
 		return fmt.Errorf("encoding aliases: %w", err)
 	}
-	return os.WriteFile(s.path, raw, 0600)
+	// Atomic replace: a crash mid-write must never leave a truncated
+	// aliases.yml (same pattern as every other config-directory file).
+	return config.AtomicWriteFile(s.path, raw, 0600)
 }
 
 // Set adds or updates an alias.

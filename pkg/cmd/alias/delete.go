@@ -12,6 +12,26 @@ func newCmdDelete(f *factory.Factory) *cobra.Command {
 		Use:   "delete <name>",
 		Short: "Delete an alias",
 		Args:  cobra.ExactArgs(1),
+		// Complete <name> with the defined alias names (P5-3b). Errors
+		// degrade to no suggestions.
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) > 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			cfg, err := f.Config()
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			store := NewStore(cfg.ConfigDir())
+			if err := store.Load(); err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			names := make([]string, 0)
+			for _, e := range store.All() {
+				names = append(names, e.Name)
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDelete(f, args[0])
 		},

@@ -54,6 +54,7 @@ Use --policy and --effective-date flags, or --body for full control.`,
 
 	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Cancellation policy (EndOfCurrentTerm, EndOfLastInvoicePeriod, SpecificDate)")
+	_ = cmd.RegisterFlagCompletionFunc("policy", cmdutil.EnumCompletion("EndOfCurrentTerm", "EndOfLastInvoicePeriod", "SpecificDate"))
 	// body OR policy: cobra enforces the disjunction; the policy-conditional
 	// date/period requirements stay handwritten in RunE.
 	cmd.MarkFlagsOneRequired("body", "policy")

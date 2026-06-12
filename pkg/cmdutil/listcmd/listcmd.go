@@ -56,6 +56,9 @@ type Flag struct {
 	// cobra's per-flag Changed bit) is what run() enforces, so the alias
 	// satisfies the requirement.
 	DeprecatedName string
+	// Enum registers shell completion offering these fixed values (P5-3b).
+	// Suggestions only — values are not validated client-side.
+	Enum []string
 }
 
 // NextPage declares how the canonical pagination hint carries the next-page
@@ -150,6 +153,9 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 			// invocations that set only the alias (it inspects the canonical
 			// flag's Changed bit, not the shared destination). run() enforces
 			// the requirement on the VALUE instead, with cobra's wording.
+		}
+		if len(fl.Enum) > 0 {
+			_ = cmd.RegisterFlagCompletionFunc(fl.Name, cmdutil.EnumCompletion(fl.Enum...))
 		}
 	}
 

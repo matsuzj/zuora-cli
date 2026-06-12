@@ -196,6 +196,13 @@ expect_ok "completion bash → emits a completion script" "# bash completion" --
 echo "  Testing: completion zsh"
 expect_ok "completion zsh → emits a completion script" "compdef" -- zr completion zsh
 
+# Dynamic completions (P5-3b): __complete is cobra's hidden completion
+# entry point; these run fully offline.
+echo "  Testing: dynamic completions (__complete)"
+expect_ok "config get <TAB> → offers config keys" "default_output" -- zr __complete config get ""
+expect_ok "subscription cancel --policy <TAB> → offers policies" "EndOfCurrentTerm" -- zr __complete subscription cancel A-1 --policy ""
+expect_ok "--env <TAB> → offers environment names" "apac-sandbox" -- zr __complete --env ""
+
 # ─────────────────────────────────────────
 header "Step 6: auth token / status (read-only, no login/logout)"
 # ─────────────────────────────────────────

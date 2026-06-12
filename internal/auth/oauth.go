@@ -102,10 +102,15 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 	if err != nil {
 		return "", err
 	}
-	// Log the credential SOURCE only — never any credential value.
-	credSource := "keyring"
-	if _, ok := ts.Creds.(*envVarStore); ok {
-		credSource = "env vars (ZR_CLIENT_ID/ZR_CLIENT_SECRET)"
+	// Log the credential SOURCE only — never any credential value. The
+	// three-way split keeps `auth login --verbose` honest: its credentials
+	// come from flags/prompt (a StaticCredentialStore), not the keyring.
+	credSource := "the OS keyring"
+	switch ts.Creds.(type) {
+	case *envVarStore:
+		credSource = "the ZR_CLIENT_ID/ZR_CLIENT_SECRET env vars"
+	case *StaticCredentialStore:
+		credSource = "explicitly provided values"
 	}
 	ts.logf("* auth: fetching token for environment %q (credentials from %s)\n", envName, credSource)
 

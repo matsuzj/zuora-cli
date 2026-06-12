@@ -492,7 +492,9 @@ func TestTokenSource_LogfObservabilityAndLeakDenial(t *testing.T) {
 	_, err := ts.TokenContext(context.Background(), "sandbox")
 	require.NoError(t, err)
 	out := buf.String()
-	assert.Contains(t, out, `* auth: fetching token for environment "sandbox" (credentials from keyring)`)
+	// MockCredentialStore IS a StaticCredentialStore — the label must say so
+	// (Codex: auth login passes one built from flags/prompt, not the keyring).
+	assert.Contains(t, out, `* auth: fetching token for environment "sandbox" (credentials from explicitly provided values)`)
 	assert.Contains(t, out, "* auth: token acquired, expires in 3600s")
 
 	// Cache hit.
@@ -536,7 +538,7 @@ func TestTokenSource_EnvVarCredentialSourceLine(t *testing.T) {
 	}
 	_, err := ts.ForceRefreshContext(context.Background(), "sandbox")
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "credentials from env vars (ZR_CLIENT_ID/ZR_CLIENT_SECRET)")
+	assert.Contains(t, buf.String(), "credentials from the ZR_CLIENT_ID/ZR_CLIENT_SECRET env vars")
 }
 
 // TestTokenSource_NilLogfIsSilent: the zero value stays a no-op.

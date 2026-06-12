@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"os"
 
 	iauth "github.com/matsuzj/zuora-cli/internal/auth"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -45,7 +44,7 @@ func runLogout(f *factory.Factory) error {
 	fmt.Fprintf(f.IOStreams.Out, "Logged out of %s\n", envName)
 
 	// Warn if env vars will still provide credentials
-	if os.Getenv("ZR_CLIENT_ID") != "" && os.Getenv("ZR_CLIENT_SECRET") != "" {
+	if _, _, ok := iauth.EnvCredentials(); ok {
 		fmt.Fprintln(f.IOStreams.ErrOut, "Note: ZR_CLIENT_ID/ZR_CLIENT_SECRET environment variables are still set.")
 		fmt.Fprintln(f.IOStreams.ErrOut, "Unset them to fully disable authentication.")
 	}

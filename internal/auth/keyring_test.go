@@ -112,3 +112,31 @@ func TestNewCredentialStore_PartialEnvFallsBackToKeyring(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "keyring-id", id, "one env var alone falls back to the keyring")
 }
+
+// EnvCredentials is the single source of the both-or-nothing rule.
+func TestEnvCredentials_BothOrNothing(t *testing.T) {
+	cases := []struct {
+		name, id, secret string
+		ok               bool
+	}{
+		{"both set", "id", "sec", true},
+		{"only id", "id", "", false},
+		{"only secret", "", "sec", false},
+		{"neither", "", "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("ZR_CLIENT_ID", c.id)
+			t.Setenv("ZR_CLIENT_SECRET", c.secret)
+			id, secret, ok := EnvCredentials()
+			assert.Equal(t, c.ok, ok)
+			if c.ok {
+				assert.Equal(t, c.id, id)
+				assert.Equal(t, c.secret, secret)
+			} else {
+				assert.Empty(t, id)
+				assert.Empty(t, secret)
+			}
+		})
+	}
+}

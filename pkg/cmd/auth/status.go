@@ -2,7 +2,7 @@ package auth
 
 import (
 	"fmt"
-	"os"
+	"github.com/matsuzj/zuora-cli/internal/auth"
 	"time"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -41,7 +41,7 @@ func runStatus(f *factory.Factory) error {
 
 	// Credential source
 	credSource := "keyring"
-	if os.Getenv("ZR_CLIENT_ID") != "" && os.Getenv("ZR_CLIENT_SECRET") != "" {
+	if _, _, ok := auth.EnvCredentials(); ok {
 		credSource = "environment variables (ZR_CLIENT_ID/ZR_CLIENT_SECRET)"
 	}
 	fmt.Fprintf(out, "Credentials: %s\n", credSource)

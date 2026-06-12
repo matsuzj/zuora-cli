@@ -20,10 +20,23 @@ type CredentialStore interface {
 	Delete(envName string) error
 }
 
+// EnvCredentials returns the ZR_CLIENT_ID/ZR_CLIENT_SECRET pair when BOTH
+// variables are set — the single source of the both-or-nothing rule every
+// consumer follows (store selection, auth status/logout displays, login
+// prefill). A single variable alone is ignored everywhere; auth login falls
+// back to flags or prompts instead of silently half-using the environment.
+func EnvCredentials() (clientID, clientSecret string, ok bool) {
+	id, secret := os.Getenv("ZR_CLIENT_ID"), os.Getenv("ZR_CLIENT_SECRET")
+	if id != "" && secret != "" {
+		return id, secret, true
+	}
+	return "", "", false
+}
+
 // NewCredentialStore creates a CredentialStore.
-// Priority: env vars > OS keyring.
+// Priority: env vars (both set) > OS keyring.
 func NewCredentialStore() CredentialStore {
-	if id, secret := os.Getenv("ZR_CLIENT_ID"), os.Getenv("ZR_CLIENT_SECRET"); id != "" && secret != "" {
+	if id, secret, ok := EnvCredentials(); ok {
 		return &envVarStore{clientID: id, clientSecret: secret}
 	}
 	return &keyringStore{}

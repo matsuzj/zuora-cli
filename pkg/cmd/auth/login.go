@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/matsuzj/zuora-cli/internal/auth"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -57,12 +56,17 @@ func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 	clientID := opts.ClientID
 	clientSecret := opts.ClientSecret
 
-	// Fall back to environment variables
-	if clientID == "" {
-		clientID = os.Getenv("ZR_CLIENT_ID")
-	}
-	if clientSecret == "" {
-		clientSecret = os.Getenv("ZR_CLIENT_SECRET")
+	// Fall back to the environment ONLY when both variables are set — the
+	// same both-or-nothing rule as credential-store selection
+	// (auth.EnvCredentials). A single env var no longer half-fills the pair;
+	// login proceeds to flags/prompts instead (behavior change, 2026-06-12).
+	if envID, envSecret, ok := auth.EnvCredentials(); ok {
+		if clientID == "" {
+			clientID = envID
+		}
+		if clientSecret == "" {
+			clientSecret = envSecret
+		}
 	}
 
 	// Interactive prompts if still not provided

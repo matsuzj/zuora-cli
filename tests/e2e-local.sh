@@ -89,11 +89,29 @@ if [ "$GOT2" = "json" ]; then
 else
   fail "config get → expected json, got '$GOT2'"
 fi
+
+# default_output=json must actually SWITCH the output format for piped
+# (non-TTY) invocations carrying no explicit format flag — the P4-3 behavior
+# change (#214). Command substitution is non-TTY by nature, so the offline
+# `version` command observes it directly.
+echo "  Testing: default_output=json switches piped output format"
+OUT_JSON=$(zr version 2>&1)
+if printf '%s' "$OUT_JSON" | jq -e '.version' >/dev/null 2>&1; then
+  pass "default_output=json → piped 'zr version' emits JSON"
+else
+  fail "default_output=json → expected JSON from 'zr version', got: $(printf '%s' "$OUT_JSON" | head -1)"
+fi
+
 # Restore the default: default_output is WIRED now (P4-3) — leaving it on
 # json would flip every later piped check (and the following suites) to JSON
 # output, which is exactly what broke the alias-execution check when the
 # wiring first landed.
 expect_ok "config set → restores default_output" "Set default_output to table" -- zr config set default_output table
+OUT_TABLE=$(zr version 2>&1)
+case "$OUT_TABLE" in
+  "zr version"*) pass "default_output=table → 'zr version' back to human text" ;;
+  *) fail "default_output restore → expected 'zr version ...', got: $(printf '%s' "$OUT_TABLE" | head -1)" ;;
+esac
 
 # ─────────────────────────────────────────
 header "Step 3: config env"
@@ -207,6 +225,30 @@ else
     fail "auth token → unexpected: rc=$AT_RC (token value intentionally not shown)"
   fi
 fi
+
+# ─────────────────────────────────────────
+header "Step 7: output flag contract (v0.4.0 behavior changes, offline)"
+# ─────────────────────────────────────────
+# All three checks fail BEFORE any request is built, so they are exercisable
+# in the isolated, unauthenticated config dir.
+
+# Bare --csv on a JSON-only command is an explicit error since #197 (it was
+# silently ignored before). charge get rejects it pre-request.
+echo "  Testing: --csv on a JSON-only command"
+expect_fail "--csv on JSON-only command → explicit error" \
+  "--csv is not supported for JSON-only output" -- zr charge get --key FAKE --csv
+
+# List commands reject stray positional arguments (cobra.NoArgs) since the
+# P3-2 listcmd migration; previously extra args were silently ignored.
+echo "  Testing: stray positional arg on a list command"
+expect_fail "list rejects stray positional arg (NoArgs)" \
+  'unknown command "stray-arg" for "zr invoice list"' -- zr invoice list stray-arg
+
+# --json + --template is the one documented invalid flag pair (README: --jq
+# combinations are valid precedence, cf. the PR #54 regression).
+echo "  Testing: --json + --template rejection"
+expect_fail "--json + --template → rejected" \
+  "cannot use --json and --template together" -- zr version --json --template '{{.version}}'
 
 # ─────────────────────────────────────────
 header "Summary"

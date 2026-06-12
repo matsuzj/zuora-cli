@@ -70,6 +70,58 @@ else
   fail "query CSV → no header (rc=$RUN_RC) ${RUN_ERR}"
 fi
 
+# --jq + --csv is a documented-VALID combination: the JSON family wins over
+# --csv (README precedence; cf. the PR #54 regression where rejecting this
+# pair broke the contract). Output must be the jq result, not a CSV header.
+echo "  Testing: query --jq + --csv (JSON family wins per README precedence)"
+run_retry 3 $ZR query "SELECT Id FROM Account" --jq '.records | length' --csv
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+  pass "query --jq --csv → jq wins (numeric, no CSV header)"
+else
+  fail "query --jq --csv → expected numeric jq output, got '$(printf '%s' "$RUN_OUT" | head -1)' (rc=$RUN_RC) ${RUN_ERR}"
+fi
+
+# ─────────────────────────────────────────
+header "Step 2.5: v0.4.0 contracts — pagination hint + env credentials"
+# ─────────────────────────────────────────
+# Canonical nextPage hint (P3-2 listcmd): a copy-pasteable command on stderr.
+# The tenant has thousands of accounts, so --page-size 1 always has a next page.
+echo "  Testing: account list --page-size 1 → canonical nextPage hint"
+run $ZR account list --page-size 1
+HINT_LINE=$(printf '%s\n' "$RUN_ERR" | grep -A1 -F "More results available. Next page:" | tail -1)
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_ERR" | grep -qF "More results available. Next page:" \
+   && printf '%s' "$HINT_LINE" | grep -qF "account list --page-size 1 --cursor "; then
+  pass "account list → canonical hint (command path + flags + --cursor)"
+else
+  fail "account list hint → rc=$RUN_RC, stderr: $(printf '%s' "$RUN_ERR" | head -3)"
+fi
+
+# Execute the hinted command: the hint's promise is that it is copy-pasteable.
+# Table layout: line 1 border, 2 header, 3 border, 4 first data row.
+PAGE1_ROW=$(printf '%s\n' "$RUN_OUT" | sed -n '4p')
+CURSOR=$(printf '%s' "$HINT_LINE" | sed -E "s/.*--cursor '?([^ ']+)'?[[:space:]]*$/\1/")
+if [ -n "$CURSOR" ] && [ "$CURSOR" != "$HINT_LINE" ]; then
+  run $ZR account list --page-size 1 --cursor "$CURSOR"
+  PAGE2_ROW=$(printf '%s\n' "$RUN_OUT" | sed -n '4p')
+  if [ "$RUN_RC" -eq 0 ] && [ -n "$PAGE2_ROW" ] && [ "$PAGE2_ROW" != "$PAGE1_ROW" ]; then
+    pass "hinted --cursor follow → page 2 fetched (row differs from page 1)"
+  else
+    fail "hinted --cursor follow → rc=$RUN_RC, page2 '$PAGE2_ROW' vs page1 '$PAGE1_ROW'"
+  fi
+else
+  fail "hint cursor extraction → could not parse cursor from: $HINT_LINE"
+fi
+
+# EnvCredentials are both-or-nothing since #215: a PARTIAL pair (only
+# ZR_CLIENT_ID) must be ignored, falling back to the keyring — not half-used.
+echo "  Testing: partial ZR_CLIENT_ID is ignored (both-or-nothing → keyring)"
+run env ZR_CLIENT_ID=bogus-e2e-partial $ZR query "SELECT Id FROM Account" --jq '.records | length'
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+  pass "partial env credential → ignored, keyring auth still works"
+else
+  fail "partial env credential → rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
+fi
+
 # ─────────────────────────────────────────
 header "Step 3: Subscription Changelog Validation"
 # ─────────────────────────────────────────

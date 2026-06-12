@@ -101,21 +101,30 @@ func (s *envVarStore) Delete(_ string) error {
 	return fmt.Errorf("cannot delete credentials when using environment variables (ZR_CLIENT_ID/ZR_CLIENT_SECRET)")
 }
 
-// MockCredentialStore is an in-memory credential store for testing.
-type MockCredentialStore struct {
+// StaticCredentialStore is an in-memory CredentialStore. It is not just a
+// test double: auth login uses it to validate freshly entered credentials
+// against the OAuth endpoint BEFORE persisting them to the keyring.
+type StaticCredentialStore struct {
 	Creds map[string][2]string // envName -> [clientID, clientSecret]
 }
 
-func NewMockCredentialStore() *MockCredentialStore {
-	return &MockCredentialStore{Creds: make(map[string][2]string)}
+func NewStaticCredentialStore() *StaticCredentialStore {
+	return &StaticCredentialStore{Creds: make(map[string][2]string)}
 }
 
-func (m *MockCredentialStore) Set(envName, clientID, clientSecret string) error {
+// MockCredentialStore is the test-facing alias of StaticCredentialStore,
+// kept so existing tests read naturally.
+type MockCredentialStore = StaticCredentialStore
+
+// NewMockCredentialStore is the test-facing alias of NewStaticCredentialStore.
+func NewMockCredentialStore() *StaticCredentialStore { return NewStaticCredentialStore() }
+
+func (m *StaticCredentialStore) Set(envName, clientID, clientSecret string) error {
 	m.Creds[envName] = [2]string{clientID, clientSecret}
 	return nil
 }
 
-func (m *MockCredentialStore) Get(envName string) (string, string, error) {
+func (m *StaticCredentialStore) Get(envName string) (string, string, error) {
 	c, ok := m.Creds[envName]
 	if !ok {
 		return "", "", &AuthError{
@@ -126,7 +135,7 @@ func (m *MockCredentialStore) Get(envName string) (string, string, error) {
 	return c[0], c[1], nil
 }
 
-func (m *MockCredentialStore) Delete(envName string) error {
+func (m *StaticCredentialStore) Delete(envName string) error {
 	delete(m.Creds, envName)
 	return nil
 }

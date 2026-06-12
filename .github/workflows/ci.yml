@@ -30,7 +30,7 @@ jobs:
       - name: Gofmt
         run: make fmtcheck
 
-      - name: Lint (vet + staticcheck)
+      - name: Lint (vet + staticcheck + deadcode)
         run: make lint
 
       - name: Govulncheck

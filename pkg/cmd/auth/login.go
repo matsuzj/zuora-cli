@@ -107,7 +107,7 @@ func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 	}
 
 	// Validate credentials by fetching a token first (don't persist invalid credentials)
-	creds := &auth.MockCredentialStore{Creds: map[string][2]string{
+	creds := &auth.StaticCredentialStore{Creds: map[string][2]string{
 		envName: {clientID, clientSecret},
 	}}
 	ts := &auth.TokenSource{Config: cfg, Creds: creds}

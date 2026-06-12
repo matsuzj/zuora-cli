@@ -215,6 +215,9 @@ malformed is reported as an error rather than silently ignored.
 active_environment: sandbox   # default: sandbox
 zuora_version: "2025-08-12"   # default API version header (YYYY-MM-DD)
 default_output: table         # table | json (default: table)
+                              # json: piped/redirected output defaults to --json;
+                              # an interactive terminal still shows tables, and any
+                              # explicit format flag always wins
 ```
 
 Manage these values with the `config` command (which writes the file for you):

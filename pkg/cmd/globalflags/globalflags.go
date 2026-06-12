@@ -45,6 +45,22 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 		return fmt.Errorf("cannot use --json and --template together")
 	}
 
+	// default_output wiring (P4-3): when no output-format flag was given on
+	// the command line AND the config says default_output=json AND stdout is
+	// not a terminal, behave exactly as if --json had been passed. The TTY
+	// guard keeps interactive sessions human-readable while scripts and
+	// pipes get the configured machine default. A config load failure is
+	// deliberately ignored here (the command itself surfaces it) — applying
+	// a cosmetic default must never gate on config parsing (the alias
+	// expansion lesson).
+	noFormatFlag := !cmd.Flags().Changed("json") && !cmd.Flags().Changed("jq") &&
+		!cmd.Flags().Changed("template") && !cmd.Flags().Changed("csv")
+	if noFormatFlag && f.Config != nil && f.IOStreams != nil && !f.IOStreams.IsTerminal() {
+		if cfg, err := f.Config(); err == nil && cfg.DefaultOutput() == "json" {
+			_ = cmd.Flags().Set("json", "true")
+		}
+	}
+
 	// --env override (transient, does not persist to config.yml)
 	if envName, _ := cmd.Flags().GetString("env"); envName != "" {
 		origConfig := f.Config

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,6 +164,9 @@ func TestClient_ServerError_ExitCode(t *testing.T) {
 		WithBaseURL(server.URL),
 		WithHTTPClient(server.Client()),
 	)
+	// Run the retry loop without real backoff sleeps (this test alone was
+	// ~7.7s of the package's wall time).
+	client.sleep = func(context.Context, time.Duration) error { return nil }
 	_, err := client.Get("/v1/test")
 	require.Error(t, err)
 	assert.True(t, callCount > 1, "should have retried")
@@ -210,9 +214,9 @@ func TestClient_Verbose(t *testing.T) {
 	var buf bytes.Buffer
 	client := NewClient(
 		WithBaseURL(server.URL),
-		WithVerbose(&buf),
 		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
 	)
+	client.SetVerbose(&buf)
 
 	_, err := client.Get("/v1/test")
 	require.NoError(t, err)
@@ -233,7 +237,8 @@ func TestClient_ReadOnly_POSTBlocked(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	_, err := client.Post("/v1/accounts", strings.NewReader(`{}`))
 	require.Error(t, err)
 	var roErr *ReadOnlyError
@@ -247,7 +252,8 @@ func TestClient_ReadOnly_PUTBlocked(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	_, err := client.Put("/v1/accounts/123", strings.NewReader(`{}`))
 	require.Error(t, err)
 	var roErr *ReadOnlyError
@@ -261,7 +267,8 @@ func TestClient_ReadOnly_DELETEBlocked(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	_, err := client.Delete("/v1/accounts/123")
 	require.Error(t, err)
 	var roErr *ReadOnlyError
@@ -275,7 +282,8 @@ func TestClient_ReadOnly_PATCHBlocked(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	_, err := client.Do(http.MethodPatch, "/v1/accounts/123", WithBody(strings.NewReader(`{}`)))
 	require.Error(t, err)
 	var roErr *ReadOnlyError
@@ -289,7 +297,8 @@ func TestClient_ReadOnly_GETAllowed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	resp, err := client.Get("/v1/accounts")
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -302,7 +311,8 @@ func TestClient_ReadOnly_ZOQLQueryAllowed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	resp, err := client.Post("/v1/action/query", strings.NewReader(`{"queryString":"SELECT Id FROM Account"}`))
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -315,7 +325,8 @@ func TestClient_ReadOnly_ZOQLQueryMoreAllowed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	resp, err := client.Post("/v1/action/querymore", strings.NewReader(`{"queryLocator":"abc"}`))
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -328,7 +339,8 @@ func TestClient_ReadOnly_CommercePOSTAllowed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 
 	endpoints := []string{
 		"/commerce/charges/query",
@@ -351,7 +363,8 @@ func TestClient_ReadOnly_SubscriptionPreviewChangeRegexAllowed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	resp, err := client.Post("/v1/subscriptions/SUB-00001234/preview", strings.NewReader(`{}`))
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -364,7 +377,8 @@ func TestClient_ReadOnly_MeterSummaryRegexAllowed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 	resp, err := client.Post("/meters/meter-abc-123/summary", strings.NewReader(`{}`))
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -377,7 +391,8 @@ func TestClient_ReadOnly_AbsoluteURLNormalized(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 
 	// Absolute URL with allowlisted path should be allowed
 	resp, err := client.Do("POST", server.URL+"/v1/action/query")
@@ -398,7 +413,8 @@ func TestClient_ReadOnly_QueryParamNormalized(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(WithBaseURL(server.URL), WithReadOnly())
+	client := NewClient(WithBaseURL(server.URL))
+	client.SetReadOnly(true)
 
 	// Allowlisted path with query params should still be allowed
 	resp, err := client.Do("POST", "/v1/action/query?foo=bar")

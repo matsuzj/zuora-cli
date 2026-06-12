@@ -281,7 +281,8 @@ func TestRetry_ContextCancelled_StopsImmediately(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // already cancelled
-	c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()), WithContext(ctx))
+	c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	c.SetContext(ctx)
 	_, err := c.Get("/v1/test")
 	require.Error(t, err)
 }

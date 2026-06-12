@@ -216,6 +216,8 @@ P3 の大量移行が乗る土台。**この段階では既存コマンドを書
 
 **フェーズ4完了条件**: deadcode -test が空、per-package ゲート稼働、internal/api と internal/auth のテストが「1本番ファイル=1テストファイル」対応。
 
+- **実装メモ(2026-06-12, フェーズ4 完了 — PR #207〜#216、全PR個別承認 + フルゲート)**: **P4-1**(#207, 正味-99行): 検証リスト全削除。Token() は P4-3 の「便宜 Token 残す」が優先(ForceRefresh/Refresh のみ削除、テストは Context 系/私製 refresh() へ)。**P4-2**(#208/#209): WithVerbose/ReadOnly/Context 削除(テスト14箇所を Set* 本番経路へ)、carriesIdempotencyKey 単一ソース化(SafeToRetry の約束が2コピー一致依存だった)、APIError.Err+Unwrap、c.sleep シームで遅テスト解消(api パッケージ 8.3s→0.5s)、テスト10→6ファイル(88名パリティ、dedup 走査の結果**真の重複ゼロ** — same-host はユニット/統合の別層で両方保持)。**P4-3**: MockConfig→fileConfig 委譲(#210, Save spy、マップ差替は sync() 対応)/StaticCredentialStore 改名+deadcode lint ゲート(#211, go.mod tool ピン、ツール自体の失敗も fail — exit-code masking 対策)/ConfigStore 消費側IF+lockEnv+factory.tokenSource(#212)/auth テスト7→3+truncation 空洞修復+keyringStore 0%解消(#213, MockInit 使用)/**default_output 配線**(#214, 承認済み挙動変更: 非TTY+フラグ未指定で json 既定、明示フラグ常勝 — Codex がローカル --csv シャドウの優先順位破れを検出して修正、live E2E が e2e-local の状態リーク(round-trip 後未復元)を検出して修正)/**EnvCredentials 統一**(#215, 承認済み挙動変更: both-or-nothing、login の片側使用廃止→プロンプトフォールバック)。**見送り(理由記録)**: configtest/factorytest/iostreamstest パッケージ移動 — deadcode は既に空で動機消滅、かつ #210 の委譲が非公開 fileConfig 内部に依存するため別パッケージ化には新規本番APIが必要。カバレッジ計上は P4-4 のラチェットで対応。**P4-4**(#216): cov.out から statement 加重の per-package 集計、フロア50%ラチェット(現最低 = factory 54.8%。計画の38%は本週の改善前の測定)、登録専用親23件は明示除外リスト、bite 検証済み(99%で109件検出)。総カバレッジ 81.1%。**フェーズ4 完了条件 3点すべて充足**(deadcode -test 空 + ゲート化、per-package ゲート稼働、api/auth テストの本番ファイル対応)。挙動変更2件(default_output/EnvCredentials)は次回リリースタグのノートに記載。
+
 ---
 
 ### フェーズ5: CLI表面の一貫性(PR 5〜7本、ユーザー可視 — リリースノート必須)

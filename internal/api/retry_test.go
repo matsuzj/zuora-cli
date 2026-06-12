@@ -520,3 +520,29 @@ func TestVerboseBody_MultipartSkipped(t *testing.T) {
 	assert.Contains(t, out, "[multipart body omitted]")
 	assert.NotContains(t, out, "SECRET-FILE-CONTENT")
 }
+
+// TestVerboseBody_RetryLayerErrorBodies pins the Codex finding: bodies of
+// responses consumed INSIDE the retry loop (429/5xx) must still surface
+// under level-2 verbose — they are the main diagnostic payload.
+func TestVerboseBody_RetryLayerErrorBodies(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.WriteHeader(500)
+			w.Write([]byte(`{"message":"ERR-BODY-MARKER"}`))
+			return
+		}
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	_, err := c.Get("/v1/test")
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "ERR-BODY-MARKER",
+		"retry-layer error bodies must surface under -vv")
+}

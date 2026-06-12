@@ -115,7 +115,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 		case resp.StatusCode == http.StatusTooManyRequests:
 			// 429 means the request was rate-limited, not processed. Mutations
 			// carry an Idempotency-Key (set in Do) so a replay is safe.
-			lastErr = readAPIError(resp)
+			lastErr = c.readAPIError(resp)
 			if d, ok := parseRetryAfter(resp.Header.Get("Retry-After")); ok {
 				if d > maxRetryAfter {
 					d = maxRetryAfter
@@ -136,7 +136,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 		case resp.StatusCode == http.StatusUnauthorized && !tokenRefreshed:
 			// 401 happens before processing (auth is checked first), so a
 			// resend after refresh is safe for all methods.
-			lastErr = readAPIError(resp)
+			lastErr = c.readAPIError(resp)
 			refreshFn := c.refreshToken
 			if refreshFn == nil {
 				refreshFn = c.tokenSource
@@ -160,14 +160,14 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 		case resp.StatusCode >= 500 && isIdempotent(req.Method):
 			// Only retry 5xx for idempotent methods to avoid duplicate mutations.
 			c.vlogf("HTTP %d on idempotent %s, will retry", resp.StatusCode, req.Method)
-			lastErr = readAPIError(resp)
+			lastErr = c.readAPIError(resp)
 			continue
 
 		case resp.StatusCode >= 500:
 			// Non-idempotent 5xx: do not auto-retry (the mutation may have been
 			// applied). Mark safe-to-re-run only for POST/PATCH, which carry an
 			// Idempotency-Key; a keyless PUT could double-apply, so leave it unset.
-			apiErr := readAPIError(resp)
+			apiErr := c.readAPIError(resp)
 			if ae, ok := apiErr.(*APIError); ok {
 				ae.SafeToRetry = carriesIdempotencyKey(req.Method)
 			}
@@ -183,9 +183,13 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 
 // readAPIError reads and closes the response body, returning a parsed APIError
 // that preserves Zuora's real error code/message instead of a generic string.
-func readAPIError(resp *http.Response) error {
+// The body is also surfaced under level-2 verbose: these retry-layer
+// responses (429/401/5xx) never reach Do()'s normal verbose path, yet their
+// bodies are the main diagnostic payload for rate-limit and server errors.
+func (c *Client) readAPIError(resp *http.Response) error {
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	c.vlogBody("<", resp.Header.Get("Content-Type"), body)
 	return parseAPIError(resp.StatusCode, body)
 }
 

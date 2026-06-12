@@ -6,14 +6,14 @@
 
 set -uo pipefail
 
-ZR="./bin/zr"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ZR="$SCRIPT_DIR/../bin/zr"
 PASS=0
 FAIL=0
 SKIP=0
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 TODAY=$(date +%Y-%m-%d)  # local order date used by suspend/resume/renew steps
 # Log directory
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/e2e-subscription-write-${TIMESTAMP}.log"
@@ -24,9 +24,6 @@ setup_log
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────
-# Known quirk: $ZR is "./bin/zr" (CWD-relative, unlike the other suites'
-# SCRIPT_DIR-relative form), so require_auth's binary check assumes the suite
-# runs from the repo root. Canonicalizing the path is a separate change.
 require_auth
 
 # ─────────────────────────────────────────
@@ -200,30 +197,33 @@ CREATE_BODY=$(cat <<EOF
 EOF
 )
 
-CREATE_RESULT=$($ZR subscription create --body "$CREATE_BODY" 2>&1) || true
-if echo "$CREATE_RESULT" | grep -qi "error\|not.*support\|order"; then
+# Success-flag checking is default-on (#71), so the exit code is authoritative:
+# rc!=0 + "error" text = the expected Orders-tenant rejection; rc==0 = a real
+# create succeeded (allowed on some tenants). Anything else is a failure — the
+# old pattern (grep "error|not.*support|order") could match a SUCCESS response
+# containing "order", and the unexpected branch was a yellow() no-op.
+CREATE_RC=0
+CREATE_RESULT=$($ZR subscription create --body "$CREATE_BODY" 2>&1) || CREATE_RC=$?
+if [ "$CREATE_RC" -ne 0 ] && echo "$CREATE_RESULT" | grep -qi "error"; then
   pass "subscription create → correctly rejected on Orders tenant"
+elif [ "$CREATE_RC" -eq 0 ] && [ -n "$CREATE_RESULT" ]; then
+  pass "subscription create → succeeded (Orders may allow v1 create)"
 else
-  # Might succeed on some tenants
-  if echo "$CREATE_RESULT" | grep -q "created"; then
-    pass "subscription create → succeeded (Orders may allow v1 create)"
-  else
-    yellow "  ? subscription create → unexpected: $CREATE_RESULT"
-  fi
+  fail "subscription create → unexpected (rc=$CREATE_RC): $(echo "$CREATE_RESULT" | head -2)"
 fi
 
 # ─────────────────────────────────────────
 header "Step 5: subscription update (Orders 有効テナント → 期待エラー)"
 # ─────────────────────────────────────────
-UPDATE_RESULT=$($ZR subscription update "$SUB_A" --body '{"notes":"e2e-test"}' 2>&1) || true
-if echo "$UPDATE_RESULT" | grep -qi "error\|not.*support\|order"; then
+# Same structure as Step 4: exit code decides, unexpected output now FAILS.
+UPDATE_RC=0
+UPDATE_RESULT=$($ZR subscription update "$SUB_A" --body '{"notes":"e2e-test"}' 2>&1) || UPDATE_RC=$?
+if [ "$UPDATE_RC" -eq 0 ] && echo "$UPDATE_RESULT" | grep -qi "updated"; then
+  pass "subscription update → succeeded"
+elif [ "$UPDATE_RC" -ne 0 ] && echo "$UPDATE_RESULT" | grep -qi "error"; then
   pass "subscription update → correctly rejected on Orders tenant"
 else
-  if echo "$UPDATE_RESULT" | grep -q "updated"; then
-    pass "subscription update → succeeded"
-  else
-    yellow "  ? subscription update → unexpected: $UPDATE_RESULT"
-  fi
+  fail "subscription update → unexpected (rc=$UPDATE_RC): $(echo "$UPDATE_RESULT" | head -2)"
 fi
 
 # ─────────────────────────────────────────
@@ -275,14 +275,16 @@ else
   fail "subscription cancel → $(echo "$CANCEL_OUT" | head -3)"
 fi
 
-# 6d: Verify cancel with --policy only sends correct payload (dry check, not on SUB_B)
+# 6e: Re-cancel of the already-cancelled SUB_A MUST be rejected (Zuora errors on
+# cancelled subs). The old check passed unconditionally (both branches were pass).
 # NOTE: We do NOT cancel SUB_B here — it is reserved for suspend/resume in Step 7-8.
 echo "  Testing: cancel validation with --policy on already-cancelled SUB_A"
-CANCEL_NODATE=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm --confirm 2>&1) || true
-if echo "$CANCEL_NODATE" | grep -qi "error\|オーダー日\|キャンセル済み"; then
+CANCEL_NODATE_RC=0
+CANCEL_NODATE=$($ZR subscription cancel "$SUB_A" --policy EndOfCurrentTerm --confirm 2>&1) || CANCEL_NODATE_RC=$?
+if [ "$CANCEL_NODATE_RC" -ne 0 ] && echo "$CANCEL_NODATE" | grep -qi "error\|オーダー日\|キャンセル"; then
   pass "cancel --policy on cancelled sub → correctly rejected"
 else
-  pass "cancel --policy → sent request (payload validated)"
+  fail "cancel --policy on cancelled sub → expected rejection (rc=$CANCEL_NODATE_RC): $(echo "$CANCEL_NODATE" | head -2)"
 fi
 
 # ─────────────────────────────────────────
@@ -373,15 +375,20 @@ fi
 header "Step 9: subscription renew (SUB_C)"
 # ─────────────────────────────────────────
 
-# 9a: Renew without --body (Orders tenant → expected orderDate error)
+# 9a: Renew without --body (Orders tenant → expected orderDate error).
+# Exit code decides; the old version passed for ANY output (both branches pass,
+# garbage/empty output counted as "succeeded").
 echo "  Testing: renew $SUB_C (no --body, Orders tenant → expected error)"
-RENEW_OUT=$($ZR subscription renew "$SUB_C" 2>&1) || true
+RENEW_RC=0
+RENEW_OUT=$($ZR subscription renew "$SUB_C" 2>&1) || RENEW_RC=$?
 RENEW_BARE_SUCCEEDED=false
-if echo "$RENEW_OUT" | grep -qi "error\|オーダー日"; then
+if [ "$RENEW_RC" -ne 0 ] && echo "$RENEW_OUT" | grep -qi "error\|オーダー日"; then
   pass "subscription renew (no body) → correctly requires orderDate on Orders tenant"
-else
+elif [ "$RENEW_RC" -eq 0 ] && [ -n "$RENEW_OUT" ]; then
   pass "subscription renew (no body) → succeeded (non-Orders or v1 allowed)"
   RENEW_BARE_SUCCEEDED=true
+else
+  fail "subscription renew (no body) → unexpected (rc=$RENEW_RC): $(echo "$RENEW_OUT" | head -2)"
 fi
 
 # 9b: Renew with --body including orderDate (skip if 9a already renewed)

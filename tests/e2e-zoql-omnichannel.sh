@@ -131,14 +131,23 @@ _env_iso_dir() {
 }
 echo "  Testing: partial ZR_CLIENT_ID is ignored (both-or-nothing → keyring)"
 ENV_ISO_DIR=$(_env_iso_dir)
-run env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID=bogus-e2e-partial ZR_CLIENT_SECRET= \
-  $ZR query "SELECT Id FROM Account" --jq '.records | length'
-rm -rf "$ENV_ISO_DIR"
-if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
-  pass "partial env credential → ignored, keyring refresh works"
+# Keyring availability probe (Codex): with NO env credentials and no cached
+# token, a refresh succeeds only if the OS keyring holds usable credentials.
+# A runner authenticated purely via env vars or a cached token cannot prove
+# the keyring-fallback half of #215 — skip instead of false-failing.
+if env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID= ZR_CLIENT_SECRET= $ZR auth token >/dev/null 2>&1; then
+  rm -rf "$ENV_ISO_DIR"; ENV_ISO_DIR=$(_env_iso_dir)  # fresh dir: drop the token the probe just cached
+  run env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID=bogus-e2e-partial ZR_CLIENT_SECRET= \
+    $ZR query "SELECT Id FROM Account" --jq '.records | length'
+  if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+    pass "partial env credential → ignored, keyring refresh works"
+  else
+    fail "partial env credential → rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
+  fi
 else
-  fail "partial env credential → rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
+  skip "partial env credential → keyring credentials unavailable on this runner"
 fi
+rm -rf "$ENV_ISO_DIR"
 
 # The other direction of #215: a COMPLETE env pair must WIN over the keyring.
 # Bogus-but-complete credentials must surface an auth failure — a silent

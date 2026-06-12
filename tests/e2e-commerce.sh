@@ -83,11 +83,11 @@ header "Step 4: Live read commands"
 # ─────────────────────────────────────────
 # product list-legacy is a --body search returning {"products":[...]} (empty OK).
 echo "  Testing: product list-legacy --body '{}'"
-read_or_skip "product list-legacy → .products array" '.products | type == "array"' -- $ZR product list-legacy --body '{}' --json
+read_or_skip_on "product list-legacy → .products array" '.products | type == "array"' "no Route matched" -- $ZR product list-legacy --body '{}' --json
 
 # plan list is a --body search returning {"plans":[...]} (empty OK).
 echo "  Testing: plan list --body '{}'"
-read_or_skip "plan list → .plans array" '.plans | type == "array"' -- $ZR plan list --body '{}' --json
+read_or_skip_on "plan list → .plans array" '.plans | type == "array"' "no Route matched" -- $ZR plan list --body '{}' --json
 
 # rateplan get resolves a *subscription* rate plan id (v1 /v1/rateplans/{id}),
 # not a product rate plan id — passing the latter 404s. Derive a real
@@ -96,7 +96,7 @@ read_or_skip "plan list → .plans array" '.plans | type == "array"' -- $ZR plan
 SUB_RP_ID=$($ZR query "SELECT Id FROM RatePlan" --jq '.records[0].Id // ""' 2>/dev/null | tr -d '"')
 if [ -n "$SUB_RP_ID" ]; then
   echo "  Testing: rateplan get $SUB_RP_ID (subscription rate plan)"
-  read_or_skip "rateplan get → JSON object" 'type == "object" and .success == true' -- $ZR rateplan get "$SUB_RP_ID" --json
+  read_or_skip_on "rateplan get → JSON object" 'type == "object" and .success == true' "HTTP 404" -- $ZR rateplan get "$SUB_RP_ID" --json
 else
   skip "rateplan get → no subscription rate plan available in tenant"
 fi

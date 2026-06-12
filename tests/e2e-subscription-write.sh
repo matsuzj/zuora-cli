@@ -514,14 +514,24 @@ fi
 
 # 12c: Actual update (empty custom fields is OK)
 echo "  Testing: update-custom-fields $SUB_B 1 --body '{}'"
-UCF_RESULT=$($ZR subscription update-custom-fields "$SUB_B" 1 --body '{}' --json 2>/dev/null) || true
+# Capture stderr too: on tenants without custom fields the command errors
+# BEFORE rendering JSON and the Zuora message lands on stderr (Codex) —
+# discarding it would turn the expected limitation into a hard failure.
+UCF_RESULT=$($ZR subscription update-custom-fields "$SUB_B" 1 --body '{}' --json 2>&1) || true
 UCF_SUCCESS=$(echo "$UCF_RESULT" | jq -r '.success // empty' 2>/dev/null)
 
 if [ "$UCF_SUCCESS" = "true" ]; then
   pass "subscription update-custom-fields → success"
 else
-  # May fail if no custom fields defined - that's expected
-  skip "update-custom-fields → $(echo "$UCF_RESULT" | jq -r '.reasons[0].message // "no custom fields"' 2>/dev/null)"
+  # ONLY a custom-field-related rejection may skip (tenant without custom
+  # fields defined); any other failure — auth, 4xx/5xx, transport — fails.
+  UCF_MSG=$(echo "$UCF_RESULT" | jq -r '.reasons[0].message // ""' 2>/dev/null)
+  [ -z "$UCF_MSG" ] && UCF_MSG="$UCF_RESULT"
+  if printf '%s' "$UCF_MSG" | grep -qi "custom\|カスタム"; then
+    skip "update-custom-fields → $(printf '%s' "$UCF_MSG" | head -1)"
+  else
+    fail "update-custom-fields → unexpected failure: $(echo "$UCF_RESULT" | head -2)"
+  fi
 fi
 
 # ─────────────────────────────────────────

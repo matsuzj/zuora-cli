@@ -29,8 +29,18 @@ reproduced directly against the tenant with the error code recorded.
 - The **auth gate is not a skip**: if the stored token is expired, every live
   suite hard-fails at Step 0 (`zr auth status` must show `Token: valid`). Run
   `zr auth login` first. Only `e2e-local.sh` is offline and needs no auth.
+- Some checks **pass on an expected error**: where a tenant limitation is
+  deterministic, the suite asserts the exact error code as a green check
+  instead of skipping (e.g. `payment-methods-default` → 50000040,
+  `payment-methods-cascading` → 50000010, `subscription changelog` → 50000010).
+  These lock the error-rendering path live and flip loudly if the tenant ever
+  gains the feature — update the assertion to a data assertion then.
+- A few **dormant skip guards** exist for portability and never fire on this
+  runner: the zoql partial-env check skips when the runner has no OS-keyring
+  credentials, and `subscription changelog` skips when ZOQL finds no
+  subscription.
 
-## Current skips (7 total)
+## Current skips (8 total)
 
 | Suite | Check | Category | Signal | Why |
 |---|---|---|---|---|
@@ -40,9 +50,11 @@ reproduced directly against the tenant with the error code recorded.
 | commerce | `plan list` | tenant-config | HTTP 404, "no Route matched" | `/v1/rateplans` (Commerce catalog) not routed on this tenant. |
 | subscription-write | `subscription preview-change` | tenant-config | "invalid parameter" | Orders tenant expects a different body shape; the v1 preview params are rejected. |
 | invoice-payment | `payment get` | sandbox-environment | no payment id available | No payment gateway configured on sandbox, so no payment exists to fetch. |
+| invoice-payment | `invoice post` (live) | tenant-config | invoice already `Posted` | Order-driven billing auto-posts the invoice on this tenant, so there is no Draft to post. The bodyless-PUT 415 contract (#220) stays live-guarded by the billrun suite. |
 | ramp-commitment | `commitment list` | sandbox-environment | HTTP 404, code 50000040 | `/v1/commitments` endpoint does not exist on this tenant. |
 
-`local`, `zoql-omnichannel`, and `usage-meter` have **no skips**.
+`local`, `zoql-omnichannel`, `billrun`, and `usage-meter` have **no observed
+skips** (zoql carries dormant portability guards, see above).
 
 ## Details
 
@@ -66,6 +78,11 @@ These need external infrastructure / endpoints that the sandbox doesn't have.
 - **`commitment list`** — HTTP 404 `50000040`:
   *"The endpoint /v1/commitments does not exist."* — the Commitments feature is
   not provisioned on this tenant.
+- **`invoice post` (live)** — the invoice created by the order's
+  `runBilling:true` arrives already `Posted` (tenant auto-post), so the
+  Draft→Posted transition can't be exercised here. Validation and the
+  `--confirm` guards still assert green, and the billrun suite live-proves the
+  bodyless-PUT Content-Type contract every run.
 
 ### eventual-consistency
 - **`contact delete verify`** — the delete itself succeeds; only the immediate
@@ -96,4 +113,6 @@ task build            # or: make build  (produces ./bin/zr)
 
 `tests/logs/` (git-ignored) holds the per-run logs; each suite prints a
 `Passed / Failed / Skipped` summary and a final `RESULT:` line. The latest full
-run: **9/9 suites pass — 235 passed, 0 failed, 7 skipped.**
+run: **10/10 suites pass** (the 2026-06-12 expansion added the billrun suite
+plus behavior-change, flag-matrix, and lifecycle coverage; check counts grow
+with coverage — see the latest run logs for exact numbers).

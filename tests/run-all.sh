@@ -38,6 +38,64 @@ fi
 declare -a OK_SUITES=()
 declare -a FAILED_SUITES=()
 
+# Suites with no tenant writes may run concurrently: e2e-local is fully
+# isolated (own XDG_CONFIG_HOME, offline), e2e-usage-meter is pure cobra
+# validation, e2e-commerce adds only read-only live calls. Their outputs are
+# buffered and replayed in order so logs never interleave. Everything else
+# creates tenant state and stays strictly serial. The split applies only to
+# full runs — explicit suite arguments keep today's serial behavior.
+PARALLEL_SAFE="e2e-local.sh e2e-commerce.sh e2e-usage-meter.sh"
+
+is_parallel_safe() {
+  case " $PARALLEL_SAFE " in *" $1 "*) return 0;; esac
+  return 1
+}
+
+if [ $# -eq 0 ]; then
+  declare -a PAR_SUITES=()
+  declare -a SER_SUITES=()
+  for suite in "${SUITES[@]}"; do
+    if is_parallel_safe "$(basename "$suite")"; then
+      PAR_SUITES+=("$suite")
+    else
+      SER_SUITES+=("$suite")
+    fi
+  done
+
+  if [ "${#PAR_SUITES[@]}" -gt 0 ]; then
+    PARLOG_DIR=$(mktemp -d)
+    i=0
+    for suite in "${PAR_SUITES[@]}"; do
+      (
+        if bash "$suite" > "$PARLOG_DIR/$i.log" 2>&1; then
+          : > "$PARLOG_DIR/$i.ok"
+        fi
+      ) &
+      i=$((i + 1))
+    done
+    wait
+    i=0
+    for suite in "${PAR_SUITES[@]}"; do
+      name="$(basename "$suite")"
+      bold "▶ $name (parallel)"
+      cat "$PARLOG_DIR/$i.log"
+      if [ -f "$PARLOG_DIR/$i.ok" ]; then
+        OK_SUITES+=("$name")
+      else
+        FAILED_SUITES+=("$name")
+      fi
+      echo
+      i=$((i + 1))
+    done
+    rm -rf "$PARLOG_DIR"
+  fi
+
+  SUITES=()
+  if [ "${#SER_SUITES[@]}" -gt 0 ]; then
+    SUITES=("${SER_SUITES[@]}")
+  fi
+fi
+
 for suite in "${SUITES[@]}"; do
   name="$(basename "$suite")"
   if [ ! -x "$suite" ]; then

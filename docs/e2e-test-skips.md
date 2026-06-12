@@ -78,6 +78,11 @@ These need external infrastructure / endpoints that the sandbox doesn't have.
 - **`commitment list`** — HTTP 404 `50000040`:
   *"The endpoint /v1/commitments does not exist."* — the Commitments feature is
   not provisioned on this tenant.
+- **meter family live verification** — Usage mediation is not enabled on
+  this tenant (HTTP 400 `70002004`), so `meter audit`/`meter summary`
+  response shapes remain doc-unverified (their sparse `Fields` were flagged
+  by the 2026-06-13 assessment) until a mediation-enabled tenant is
+  available. Validation paths are E2E-covered.
 - **`invoice post` (live)** — the invoice created by the order's
   `runBilling:true` arrives already `Posted` (tenant auto-post), so the
   Draft→Posted transition can't be exercised here. Validation and the

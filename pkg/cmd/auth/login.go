@@ -115,6 +115,9 @@ func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 		envName: {clientID, clientSecret},
 	}}
 	ts := &auth.TokenSource{Config: cfg, Creds: creds}
+	if v, _ := cmd.Flags().GetBool("verbose"); v {
+		ts.Logf = func(format string, args ...any) { fmt.Fprintf(f.IOStreams.ErrOut, format, args...) }
+	}
 	// ForceRefreshContext (not the context-less Refresh): the command context
 	// makes a hung OAuth endpoint interruptible with Ctrl-C, and the forced
 	// path also takes the per-environment single-flight lock.

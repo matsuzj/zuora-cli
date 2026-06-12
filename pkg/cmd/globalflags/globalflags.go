@@ -103,6 +103,13 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	// Apply all client overrides (context, version, verbose, read-only)
 	// in a single wrapper captured from the original once, so the
 	// overrides are not stacked cumulatively across invocations.
+	// Auth observability (P6-2): the factory's lazy closures read
+	// AuthLogWriter at call time, so setting it here covers both the
+	// AuthToken path and the 401 force-refresh path.
+	if verbose {
+		f.AuthLogWriter = f.IOStreams.ErrOut
+	}
+
 	ctx := cmd.Context()
 	origHttpClient := f.HttpClient
 	f.HttpClient = func() (*api.Client, error) {

@@ -35,6 +35,17 @@ type TokenSource struct {
 	Config     ConfigStore
 	Creds      CredentialStore
 	HTTPClient *http.Client
+	// Logf, when non-nil, receives verbose diagnostic lines (P6-2). It must
+	// never be called with secret material — only event names, environment
+	// names, and non-sensitive metadata.
+	Logf func(format string, args ...any)
+}
+
+// logf is the nil-guarded Logf entry point used at the observability sites.
+func (ts *TokenSource) logf(format string, args ...any) {
+	if ts.Logf != nil {
+		ts.Logf(format, args...)
+	}
 }
 
 // Token returns a valid access token for the given environment.
@@ -51,6 +62,7 @@ func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string
 		return "", err
 	}
 	if cached.IsValid() {
+		ts.logf("* auth: cache hit for environment %q\n", envName)
 		return cached.AccessToken, nil
 	}
 
@@ -59,6 +71,7 @@ func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string
 
 	// Re-check: another goroutine may have refreshed while we waited.
 	if cached, err := ts.Config.Token(envName); err == nil && cached.IsValid() {
+		ts.logf("* auth: cache hit (post-lock) for environment %q\n", envName)
 		return cached.AccessToken, nil
 	}
 	return ts.refresh(ctx, envName)
@@ -69,6 +82,7 @@ func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string
 // lock as TokenContext, so a forced refresh (e.g. after a 401) cannot
 // stampede the OAuth endpoint alongside concurrent callers.
 func (ts *TokenSource) ForceRefreshContext(ctx context.Context, envName string) (string, error) {
+	ts.logf("* auth: force-refreshing token for environment %q\n", envName)
 	defer lockEnv(envName)()
 	return ts.refresh(ctx, envName)
 }
@@ -88,6 +102,12 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 	if err != nil {
 		return "", err
 	}
+	// Log the credential SOURCE only — never any credential value.
+	credSource := "keyring"
+	if _, ok := ts.Creds.(*envVarStore); ok {
+		credSource = "env vars (ZR_CLIENT_ID/ZR_CLIENT_SECRET)"
+	}
+	ts.logf("* auth: fetching token for environment %q (credentials from %s)\n", envName, credSource)
 
 	env, err := ts.Config.Environment(envName)
 	if err != nil {
@@ -184,6 +204,7 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 	if err := ts.Config.Save(); err != nil {
 		return "", err
 	}
+	ts.logf("* auth: token acquired, expires in %ds\n", tokenResp.ExpiresIn)
 
 	return tokenResp.AccessToken, nil
 }

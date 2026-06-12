@@ -35,6 +35,12 @@ func NewCmdSuspend(f *factory.Factory) *cobra.Command {
   zr sub suspend A-S001 --body @suspend.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Cobra's group check passes on EXPLICITLY-EMPTY values
+			// (--policy ""); enforce the disjunction on the values too,
+			// with cobra's wording (Codex, P5-2).
+			if opts.Body == "" && opts.Policy == "" {
+				return fmt.Errorf("at least one of the flags in the group [body policy] is required")
+			}
 			if opts.Body == "" {
 				switch opts.Policy {
 				case "SpecificDate":

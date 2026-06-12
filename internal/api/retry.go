@@ -53,6 +53,9 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		// Level-2 verbose: the body is already buffered for retry replay, so
+		// logging it here costs no extra read.
+		c.vlogBody(">", req.Header.Get("Content-Type"), bodyBytes)
 	}
 
 	var lastErr error

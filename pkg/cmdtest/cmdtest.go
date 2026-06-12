@@ -38,6 +38,7 @@ func Run(t *testing.T, parent string, newCmd func(*factory.Factory) *cobra.Comma
 	// EnvReadOnly treats empty as off. Tests that exercise the env knob
 	// itself use their own harness, not Run.
 	t.Setenv("ZR_READ_ONLY", "")
+	t.Setenv("ZR_DEBUG", "")
 
 	serverURL := "http://localhost"
 	if handler != nil {

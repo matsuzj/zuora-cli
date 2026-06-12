@@ -115,7 +115,7 @@ func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 		envName: {clientID, clientSecret},
 	}}
 	ts := &auth.TokenSource{Config: cfg, Creds: creds}
-	if v, _ := cmd.Flags().GetBool("verbose"); v {
+	if v, _ := cmd.Flags().GetCount("verbose"); v >= 1 {
 		ts.Logf = func(format string, args ...any) { fmt.Fprintf(f.IOStreams.ErrOut, format, args...) }
 	}
 	// ForceRefreshContext (not the context-less Refresh): the command context

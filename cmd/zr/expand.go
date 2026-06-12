@@ -120,7 +120,7 @@ func builtinNames(rootCmd *cobra.Command) map[string]bool {
 func valueFlagSpellings(rootCmd *cobra.Command) map[string]bool {
 	spellings := make(map[string]bool)
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-		if f.Value.Type() == "bool" {
+		if f.Value.Type() == "bool" || f.Value.Type() == "count" {
 			return
 		}
 		spellings["--"+f.Name] = true

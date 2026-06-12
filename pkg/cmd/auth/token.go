@@ -32,7 +32,7 @@ func runToken(cmd *cobra.Command, f *factory.Factory) error {
 
 	creds := iauth.NewCredentialStore()
 	ts := &iauth.TokenSource{Config: cfg, Creds: creds}
-	if v, _ := cmd.Flags().GetBool("verbose"); v {
+	if v, _ := cmd.Flags().GetCount("verbose"); v >= 1 {
 		ts.Logf = func(format string, args ...any) { fmt.Fprintf(f.IOStreams.ErrOut, format, args...) }
 	}
 	// TokenContext so a hung OAuth endpoint is interruptible with Ctrl-C.

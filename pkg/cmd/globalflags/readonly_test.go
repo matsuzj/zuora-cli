@@ -52,3 +52,23 @@ func TestEnvReadOnly_Unset(t *testing.T) {
 	os.Unsetenv("ZR_READ_ONLY")
 	assert.False(t, EnvReadOnly())
 }
+
+func TestVerboseLevels(t *testing.T) {
+	cases := []struct {
+		count         int
+		zrDebug       string
+		verbose, body bool
+	}{
+		{0, "", false, false},
+		{1, "", true, false},
+		{2, "", true, true},
+		{3, "", true, true},
+		{0, "api", true, true}, // ZR_DEBUG=api implies both levels
+		{0, "other", false, false},
+	}
+	for _, c := range cases {
+		v, b := VerboseLevels(c.count, c.zrDebug)
+		assert.Equal(t, c.verbose, v, "count=%d debug=%q", c.count, c.zrDebug)
+		assert.Equal(t, c.body, b, "count=%d debug=%q", c.count, c.zrDebug)
+	}
+}

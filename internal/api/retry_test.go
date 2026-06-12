@@ -447,3 +447,76 @@ func TestVerbose_OffProducesNoStarLines(t *testing.T) {
 	// nothing to assert on a writer (none set); reaching here without a
 	// panic proves the nil-writer no-op path.
 }
+
+// ─── P6-3: gated body logging ───
+
+func TestVerboseBody_RequestAndResponseAtLevel2(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true,"marker":"RESP-BODY"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	_, err := c.Post("/v1/test", strings.NewReader(`{"marker":"REQ-BODY"}`))
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, `> {"marker":"REQ-BODY"}`)
+	assert.Contains(t, out, `RESP-BODY`)
+}
+
+func TestVerboseBody_Level1OmitsBodies(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true,"marker":"RESP-BODY"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf) // level 1 only
+
+	_, err := c.Post("/v1/test", strings.NewReader(`{"marker":"REQ-BODY"}`))
+	require.NoError(t, err)
+	out := buf.String()
+	assert.NotContains(t, out, "REQ-BODY", "level 1 must not log request bodies (PII)")
+	assert.NotContains(t, out, "RESP-BODY", "level 1 must not log response bodies (PII)")
+}
+
+func TestVerboseBody_TruncatesAtCap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	big := `{"pad":"` + strings.Repeat("x", maxBodyLog) + `"}`
+	_, err := c.Post("/v1/test", strings.NewReader(big))
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "[body truncated at 4096 bytes]")
+}
+
+func TestVerboseBody_MultipartSkipped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	_, err := c.Post("/v1/test", strings.NewReader("SECRET-FILE-CONTENT"),
+		WithHeader("Content-Type", "multipart/form-data; boundary=xyz"))
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "[multipart body omitted]")
+	assert.NotContains(t, out, "SECRET-FILE-CONTENT")
+}

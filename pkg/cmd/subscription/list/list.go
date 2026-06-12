@@ -16,17 +16,17 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List subscriptions for an account",
 		Long:  `List all subscriptions associated with a Zuora billing account.`,
-		Example: `  zr subscription list --account A00000001
-  zr subscription list --account A00000001 --json
-  zr sub list --account A00000001 --page-size 5 --page 2`,
+		Example: `  zr subscription list --account-key A00000001
+  zr subscription list --account-key A00000001 --json
+  zr sub list --account-key A00000001 --page-size 5 --page 2`,
 		Flags: []listcmd.Flag{
-			{Name: "account", Usage: "Account key (required)", Required: true},
+			{Name: "account-key", Usage: "Account key (ID or account number)", Required: true, DeprecatedName: "account"},
 			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page"},
 			{Name: "page", Query: "page", Usage: "Page number (1-based)"},
 			{Name: "charge-detail", Query: "charge-detail", Usage: "Charge detail level"},
 		},
 		Path: func(args []string, flags map[string]string) string {
-			return fmt.Sprintf("/v1/subscriptions/accounts/%s", url.PathEscape(flags["account"]))
+			return fmt.Sprintf("/v1/subscriptions/accounts/%s", url.PathEscape(flags["account-key"]))
 		},
 		ItemsKey: "subscriptions",
 		Columns: []listcmd.ColumnSpec{

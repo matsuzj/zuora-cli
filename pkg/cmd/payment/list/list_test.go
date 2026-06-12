@@ -26,7 +26,7 @@ func TestPaymentList_Success(t *testing.T) {
 		"success": true,
 	})
 
-	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "list", "--account", "A001")
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "list", "--account-key", "A001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "P-00001")
 	assert.Contains(t, stdout, "Processed")
@@ -40,7 +40,7 @@ func TestPaymentList_CSV(t *testing.T) {
 		"success": true,
 	})
 
-	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "list", "--account", "A001", "--csv")
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "list", "--account-key", "A001", "--csv")
 	require.NoError(t, err)
 
 	// CSV: a header row plus the data row, comma-separated.

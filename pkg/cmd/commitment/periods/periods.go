@@ -6,6 +6,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -27,27 +28,27 @@ func NewCmdPeriods(f *factory.Factory) *cobra.Command {
 		Short: "List commitment periods",
 		Long: `List periods for a Zuora commitment.
 
-Use --commitment for a specific commitment, or --account + --start-date + --end-date
+Use --commitment for a specific commitment, or --account-number + --start-date + --end-date
 to query by account and date range.`,
 		Example: `  zr commitment periods --commitment CMT-00000001
-  zr commitment periods --account A00000001 --start-date 2026-01-01 --end-date 2026-12-31`,
+  zr commitment periods --account-number A00000001 --start-date 2026-01-01 --end-date 2026-12-31`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Commitment != "" && opts.Account != "" {
-				return fmt.Errorf("--commitment and --account are mutually exclusive")
+				return fmt.Errorf("--commitment and --account-number are mutually exclusive")
 			}
 			if opts.Commitment == "" && opts.Account == "" {
-				return fmt.Errorf("--commitment or --account (with --start-date and --end-date) is required")
+				return fmt.Errorf("--commitment or --account-number (with --start-date and --end-date) is required")
 			}
 			if opts.Account != "" && (opts.StartDate == "" || opts.EndDate == "") {
-				return fmt.Errorf("--start-date and --end-date are required when using --account")
+				return fmt.Errorf("--start-date and --end-date are required when using --account-number")
 			}
 			return runPeriods(cmd, opts)
 		},
 	}
 
 	cmd.Flags().StringVar(&opts.Commitment, "commitment", "", "Commitment key")
-	cmd.Flags().StringVar(&opts.Account, "account", "", "Account number")
+	cmdutil.AddAccountNumberFlag(cmd, &opts.Account, "account")
 	cmd.Flags().StringVar(&opts.StartDate, "start-date", "", "Start date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&opts.EndDate, "end-date", "", "End date (YYYY-MM-DD)")
 

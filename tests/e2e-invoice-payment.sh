@@ -124,9 +124,9 @@ header "Step 3: invoice list (billing is a required postcondition)"
 # propagation lag, then FAIL (not skip) if none appears.
 INV_ID=""
 if [ -n "$ACCT_ID" ]; then
-  echo "  Testing: invoice list --account $ACCT_ID"
+  echo "  Testing: invoice list --account-key $ACCT_ID"
   for _i in 1 2 3 4 5 6; do
-    run $ZR invoice list --account "$ACCT_ID" --json
+    run $ZR invoice list --account-key "$ACCT_ID" --json
     INV_N=$(echo "$RUN_OUT" | jq -r '.invoices | length' 2>/dev/null)
     [ "${INV_N:-0}" -ge 1 ] 2>/dev/null && break
     sleep 2
@@ -254,8 +254,8 @@ header "Step 5: payment list"
 # result. Assert the shape (catches an error-object/shape regression).
 PAY_ID=""
 if [ -n "$ACCT_NUM" ]; then
-  echo "  Testing: payment list --account $ACCT_NUM"
-  run $ZR payment list --account "$ACCT_NUM" --json
+  echo "  Testing: payment list --account-key $ACCT_NUM"
+  run $ZR payment list --account-key "$ACCT_NUM" --json
   if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.payments | type == "array"' >/dev/null 2>&1; then
     PAY_N=$(echo "$RUN_OUT" | jq -r '.payments | length')
     pass "payment list → .payments array (n=$PAY_N)"

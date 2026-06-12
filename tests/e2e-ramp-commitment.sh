@@ -54,8 +54,8 @@ header "Step 2: Commitment Validation"
 echo "  Testing: commitment get without argument"
 expect_fail "commitment get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR commitment get
 
-echo "  Testing: commitment list without --account"
-expect_fail "commitment list validation → requires --account" "--account is required" -- $ZR commitment list
+echo "  Testing: commitment list without --account-number"
+expect_fail "commitment list validation → requires --account-number" "--account-number is required" -- $ZR commitment list
 
 echo "  Testing: commitment balance without argument"
 expect_fail "commitment balance validation → requires argument" \
@@ -64,8 +64,8 @@ expect_fail "commitment balance validation → requires argument" \
 # commitment periods is flag-driven (no positional): it requires --commitment,
 # or --account together with --start-date and --end-date.
 echo "  Testing: commitment periods without flags"
-expect_fail "commitment periods validation → requires --commitment/--account" \
-  "--commitment or --account (with --start-date and --end-date) is required" -- $ZR commitment periods
+expect_fail "commitment periods validation → requires --commitment/--account-number" \
+  "--commitment or --account-number (with --start-date and --end-date) is required" -- $ZR commitment periods
 
 echo "  Testing: commitment schedules without argument"
 expect_fail "commitment schedules validation → requires argument" \
@@ -91,8 +91,8 @@ run $ZR account create --body "$ACCT_BODY" --json
 ACCT_NUM=$(echo "$RUN_OUT" | jq -r '.accountNumber // empty' 2>/dev/null)
 if [ -n "$ACCT_NUM" ]; then
   pass "account create (for commitment list) → $ACCT_NUM"
-  echo "  Testing: commitment list --account $ACCT_NUM"
-  run $ZR commitment list --account "$ACCT_NUM" --json
+  echo "  Testing: commitment list --account-number $ACCT_NUM"
+  run $ZR commitment list --account-number "$ACCT_NUM" --json
   if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.commitments | type == "array"' >/dev/null 2>&1; then
     pass "commitment list → .commitments array (count=$(echo "$RUN_OUT" | jq '.commitments | length'))"
   elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "50000040"; then

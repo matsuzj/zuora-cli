@@ -138,6 +138,8 @@ release-check: ci e2e
 		fi; \
 		echo "goreleaser config OK (known brews deprecation tolerated)"; \
 	else \
-		echo "goreleaser not installed; skipping config validation"; \
+		echo "FAIL: goreleaser is not installed — the pre-tag gate must validate"; \
+		echo ".goreleaser.yml (install: brew install goreleaser)"; \
+		exit 1; \
 	fi
 	@echo "release gate green — tag with: git tag -a vX.Y.Z && git push origin vX.Y.Z"

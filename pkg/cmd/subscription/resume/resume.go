@@ -59,12 +59,14 @@ func NewCmdResume(f *factory.Factory) *cobra.Command {
 
 	cmdutil.AddBodyFlag(cmd, &opts.Body, false)
 	cmd.Flags().StringVar(&opts.Policy, "policy", "", "Resume policy (Today, SpecificDate, FixedPeriodsFromSuspendDate, FixedPeriodsFromToday)")
+	_ = cmd.RegisterFlagCompletionFunc("policy", cmdutil.EnumCompletion("Today", "SpecificDate", "FixedPeriodsFromSuspendDate", "FixedPeriodsFromToday"))
 	// body OR policy: cobra enforces the disjunction; the policy-conditional
 	// date/period requirements stay handwritten in RunE.
 	cmd.MarkFlagsOneRequired("body", "policy")
 	cmd.Flags().StringVar(&opts.ResumeDate, "resume-date", "", "Resume date (for SpecificDate, YYYY-MM-DD)")
 	cmd.Flags().IntVar(&opts.Periods, "periods", 0, "Number of periods (for FixedPeriodsFromSuspendDate or FixedPeriodsFromToday)")
 	cmd.Flags().StringVar(&opts.PeriodsType, "periods-type", "", "Period type (Day, Week, Month, Year)")
+	_ = cmd.RegisterFlagCompletionFunc("periods-type", cmdutil.EnumCompletion("Day", "Week", "Month", "Year"))
 
 	return cmd
 }

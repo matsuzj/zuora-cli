@@ -35,6 +35,7 @@ import (
 	subcmd "github.com/matsuzj/zuora-cli/pkg/cmd/subscription"
 	usagecmd "github.com/matsuzj/zuora-cli/pkg/cmd/usage"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/version"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/spf13/cobra"
 )
 
@@ -60,6 +61,7 @@ func NewCmdRoot(f *factory.Factory) *cobra.Command {
 
 	// Global flags (registration shared with the cmdtest harness)
 	globalflags.Register(cmd)
+	_ = cmd.RegisterFlagCompletionFunc("env", cmdutil.EnvNamesCompletion(f))
 
 	// Subcommands
 	cmd.AddCommand(version.NewCmdVersion(f))

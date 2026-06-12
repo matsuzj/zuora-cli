@@ -9,7 +9,14 @@ import (
 
 func newCmdSet(f *factory.Factory) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set <key> <value>",
+		Use: "set <key> <value>",
+		// Complete the <key> argument with the known config keys (P5-3b).
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) > 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return []string{"active_environment", "zuora_version", "default_output"}, cobra.ShellCompDirectiveNoFileComp
+		},
 		Short: "Set a configuration value",
 		Long: `Set a configuration value.
 

@@ -27,7 +27,7 @@ func Register(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("template", "", "Format output with a Go template")
 	cmd.PersistentFlags().Bool("csv", false, "Output as CSV")
 	cmd.PersistentFlags().String("zuora-version", "", "Override Zuora API version header")
-	cmd.PersistentFlags().Bool("verbose", false, "Enable verbose/debug output")
+	cmd.PersistentFlags().CountP("verbose", "v", "Verbose output (-vv or ZR_DEBUG=api adds request/response bodies)")
 	cmd.PersistentFlags().Bool("read-only", false, "Block write operations (POST/PUT/DELETE/PATCH)")
 }
 
@@ -92,7 +92,11 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	}
 
 	zv, _ := cmd.Flags().GetString("zuora-version")
-	verbose, _ := cmd.Flags().GetBool("verbose")
+	// Verbose levels (P6-3): -v = diagnostics, -vv (or ZR_DEBUG=api) also
+	// logs request/response bodies. ZR_DEBUG=api implies level 1 so the
+	// bodies appear in context.
+	verboseCount, _ := cmd.Flags().GetCount("verbose")
+	verbose, verboseBody := VerboseLevels(verboseCount, os.Getenv("ZR_DEBUG"))
 
 	// --read-only flag takes precedence over the ZR_READ_ONLY env var.
 	readOnly, _ := cmd.Flags().GetBool("read-only")
@@ -125,6 +129,9 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 		}
 		if verbose {
 			client.SetVerbose(f.IOStreams.ErrOut)
+		}
+		if verboseBody {
+			client.SetVerboseBody()
 		}
 		if readOnly {
 			client.SetReadOnly(true)
@@ -165,4 +172,12 @@ func (c *envOverrideConfig) ActiveEnvironment() string { return c.env }
 // explicit "config set active_environment" still persists.
 func (c *envOverrideConfig) SetActiveEnvironment(name string) error {
 	return c.Config.SetActiveEnvironment(name)
+}
+
+// VerboseLevels derives the two verbose gates from the --verbose count and
+// the ZR_DEBUG env value. ZR_DEBUG=api implies BOTH levels (bodies without
+// surrounding diagnostics would lack context); any other value is ignored.
+func VerboseLevels(count int, zrDebug string) (verbose, verboseBody bool) {
+	debugAPI := zrDebug == "api"
+	return count >= 1 || debugAPI, count >= 2 || debugAPI
 }

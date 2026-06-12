@@ -2,9 +2,11 @@ package auth
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/matsuzj/zuora-cli/internal/auth"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -115,7 +117,10 @@ func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 		envName: {clientID, clientSecret},
 	}}
 	ts := &auth.TokenSource{Config: cfg, Creds: creds}
-	if v, _ := cmd.Flags().GetBool("verbose"); v {
+	// Same gate as the factory path: ZR_DEBUG=api implies verbose, so the
+	// hand-built TokenSource here must not lose the auth lines (Codex).
+	vCount, _ := cmd.Flags().GetCount("verbose")
+	if verbose, _ := globalflags.VerboseLevels(vCount, os.Getenv("ZR_DEBUG")); verbose {
 		ts.Logf = func(format string, args ...any) { fmt.Fprintf(f.IOStreams.ErrOut, format, args...) }
 	}
 	// ForceRefreshContext (not the context-less Refresh): the command context

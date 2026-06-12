@@ -103,7 +103,10 @@ zr api /v1/orders -X POST --body @order.json
     --template <tmpl>      Format output with a Go template
     --csv                  Output as CSV (list/table commands)
     --zuora-version <ver>  Override Zuora API version header
-    --verbose              Enable debug output
+-v, --verbose count        Verbose output (request/response diagnostics);
+                           -vv (or ZR_DEBUG=api) also logs request/response
+                           bodies (4KB cap, multipart skipped) — bodies are
+                           billing data, so plain -v never includes them
     --read-only            Block write operations (POST/PUT/DELETE/PATCH)
 ```
 

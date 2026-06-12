@@ -30,6 +30,7 @@ type Client struct {
 	zuoraVersion  string
 	userAgent     string
 	verbose       bool
+	verboseBody   bool
 	verboseWriter io.Writer
 	readOnly      bool
 	ctx           context.Context
@@ -143,6 +144,39 @@ func (c *Client) SetZuoraVersion(v string) { c.zuoraVersion = v }
 
 // SetVerbose enables verbose logging to the given writer.
 func (c *Client) SetVerbose(w io.Writer) { c.verbose = true; c.verboseWriter = w }
+
+// SetVerboseBody enables level-2 verbose: request/response bodies are logged
+// (4KB cap, multipart skipped). Billing bodies are PII — this level is gated
+// behind -vv / ZR_DEBUG=api and never enabled by plain --verbose.
+func (c *Client) SetVerboseBody() { c.verboseBody = true }
+
+// maxBodyLog caps how many body bytes level-2 verbose prints.
+const maxBodyLog = 4096
+
+// vlogBody prints a request (dir ">") or response (dir "<") body under
+// level-2 verbose. Multipart payloads are skipped by Content-Type; larger
+// bodies are truncated with an explicit marker.
+func (c *Client) vlogBody(dir, contentType string, body []byte) {
+	if !c.verboseBody || c.verboseWriter == nil || len(body) == 0 {
+		return
+	}
+	// MIME media types are case-insensitive (e.g. "Multipart/Form-Data").
+	if strings.HasPrefix(strings.ToLower(contentType), "multipart/") {
+		fmt.Fprintf(c.verboseWriter, "%s [multipart body omitted]\n\n", dir)
+		return
+	}
+	b := body
+	truncated := false
+	if len(b) > maxBodyLog {
+		b = b[:maxBodyLog]
+		truncated = true
+	}
+	fmt.Fprintf(c.verboseWriter, "%s %s\n", dir, string(b))
+	if truncated {
+		fmt.Fprintf(c.verboseWriter, "%s [body truncated at %d bytes]\n", dir, maxBodyLog)
+	}
+	fmt.Fprintln(c.verboseWriter)
+}
 
 // vlogf writes a gh-style diagnostic line (prefix "* ") to the verbose writer.
 // No-op when verbose is off. Used by the retry loop to surface its decision
@@ -291,6 +325,7 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 			}
 		}
 		fmt.Fprintln(c.verboseWriter)
+		c.vlogBody("<", resp.Header.Get("Content-Type"), body)
 	}
 
 	if resp.StatusCode >= 400 {

@@ -115,16 +115,44 @@ else
   fail "hint cursor extraction → could not parse cursor from: $HINT_LINE"
 fi
 
-# EnvCredentials are both-or-nothing since #215: a PARTIAL pair (only
-# ZR_CLIENT_ID) must be ignored, falling back to the keyring — not half-used.
-# ZR_CLIENT_SECRET is explicitly BLANKED: if the runner exports a real secret,
-# bogus-ID + real-secret would form a complete (broken) env pair (Codex).
+# EnvCredentials are both-or-nothing since #215. A cached token would
+# short-circuit before any credential store is consulted (Codex), so each
+# check runs in an isolated config dir holding the real environment
+# definitions but NO tokens.yml — TokenContext is forced to refresh, and the
+# refresh must resolve credentials. The keyring is OS-level, so the real
+# credentials stay reachable from the isolated dir. ZR_CLIENT_SECRET is
+# explicitly BLANKED so a runner-exported real secret cannot complete the pair.
+_env_iso_dir() {
+  local d
+  d=$(mktemp -d) && mkdir -p "$d/zr" \
+    && cp "${XDG_CONFIG_HOME:-$HOME/.config}/zr/config.yml" \
+          "${XDG_CONFIG_HOME:-$HOME/.config}/zr/environments.yml" "$d/zr/" \
+    && printf '%s' "$d"
+}
 echo "  Testing: partial ZR_CLIENT_ID is ignored (both-or-nothing → keyring)"
-run env ZR_CLIENT_ID=bogus-e2e-partial ZR_CLIENT_SECRET= $ZR query "SELECT Id FROM Account" --jq '.records | length'
+ENV_ISO_DIR=$(_env_iso_dir)
+run env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID=bogus-e2e-partial ZR_CLIENT_SECRET= \
+  $ZR query "SELECT Id FROM Account" --jq '.records | length'
+rm -rf "$ENV_ISO_DIR"
 if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
-  pass "partial env credential → ignored, keyring auth still works"
+  pass "partial env credential → ignored, keyring refresh works"
 else
   fail "partial env credential → rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
+fi
+
+# The other direction of #215: a COMPLETE env pair must WIN over the keyring.
+# Bogus-but-complete credentials must surface an auth failure — a silent
+# fallback to the keyring would mean the env store was ignored. Fresh isolated
+# dir: the previous check cached a real token in its own.
+echo "  Testing: complete bogus env pair wins over keyring (auth failure)"
+ENV_ISO_DIR=$(_env_iso_dir)
+run env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID=bogus-e2e ZR_CLIENT_SECRET=bogus-e2e \
+  $ZR query "SELECT Id FROM Account"
+rm -rf "$ENV_ISO_DIR"
+if [ "$RUN_RC" -ne 0 ] && printf '%s' "${RUN_ERR:-$RUN_OUT}" | grep -qi "authentication failed"; then
+  pass "complete env pair → wins over keyring (auth failure surfaced)"
+else
+  fail "complete env pair → expected auth failure, rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
 fi
 
 # ─────────────────────────────────────────

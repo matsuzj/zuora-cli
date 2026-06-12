@@ -16,13 +16,45 @@ build:
 test:
 	go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...
 
-# Enforce the same coverage floor CI uses (73%).
+# Register-only command-group parents (pure cobra AddCommand wiring, no
+# logic): exempt from the per-package coverage floor. Anything ELSE dropping
+# to 0% must fail — keep this list explicit so a package that loses its tests
+# cannot silently slip through.
+COVER_EXEMPT := pkg/cmd/account pkg/cmd/billrun pkg/cmd/charge pkg/cmd/commitment \
+	pkg/cmd/contact pkg/cmd/creditmemo pkg/cmd/debitmemo pkg/cmd/fulfillment \
+	pkg/cmd/fulfillment-item pkg/cmd/invoice pkg/cmd/meter pkg/cmd/omnichannel \
+	pkg/cmd/order pkg/cmd/order-action pkg/cmd/order-line-item pkg/cmd/payment \
+	pkg/cmd/plan pkg/cmd/prepaid pkg/cmd/product pkg/cmd/ramp pkg/cmd/rateplan \
+	pkg/cmd/subscription pkg/cmd/usage
+
+# Per-package floor — RATCHET: 50% sits just under today's lowest tested
+# package (pkg/cmd/factory, 54.8%); raise it as the lows improve. The total
+# floor (73%) alone hid a dozen sub-floor packages behind the average.
+COVER_PKG_FLOOR := 50.0
+
+# Enforce the same coverage floors CI uses: total (73%) + per-package ratchet.
 cover: test
 	@total="$$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $$3); print $$3}')"; \
 	echo "Total coverage: $$total%"; \
 	if awk "BEGIN{exit !($$total < 73.0)}"; then \
 		echo "FAIL: coverage $$total% is below the 73.0% threshold"; exit 1; \
 	fi
+	@awk -v floor="$(COVER_PKG_FLOOR)" -v exempt="$(COVER_EXEMPT)" '\
+	BEGIN { n = split(exempt, e, /[ \t]+/); for (i = 1; i <= n; i++) ex["github.com/matsuzj/zuora-cli/" e[i]] = 1 } \
+	NR > 1 { \
+		colon = index($$1, ":"); file = substr($$1, 1, colon - 1); \
+		pkg = file; sub(/\/[^\/]*$$/, "", pkg); \
+		stmts[pkg] += $$2; if ($$3 > 0) cov[pkg] += $$2; \
+	} \
+	END { \
+		bad = 0; \
+		for (p in stmts) { \
+			pct = 100 * cov[p] / stmts[p]; \
+			if (pct < floor && !(p in ex)) { printf "FAIL: %s %.1f%% < %.1f%% per-package floor\n", p, pct, floor; bad = 1 } \
+		} \
+		if (!bad) print "Per-package coverage floor (" floor "%): OK"; \
+		exit bad; \
+	}' cov.out
 
 # Scan for known vulnerabilities in deps and the stdlib toolchain (matches CI).
 # Note: ./... covers code reachable from this module's packages only — go.mod

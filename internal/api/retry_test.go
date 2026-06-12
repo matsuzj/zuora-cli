@@ -343,3 +343,107 @@ func TestRetry_POST_TransportError_MarkedSafeToRetry(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr)
 	assert.True(t, apiErr.SafeToRetry)
 }
+
+// ─── P6-1: verbose retry visibility ───
+
+// TestVerbose_BackoffAndIdempotent5xxLines pins the retry-loop diagnostics:
+// a 5xx on an idempotent GET logs the 5xx decision and the backoff before
+// each re-attempt.
+func TestVerbose_BackoffAndIdempotent5xxLines(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.WriteHeader(500)
+			w.Write([]byte(`{"message":"boom"}`))
+			return
+		}
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+
+	_, err := c.Get("/v1/test")
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "* HTTP 500 on idempotent GET, will retry")
+	assert.Contains(t, out, "s backoff (attempt 2/4)")
+}
+
+// TestVerbose_RetryAfterLine pins the 429 Retry-After diagnostic.
+func TestVerbose_RetryAfterLine(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.Header().Set("Retry-After", "2")
+			w.WriteHeader(429)
+			w.Write([]byte(`{"message":"slow down"}`))
+			return
+		}
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+
+	_, err := c.Get("/v1/test")
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "* HTTP 429, honoring Retry-After: 2s (cap 60s)")
+}
+
+// TestVerbose_TokenRefreshMasksBearer is the mandatory P6-1 leak guard: the
+// 401-refresh diagnostics must show the hardcoded "Bearer ***" and the real
+// refreshed token value must NEVER reach the verbose stream.
+func TestVerbose_TokenRefreshMasksBearer(t *testing.T) {
+	const secretToken = "SECRET-REFRESHED-TOKEN-VALUE"
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.WriteHeader(401)
+			w.Write([]byte(`{"message":"expired"}`))
+			return
+		}
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(
+		WithBaseURL(srv.URL),
+		WithHTTPClient(srv.Client()),
+		WithRefreshToken(func(context.Context) (string, error) { return secretToken, nil }),
+	)
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+
+	_, err := c.Get("/v1/test")
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "* HTTP 401, refreshing token and resending")
+	assert.Contains(t, out, "(Bearer ***)")
+	assert.NotContains(t, out, secretToken, "refreshed token value must never be logged")
+}
+
+// TestVerbose_OffProducesNoStarLines: without SetVerbose the retry loop stays
+// silent (vlogf no-op).
+func TestVerbose_OffProducesNoStarLines(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.WriteHeader(500)
+			w.Write([]byte(`{"message":"boom"}`))
+			return
+		}
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Get("/v1/test")
+	require.NoError(t, err)
+	// nothing to assert on a writer (none set); reaching here without a
+	// panic proves the nil-writer no-op path.
+}

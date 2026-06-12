@@ -306,7 +306,7 @@ else
 fi
 
 echo "  Testing: ZR_ENV naming the active environment works"
-run env ZR_ENV=apac-sandbox $ZR query "SELECT Id FROM Account" --jq '.records | length'
+run_retry 3 env ZR_ENV=apac-sandbox $ZR query "SELECT Id FROM Account" --jq '.records | length'
 if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
   pass "ZR_ENV valid name → query works"
 else

@@ -45,7 +45,7 @@ reproduced directly against the tenant with the error code recorded.
 | Suite | Check | Category | Signal | Why |
 |---|---|---|---|---|
 | contact-signup | `contact delete verify` | eventual-consistency | record still returned after retries | Zuora read-after-delete is not immediately consistent. |
-| contact-signup | `signup` (live) | request-body shape | HTTP 400, code 69030021 | Tenant rejects the test body (`subscribeToRatePlans` invalid for this tenant's Sign-Up shape). **Fixable test body** (see below). |
+| contact-signup | `signup` (live) | sandbox-environment | HTTP 500, code 69000060 | Body shape corrected (`ratePlans` + `terms`); field validation passes, the residual 500 is a tenant configuration limit. A reappearing 69030021 now FAILS the suite. |
 | commerce | `product list-legacy` | tenant-config | HTTP 404, "no Route matched" | Legacy Commerce Product Catalog API not enabled on this tenant. |
 | commerce | `plan list` | tenant-config | HTTP 404, "no Route matched" | `/v1/rateplans` (Commerce catalog) not routed on this tenant. |
 | subscription-write | `subscription preview-change` | tenant-config | "invalid parameter" | Orders tenant expects a different body shape; the v1 preview params are rejected. |
@@ -90,17 +90,12 @@ These need external infrastructure / endpoints that the sandbox doesn't have.
   it is still returned, since this is a Zuora propagation window, not a CLI
   defect.
 
-### request-input / body shape (candidates for a real fix, not permanent skips)
-These skip because the test's request input doesn't match what the tenant
-expects — a **test-input issue**, not a tenant entitlement gap. The
-corresponding argument validation (missing `--body`/arg) is still asserted
-green; only the live happy-path is skipped and could pass once the input is
-corrected.
-
-- **`signup` (live)** — HTTP 400 `69030021`:
-  *"無効なパラメータ： 「subscribeToRatePlans」"*.
-  The Sign-Up body's `subscriptionData.subscribeToRatePlans` shape isn't
-  accepted by this tenant.
+### request-input / body shape — RESOLVED (2026-06-13)
+The `signup` body was the last test-input skip: the invalid
+`subscribeToRatePlans` field is now the correct `ratePlans` + `terms` shape
+per the official Sign-Up API. Field validation passes; the remaining skip is
+the tenant-side HTTP 500 (`69000060`), catalogued under sandbox-environment
+above. A reappearing `69030021` fails the suite (shape-regression guard).
 
 ## Commerce live verification — pending on a Commerce-enabled tenant
 

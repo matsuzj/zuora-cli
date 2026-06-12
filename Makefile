@@ -27,17 +27,17 @@ COVER_EXEMPT := pkg/cmd/account pkg/cmd/billrun pkg/cmd/charge pkg/cmd/commitmen
 	pkg/cmd/plan pkg/cmd/prepaid pkg/cmd/product pkg/cmd/ramp pkg/cmd/rateplan \
 	pkg/cmd/subscription pkg/cmd/usage
 
-# Per-package floor — RATCHET: 50% sits just under today's lowest tested
-# package (pkg/cmd/factory, 54.8%); raise it as the lows improve. The total
-# floor (73%) alone hid a dozen sub-floor packages behind the average.
-COVER_PKG_FLOOR := 50.0
+# Per-package floor — RATCHET: 60% sits at today's lowest non-exempt package
+# (internal/build, 60.0%); raise it as the lows improve. The total floor
+# (78%, was 73%) alone hid a dozen sub-floor packages behind the average.
+COVER_PKG_FLOOR := 60.0
 
 # Enforce the same coverage floors CI uses: total (73%) + per-package ratchet.
 cover: test
 	@total="$$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $$3); print $$3}')"; \
 	echo "Total coverage: $$total%"; \
-	if awk "BEGIN{exit !($$total < 73.0)}"; then \
-		echo "FAIL: coverage $$total% is below the 73.0% threshold"; exit 1; \
+	if awk "BEGIN{exit !($$total < 78.0)}"; then \
+		echo "FAIL: coverage $$total% is below the 78.0% threshold"; exit 1; \
 	fi
 	@awk -v floor="$(COVER_PKG_FLOOR)" -v exempt="$(COVER_EXEMPT)" '\
 	BEGIN { n = split(exempt, e, /[ \t]+/); for (i = 1; i <= n; i++) ex["github.com/matsuzj/zuora-cli/" e[i]] = 1 } \
@@ -118,3 +118,20 @@ check: fmtcheck lint cover
 # pushing to catch everything CI checks. (E2E is a separate manual gate — `make e2e`.)
 ci: modverify fmtcheck lint vuln cover build
 	@echo "ci: all checks passed (matches .github/workflows/ci.yml)"
+
+
+# release-check codifies the pre-tag gate (P7-era tribal knowledge): the full
+# CI mirror, the live E2E suites, and goreleaser config validity. Run this on
+# the exact commit you intend to tag. goreleaser's known `brews:` deprecation
+# is tolerated (the formula deliberately stays for Linux Homebrew, cf. #46).
+release-check: ci e2e
+	@if command -v goreleaser >/dev/null 2>&1; then \
+		out="$$(goreleaser check 2>&1)"; rc=$$?; \
+		if [ $$rc -ne 0 ] && ! echo "$$out" | grep -q "brews"; then \
+			echo "$$out"; exit 1; \
+		fi; \
+		echo "goreleaser config OK (known brews deprecation tolerated)"; \
+	else \
+		echo "goreleaser not installed; skipping config validation"; \
+	fi
+	@echo "release gate green — tag with: git tag -a vX.Y.Z && git push origin vX.Y.Z"

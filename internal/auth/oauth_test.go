@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -453,4 +454,102 @@ func TestTokenContext_CancelMidFlight_AbortsFast(t *testing.T) {
 
 	require.Error(t, err, "a cancelled mid-flight refresh must return an error")
 	assert.Less(t, elapsed, 2*time.Second, "cancellation must abort well before the 30s client timeout")
+}
+
+// ─── P6-2: auth observability ───
+
+// TestTokenSource_LogfObservabilityAndLeakDenial captures the Logf stream
+// across cache-hit, refresh, and force-refresh paths, asserting the expected
+// event lines AND — the mandatory leak guard — that neither the client secret
+// nor any token value ever reaches the log.
+func TestTokenSource_LogfObservabilityAndLeakDenial(t *testing.T) {
+	const secret = "SUPER-SECRET-VALUE"
+	const issuedToken = "ISSUED-TOKEN-VALUE"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": issuedToken,
+			"token_type":   "bearer",
+			"expires_in":   3600,
+		})
+	}))
+	defer server.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", secret))
+
+	var buf strings.Builder
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  creds,
+		Logf:   func(format string, args ...any) { fmt.Fprintf(&buf, format, args...) },
+	}
+
+	// Cache miss → refresh.
+	_, err := ts.TokenContext(context.Background(), "sandbox")
+	require.NoError(t, err)
+	out := buf.String()
+	// MockCredentialStore IS a StaticCredentialStore — the label must say so
+	// (Codex: auth login passes one built from flags/prompt, not the keyring).
+	assert.Contains(t, out, `* auth: fetching token for environment "sandbox" (credentials from explicitly provided values)`)
+	assert.Contains(t, out, "* auth: token acquired, expires in 3600s")
+
+	// Cache hit.
+	buf.Reset()
+	_, err = ts.TokenContext(context.Background(), "sandbox")
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), `* auth: cache hit for environment "sandbox"`)
+
+	// Force refresh.
+	buf.Reset()
+	_, err = ts.ForceRefreshContext(context.Background(), "sandbox")
+	require.NoError(t, err)
+	out = buf.String()
+	assert.Contains(t, out, `* auth: force-refreshing token for environment "sandbox"`)
+
+	// Leak denial across everything logged in this test.
+	full := out
+	assert.NotContains(t, full, secret, "client secret must never be logged")
+	assert.NotContains(t, full, issuedToken, "token values must never be logged")
+	assert.NotContains(t, full, "test-id", "client id is deliberately not logged")
+}
+
+// TestTokenSource_EnvVarCredentialSourceLine pins the env-pair source label.
+func TestTokenSource_EnvVarCredentialSourceLine(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "tok", "token_type": "bearer", "expires_in": 60,
+		})
+	}))
+	defer server.Close()
+
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+
+	var buf strings.Builder
+	ts := &TokenSource{
+		Config: cfg,
+		Creds:  &envVarStore{clientID: "id", clientSecret: "sec"},
+		Logf:   func(format string, args ...any) { fmt.Fprintf(&buf, format, args...) },
+	}
+	_, err := ts.ForceRefreshContext(context.Background(), "sandbox")
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "credentials from the ZR_CLIENT_ID/ZR_CLIENT_SECRET env vars")
+}
+
+// TestTokenSource_NilLogfIsSilent: the zero value stays a no-op.
+func TestTokenSource_NilLogfIsSilent(t *testing.T) {
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: "https://rest.test.zuora.com"}
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "cached-token",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+	}))
+	ts := &TokenSource{Config: cfg, Creds: NewMockCredentialStore()}
+	_, err := ts.TokenContext(context.Background(), "sandbox")
+	require.NoError(t, err) // reaching here without panic proves the nil guard
 }

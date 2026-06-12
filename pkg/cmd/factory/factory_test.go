@@ -1,7 +1,10 @@
 package factory
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/matsuzj/zuora-cli/internal/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,4 +70,19 @@ func TestNew_HttpClientUsesCachedConfig(t *testing.T) {
 	cfgAfter, err := f.Config()
 	require.NoError(t, err)
 	assert.True(t, cfg == cfgAfter, "HttpClient() must reuse the cached config, not reload it")
+}
+
+// TestTokenSource_WriterWiring pins the P6-2 plumbing: a non-nil writer
+// installs a Logf that writes to it; a nil writer leaves Logf nil (silent).
+func TestTokenSource_WriterWiring(t *testing.T) {
+	cfg := config.NewMockConfig()
+
+	var buf strings.Builder
+	ts := tokenSource(cfg, &buf)
+	require.NotNil(t, ts.Logf)
+	ts.Logf("hello %s\n", "world")
+	assert.Equal(t, "hello world\n", buf.String())
+
+	silent := tokenSource(cfg, nil)
+	assert.Nil(t, silent.Logf)
 }

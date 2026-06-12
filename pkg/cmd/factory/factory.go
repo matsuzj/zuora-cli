@@ -3,6 +3,8 @@ package factory
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"sync"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
@@ -17,12 +19,21 @@ type Factory struct {
 	Config     func() (config.Config, error)
 	HttpClient func() (*api.Client, error)
 	AuthToken  func(context.Context) (string, error)
+	// AuthLogWriter, when non-nil, receives the auth observability lines
+	// (P6-2). globalflags.Apply sets it under --verbose; the lazy closures
+	// read it at call time.
+	AuthLogWriter io.Writer
 }
 
 // tokenSource wires a TokenSource against the OS credential store — the one
 // place this pairing is constructed (it was copied per call site before).
-func tokenSource(cfg config.Config) *auth.TokenSource {
-	return &auth.TokenSource{Config: cfg, Creds: auth.NewCredentialStore()}
+// w, when non-nil, receives the auth observability lines (P6-2).
+func tokenSource(cfg config.Config, w io.Writer) *auth.TokenSource {
+	ts := &auth.TokenSource{Config: cfg, Creds: auth.NewCredentialStore()}
+	if w != nil {
+		ts.Logf = func(format string, args ...any) { fmt.Fprintf(w, format, args...) }
+	}
+	return ts
 }
 
 // New creates a Factory with real (system) dependencies.
@@ -49,7 +60,7 @@ func New() *Factory {
 		if err != nil {
 			return "", err
 		}
-		return tokenSource(cfg).TokenContext(ctx, cfg.ActiveEnvironment())
+		return tokenSource(cfg, f.AuthLogWriter).TokenContext(ctx, cfg.ActiveEnvironment())
 	}
 
 	// Lazy HTTP client
@@ -65,7 +76,7 @@ func New() *Factory {
 		// refreshToken forces a token refresh (bypasses cache) while still
 		// sharing the per-environment single-flight lock.
 		refreshToken := func(ctx context.Context) (string, error) {
-			return tokenSource(cfg).ForceRefreshContext(ctx, cfg.ActiveEnvironment())
+			return tokenSource(cfg, f.AuthLogWriter).ForceRefreshContext(ctx, cfg.ActiveEnvironment())
 		}
 		return api.NewClient(
 			api.WithBaseURL(env.BaseURL),

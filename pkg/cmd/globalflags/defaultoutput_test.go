@@ -49,3 +49,23 @@ func TestApply_DefaultOutputJSON_ExplicitFlagWins(t *testing.T) {
 	v, _ = cmd.Flags().GetBool("json")
 	assert.False(t, v, "an explicit --template must suppress the json default")
 }
+
+// A subcommand with a LOCAL --csv shadowing the root persistent flag must not
+// see the json default applied when --csv was given at the ROOT level.
+func TestApply_DefaultOutputJSON_RootLevelShadowedFlagWins(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	require.NoError(t, cfg.SetDefaultOutput("json"))
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "tok")
+
+	root := &cobra.Command{Use: "zr"}
+	globalflags.Register(root)
+	sub := &cobra.Command{Use: "query", RunE: func(*cobra.Command, []string) error { return nil }}
+	sub.Flags().Bool("csv", false, "local shadow")
+	root.AddCommand(sub)
+
+	require.NoError(t, root.PersistentFlags().Set("csv", "true")) // zr --csv query ...
+	require.NoError(t, globalflags.Apply(f, sub))
+	v, _ := sub.Flags().GetBool("json")
+	assert.False(t, v, "an explicit root-level --csv must suppress the json default even when shadowed")
+}

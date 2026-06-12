@@ -53,8 +53,21 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	// deliberately ignored here (the command itself surfaces it) — applying
 	// a cosmetic default must never gate on config parsing (the alias
 	// expansion lesson).
-	noFormatFlag := !cmd.Flags().Changed("json") && !cmd.Flags().Changed("jq") &&
-		!cmd.Flags().Changed("template") && !cmd.Flags().Changed("csv")
+	// A subcommand can SHADOW a root persistent flag with a local one (query's
+	// own --csv); cmd.Flags().Changed then consults the local flag and misses
+	// an explicit root-level `zr --csv query ...`, so check the root's
+	// persistent flags too (review finding).
+	formatFlagChanged := func(name string) bool {
+		if cmd.Flags().Changed(name) {
+			return true
+		}
+		if r := cmd.Root(); r != nil && r.PersistentFlags().Changed(name) {
+			return true
+		}
+		return false
+	}
+	noFormatFlag := !formatFlagChanged("json") && !formatFlagChanged("jq") &&
+		!formatFlagChanged("template") && !formatFlagChanged("csv")
 	if noFormatFlag && f.Config != nil && f.IOStreams != nil && !f.IOStreams.IsTerminal() {
 		if cfg, err := f.Config(); err == nil && cfg.DefaultOutput() == "json" {
 			_ = cmd.Flags().Set("json", "true")

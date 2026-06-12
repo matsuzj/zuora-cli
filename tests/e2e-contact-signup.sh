@@ -339,12 +339,10 @@ run $ZR signup --body "$SIGNUP_BODY" --json
 SIGNUP_SUCCESS=$(echo "$RUN_OUT" | jq -r '.success // empty' 2>/dev/null)
 if [ "$SIGNUP_SUCCESS" = "true" ]; then
   pass "signup → success (account=$(echo "$RUN_OUT" | jq -r '.accountNumber // empty'))"
-elif echo "${RUN_ERR}${RUN_OUT}" | grep -qF "69030021"; then
-  # The corrected body must never re-trip field validation on ratePlans.
-  fail "signup → body-shape regression (69030021): ${RUN_ERR:-$RUN_OUT}"
-elif echo "${RUN_ERR}${RUN_OUT}" | grep -qE "HTTP (500|400)"; then
-  # Field validation passes with the corrected body; only the tenant-side
-  # error (HTTP 500 69000060, or a future tenant-config 400) may skip.
+elif echo "${RUN_ERR}${RUN_OUT}" | grep -qF "HTTP 500"; then
+  # ONLY the documented tenant-side internal error (HTTP 500, 69000060) may
+  # skip. Any 4xx — including a reappearing 69030021 — is a body-shape
+  # regression in the corrected payload and must FAIL (Codex).
   skip "signup → $(echo "${RUN_ERR}${RUN_OUT}" | grep -F 'Zuora API error' | head -1)"
 else
   fail "signup (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"

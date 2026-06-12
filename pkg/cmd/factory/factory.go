@@ -19,6 +19,12 @@ type Factory struct {
 	AuthToken  func(context.Context) (string, error)
 }
 
+// tokenSource wires a TokenSource against the OS credential store — the one
+// place this pairing is constructed (it was copied per call site before).
+func tokenSource(cfg config.Config) *auth.TokenSource {
+	return &auth.TokenSource{Config: cfg, Creds: auth.NewCredentialStore()}
+}
+
 // New creates a Factory with real (system) dependencies.
 // Config, HttpClient, and AuthToken are lazily initialized.
 func New() *Factory {
@@ -43,9 +49,7 @@ func New() *Factory {
 		if err != nil {
 			return "", err
 		}
-		creds := auth.NewCredentialStore()
-		ts := &auth.TokenSource{Config: cfg, Creds: creds}
-		return ts.TokenContext(ctx, cfg.ActiveEnvironment())
+		return tokenSource(cfg).TokenContext(ctx, cfg.ActiveEnvironment())
 	}
 
 	// Lazy HTTP client
@@ -61,9 +65,7 @@ func New() *Factory {
 		// refreshToken forces a token refresh (bypasses cache) while still
 		// sharing the per-environment single-flight lock.
 		refreshToken := func(ctx context.Context) (string, error) {
-			creds := auth.NewCredentialStore()
-			ts := &auth.TokenSource{Config: cfg, Creds: creds}
-			return ts.ForceRefreshContext(ctx, cfg.ActiveEnvironment())
+			return tokenSource(cfg).ForceRefreshContext(ctx, cfg.ActiveEnvironment())
 		}
 		return api.NewClient(
 			api.WithBaseURL(env.BaseURL),

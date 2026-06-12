@@ -19,9 +19,20 @@ import (
 // the first one cached.
 var refreshLocks sync.Map // envName -> *sync.Mutex
 
+// ConfigStore is the slice of the config surface the token source actually
+// needs — cached token reads/writes, environment lookup, persistence —
+// declared consumer-side so auth does not depend on the full config.Config
+// interface. config.Config satisfies it.
+type ConfigStore interface {
+	Token(envName string) (*config.TokenEntry, error)
+	SetToken(envName string, token *config.TokenEntry) error
+	Environment(name string) (*config.Environment, error)
+	Save() error
+}
+
 // TokenSource manages OAuth 2.0 token acquisition and caching.
 type TokenSource struct {
-	Config     config.Config
+	Config     ConfigStore
 	Creds      CredentialStore
 	HTTPClient *http.Client
 }
@@ -44,10 +55,7 @@ func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string
 	}
 
 	// Serialize refreshes per environment to avoid duplicate token requests.
-	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
-	mu := muAny.(*sync.Mutex)
-	mu.Lock()
-	defer mu.Unlock()
+	defer lockEnv(envName)()
 
 	// Re-check: another goroutine may have refreshed while we waited.
 	if cached, err := ts.Config.Token(envName); err == nil && cached.IsValid() {
@@ -61,11 +69,17 @@ func (ts *TokenSource) TokenContext(ctx context.Context, envName string) (string
 // lock as TokenContext, so a forced refresh (e.g. after a 401) cannot
 // stampede the OAuth endpoint alongside concurrent callers.
 func (ts *TokenSource) ForceRefreshContext(ctx context.Context, envName string) (string, error) {
+	defer lockEnv(envName)()
+	return ts.refresh(ctx, envName)
+}
+
+// lockEnv takes the per-environment single-flight lock and returns the
+// unlock; callers defer the returned func immediately.
+func lockEnv(envName string) func() {
 	muAny, _ := refreshLocks.LoadOrStore(envName, &sync.Mutex{})
 	mu := muAny.(*sync.Mutex)
 	mu.Lock()
-	defer mu.Unlock()
-	return ts.refresh(ctx, envName)
+	return mu.Unlock
 }
 
 // refresh fetches a new token from the OAuth endpoint using the given context.

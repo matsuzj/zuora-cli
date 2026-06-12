@@ -49,9 +49,11 @@ func runUpdate(cmd *cobra.Command, opts *updateOptions, itemID string) error {
 		Path:   fmt.Sprintf("/v1/fulfillment-items/%s", url.PathEscape(itemID)),
 		Body:   bodyReader,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// PUT /v1/fulfillment-items/{id} returns only {processId,
+			// requestId, success, reasons} — no "id" field (#56 class).
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+				{Key: "Process ID", Value: cmdutil.GetString(raw, "processId")},
 			}
 		},
 		SuccessMsg: func(raw map[string]interface{}) string {

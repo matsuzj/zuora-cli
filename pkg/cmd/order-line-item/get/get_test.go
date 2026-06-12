@@ -13,19 +13,28 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestOrderLineItemGet_Success(t *testing.T) {
+	// REAL response shape: the item nests under "orderLineItem" (the old flat
+	// fixture masked the bug — all 8 fields rendered empty live).
 	handler := cmdtest.OK(t, "GET", "/v1/order-line-items/OLI-001", map[string]interface{}{
-		"success":     true,
-		"id":          "OLI-001",
-		"itemName":    "Widget",
-		"itemNumber":  "OLI-N-001",
-		"orderNumber": "O-00000001",
-		"quantity":    2,
+		"success": true,
+		"orderLineItem": map[string]interface{}{
+			"id":          "OLI-001",
+			"itemName":    "Widget",
+			"itemNumber":  "OLI-N-001",
+			"itemType":    "Product",
+			"itemState":   "Executing",
+			"orderNumber": "O-00000001",
+			"amount":      2000000.0,
+			"quantity":    2.0,
+		},
 	})
 
 	stdout, _, err := cmdtest.Run(t, "order-line-item", newCmd, handler, "order-line-item", "get", "OLI-001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "OLI-001")
 	assert.Contains(t, stdout, "Widget")
+	assert.Contains(t, stdout, "2000000.00", "amount must render as money, not 2e+06")
+	assert.Contains(t, stdout, "Executing")
 }
 
 func TestOrderLineItemGet_RequiresArg(t *testing.T) {

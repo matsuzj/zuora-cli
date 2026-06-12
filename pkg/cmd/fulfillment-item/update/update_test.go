@@ -24,15 +24,18 @@ func TestFulfillmentItemUpdate_Success(t *testing.T) {
 		assert.Equal(t, float64(10), body["quantity"])
 
 		w.WriteHeader(200)
+		// REAL response: only {processId, requestId, success, reasons} —
+		// the old fixture fabricated an "id" the API never returns.
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"id":      "item-001",
+			"success":   true,
+			"processId": "proc-123",
+			"requestId": "req-456",
 		})
 	})
 
 	stdout, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "update", "item-001", "--body", `{"quantity":10}`)
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "item-001")
+	assert.Contains(t, stdout, "proc-123")
 }
 
 func TestFulfillmentItemUpdate_RequiresBody(t *testing.T) {

@@ -26,16 +26,21 @@ func TestFulfillmentUpdate_Success(t *testing.T) {
 		assert.Equal(t, float64(10), reqBody["quantity"])
 
 		w.WriteHeader(200)
+		// REAL response: only {processId, requestId, success, reasons} —
+		// the old fixture fabricated a "key" the API never returns.
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"key":     "F-00000001",
+			"success":   true,
+			"processId": "proc-123",
+			"requestId": "req-456",
 		})
 	})
 
 	stdout, stderr, err := cmdtest.Run(t, "fulfillment", newCmd, handler, "fulfillment", "update", "F-00000001", "--body", `{"quantity":10}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "F-00000001")
+	// stdout shows the REAL response fields; the request key only appears in
+	// the stderr success message (driven by the path parameter).
+	assert.Contains(t, stdout, "proc-123")
 	assert.Contains(t, stderr, "Fulfillment F-00000001 updated.")
 }
 

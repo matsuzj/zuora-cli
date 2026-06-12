@@ -33,15 +33,17 @@ func runGet(cmd *cobra.Command, f *factory.Factory, paymentID string) error {
 		Path:   fmt.Sprintf("/v1/payments/%s", url.PathEscape(paymentID)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-				{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
-				{Key: "Effective Date", Value: cmdutil.GetDecimal(raw, "effectiveDate")},
-				{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Type", Value: cmdutil.GetDecimal(raw, "type")},
-				{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
-				{Key: "Gateway State", Value: cmdutil.GetDecimal(raw, "gatewayState")},
-				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				// The response field is "number" (matching creditmemo/
+				// debitmemo); "paymentNumber" never existed — verified live.
+				{Key: "Payment Number", Value: cmdutil.GetString(raw, "number")},
+				{Key: "Effective Date", Value: cmdutil.GetString(raw, "effectiveDate")},
+				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Type", Value: cmdutil.GetString(raw, "type")},
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+				{Key: "Gateway State", Value: cmdutil.GetString(raw, "gatewayState")},
+				{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
 			}
 		},
 	})

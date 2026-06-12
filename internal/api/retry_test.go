@@ -546,3 +546,23 @@ func TestVerboseBody_RetryLayerErrorBodies(t *testing.T) {
 	assert.Contains(t, buf.String(), "ERR-BODY-MARKER",
 		"retry-layer error bodies must surface under -vv")
 }
+
+// TestVerboseBody_MultipartSkipCaseInsensitive pins the MIME case rule: a
+// "Multipart/Form-Data" spelling must also be skipped.
+func TestVerboseBody_MultipartSkipCaseInsensitive(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	_, err := c.Post("/v1/test", strings.NewReader("SECRET-UPLOAD"),
+		WithHeader("Content-Type", "Multipart/Form-Data; boundary=xyz"))
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "[multipart body omitted]")
+	assert.NotContains(t, buf.String(), "SECRET-UPLOAD")
+}

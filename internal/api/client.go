@@ -160,7 +160,8 @@ func (c *Client) vlogBody(dir, contentType string, body []byte) {
 	if !c.verboseBody || c.verboseWriter == nil || len(body) == 0 {
 		return
 	}
-	if strings.HasPrefix(contentType, "multipart/") {
+	// MIME media types are case-insensitive (e.g. "Multipart/Form-Data").
+	if strings.HasPrefix(strings.ToLower(contentType), "multipart/") {
 		fmt.Fprintf(c.verboseWriter, "%s [multipart body omitted]\n\n", dir)
 		return
 	}

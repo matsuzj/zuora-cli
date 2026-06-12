@@ -70,6 +70,100 @@ else
   fail "query CSV → no header (rc=$RUN_RC) ${RUN_ERR}"
 fi
 
+# --jq + --csv is a documented-VALID combination: the JSON family wins over
+# --csv (README precedence; cf. the PR #54 regression where rejecting this
+# pair broke the contract). Output must be the jq result, not a CSV header.
+echo "  Testing: query --jq + --csv (JSON family wins per README precedence)"
+run_retry 3 $ZR query "SELECT Id FROM Account" --jq '.records | length' --csv
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+  pass "query --jq --csv → jq wins (numeric, no CSV header)"
+else
+  fail "query --jq --csv → expected numeric jq output, got '$(printf '%s' "$RUN_OUT" | head -1)' (rc=$RUN_RC) ${RUN_ERR}"
+fi
+
+# ─────────────────────────────────────────
+header "Step 2.5: v0.4.0 contracts — pagination hint + env credentials"
+# ─────────────────────────────────────────
+# Canonical nextPage hint (P3-2 listcmd): a copy-pasteable command on stderr.
+# The tenant has thousands of accounts, so --page-size 1 always has a next page.
+# --json=false: an EXPLICIT format flag defeats the default_output wiring, so
+# the check stays table-mode (hint emitted) even on a runner whose real config
+# has default_output=json — in JSON mode listcmd suppresses the hint (Codex).
+echo "  Testing: account list --page-size 1 → canonical nextPage hint"
+run $ZR account list --page-size 1 --json=false
+HINT_LINE=$(printf '%s\n' "$RUN_ERR" | grep -A1 -F "More results available. Next page:" | tail -1)
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_ERR" | grep -qF "More results available. Next page:" \
+   && printf '%s' "$HINT_LINE" | grep -qF "account list --page-size 1 --cursor "; then
+  pass "account list → canonical hint (command path + flags + --cursor)"
+else
+  fail "account list hint → rc=$RUN_RC, stderr: $(printf '%s' "$RUN_ERR" | head -3)"
+fi
+
+# Execute the hinted command: the hint's promise is that it is copy-pasteable.
+# Table layout: line 1 border, 2 header, 3 border, 4 first data row.
+PAGE1_ROW=$(printf '%s\n' "$RUN_OUT" | sed -n '4p')
+CURSOR=$(printf '%s' "$HINT_LINE" | sed -E "s/.*--cursor '?([^ ']+)'?[[:space:]]*$/\1/")
+if [ -n "$CURSOR" ] && [ "$CURSOR" != "$HINT_LINE" ]; then
+  run $ZR account list --page-size 1 --cursor "$CURSOR" --json=false
+  PAGE2_ROW=$(printf '%s\n' "$RUN_OUT" | sed -n '4p')
+  if [ "$RUN_RC" -eq 0 ] && [ -n "$PAGE2_ROW" ] && [ "$PAGE2_ROW" != "$PAGE1_ROW" ]; then
+    pass "hinted --cursor follow → page 2 fetched (row differs from page 1)"
+  else
+    fail "hinted --cursor follow → rc=$RUN_RC, page2 '$PAGE2_ROW' vs page1 '$PAGE1_ROW'"
+  fi
+else
+  fail "hint cursor extraction → could not parse cursor from: $HINT_LINE"
+fi
+
+# EnvCredentials are both-or-nothing since #215. A cached token would
+# short-circuit before any credential store is consulted (Codex), so each
+# check runs in an isolated config dir holding the real environment
+# definitions but NO tokens.yml — TokenContext is forced to refresh, and the
+# refresh must resolve credentials. The keyring is OS-level, so the real
+# credentials stay reachable from the isolated dir. ZR_CLIENT_SECRET is
+# explicitly BLANKED so a runner-exported real secret cannot complete the pair.
+_env_iso_dir() {
+  local d
+  d=$(mktemp -d) && mkdir -p "$d/zr" \
+    && cp "${XDG_CONFIG_HOME:-$HOME/.config}/zr/config.yml" \
+          "${XDG_CONFIG_HOME:-$HOME/.config}/zr/environments.yml" "$d/zr/" \
+    && printf '%s' "$d"
+}
+echo "  Testing: partial ZR_CLIENT_ID is ignored (both-or-nothing → keyring)"
+ENV_ISO_DIR=$(_env_iso_dir)
+# Keyring availability probe (Codex): with NO env credentials and no cached
+# token, a refresh succeeds only if the OS keyring holds usable credentials.
+# A runner authenticated purely via env vars or a cached token cannot prove
+# the keyring-fallback half of #215 — skip instead of false-failing.
+if env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID= ZR_CLIENT_SECRET= $ZR auth token >/dev/null 2>&1; then
+  rm -rf "$ENV_ISO_DIR"; ENV_ISO_DIR=$(_env_iso_dir)  # fresh dir: drop the token the probe just cached
+  run env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID=bogus-e2e-partial ZR_CLIENT_SECRET= \
+    $ZR query "SELECT Id FROM Account" --jq '.records | length'
+  if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+    pass "partial env credential → ignored, keyring refresh works"
+  else
+    fail "partial env credential → rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
+  fi
+else
+  skip "partial env credential → keyring credentials unavailable on this runner"
+fi
+rm -rf "$ENV_ISO_DIR"
+
+# The other direction of #215: a COMPLETE env pair must WIN over the keyring.
+# Bogus-but-complete credentials must surface an auth failure — a silent
+# fallback to the keyring would mean the env store was ignored. Fresh isolated
+# dir: the previous check cached a real token in its own.
+echo "  Testing: complete bogus env pair wins over keyring (auth failure)"
+ENV_ISO_DIR=$(_env_iso_dir)
+run env XDG_CONFIG_HOME="$ENV_ISO_DIR" ZR_CLIENT_ID=bogus-e2e ZR_CLIENT_SECRET=bogus-e2e \
+  $ZR query "SELECT Id FROM Account"
+rm -rf "$ENV_ISO_DIR"
+if [ "$RUN_RC" -ne 0 ] && printf '%s' "${RUN_ERR:-$RUN_OUT}" | grep -qi "authentication failed"; then
+  pass "complete env pair → wins over keyring (auth failure surfaced)"
+else
+  fail "complete env pair → expected auth failure, rc=$RUN_RC: $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
+fi
+
 # ─────────────────────────────────────────
 header "Step 3: Subscription Changelog Validation"
 # ─────────────────────────────────────────

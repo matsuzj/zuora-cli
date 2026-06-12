@@ -5,7 +5,7 @@ Guidance for AI coding agents working in this repo. Read this first.
 ## Build & Run
 
 - `task build` or `make build` — Build binary (output: `./bin/zr`, gitignored)
-- `task test` or `make test` — Run tests (`go test -race -count=1 ./...`)
+- `task test` or `make test` — Run tests (`go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...`)
 - `task lint` or `make lint` — Linters (go vet + staticcheck)
 - `task fmt` or `make fmt` — `gofmt -w .` (run before pushing)
 - `task check` / `make check` — local pre-commit gate (see "Verifying changes" — it is a SUBSET of CI)
@@ -24,7 +24,7 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 6. `go test -race -count=1 ./...`
 7. Coverage floor: **≥ 73.0%** total (`make cover` enforces it locally; CI enforces it too)
 8. `make build` (what CI runs — produces `bin/zr` with version ldflags; a bare `go build ./...` does not exercise that linkage)
-9. For changes to live API/auth/output behavior: run the **E2E suite** (`make e2e`, 9 suites against the live sandbox) — it is the only thing that catches Zuora-specific behavior that mocked unit tests miss. E2E is a MANUAL pre-merge/release gate and is intentionally NOT in CI.
+9. For changes to live API/auth/output behavior: run the **E2E suite** (`make e2e` — every `tests/e2e-*.sh` suite against the live sandbox) — it is the only thing that catches Zuora-specific behavior that mocked unit tests miss. E2E is a MANUAL pre-merge/release gate and is intentionally NOT in CI.
 
 `main` is protected (strict): PRs serialize. After one PR merges, others go BEHIND — `gh pr update-branch <n>`, wait for CI, then merge. `--admin`/auto-merge are not available.
 
@@ -36,6 +36,18 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 - Command example invocations go in cobra's `Example:` field (or
   `listcmd.Spec.Example`), never embedded in `Long` — `make lint` rejects
   `Examples:` blocks inside `pkg/cmd` Go files.
+- New commands are DECLARATIVE: `cmdutil.RunDetail`+`Action` (detail/write),
+  `listcmd.New`+`Spec` (table lists), `output.RenderJSONOnly` (JSON-only).
+  Hand-written `runE` only for the documented exceptions — see
+  `docs/architecture.md`「コマンドの書き方(正準)」.
+- Command options live in an options struct (`opts := &xxxOptions{Factory: f}`).
+- Flag vocabulary: `--account-key` (ID or number, path param) /
+  `--account-number` (`accountNumber` query) / `--account-id` (`accountId`
+  query). Pick by what the ENDPOINT accepts; never reuse `--account`.
+- The README destructive-command list is GENERATED: after adding/removing a
+  `RequireConfirm` call, run `scripts/gen-destructive-list.sh` and refresh the
+  block between the README's destructive-list markers (`make lint` fails on
+  drift).
 
 ## Testing
 

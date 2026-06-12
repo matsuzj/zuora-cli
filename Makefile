@@ -85,6 +85,13 @@ lint:
 		echo "example invocations belong in the cobra Example: field, not embedded in Long (P5-3):"; \
 		echo "$$bad"; exit 1; \
 	fi
+	@gen="$$(scripts/gen-destructive-list.sh)"; \
+	cur="$$(sed -n '/destructive-list:begin/,/destructive-list:end/p' README.md | sed '1d;$$d')"; \
+	if [ "$$gen" != "$$cur" ]; then \
+		echo "README destructive-command list drifted from the RequireConfirm ground truth;"; \
+		echo "refresh the block between the markers with: scripts/gen-destructive-list.sh"; \
+		exit 1; \
+	fi
 
 clean:
 	rm -rf bin/

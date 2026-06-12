@@ -76,7 +76,16 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	}
 
 	// --env override (transient, does not persist to config.yml)
-	if envName, _ := cmd.Flags().GetString("env"); envName != "" {
+	// Environment selection: the --env flag wins over the ZR_ENV env var,
+	// which wins over the config's active_environment (P6-4; same precedence
+	// shape as --read-only vs ZR_READ_ONLY). ZR_ENV names an environment
+	// EXACTLY — an unknown name errors just like --env, never a silent
+	// fallback (a typo must not flip a write to another tenant).
+	envName, _ := cmd.Flags().GetString("env")
+	if envName == "" {
+		envName = os.Getenv("ZR_ENV")
+	}
+	if envName != "" {
 		origConfig := f.Config
 		f.Config = func() (config.Config, error) {
 			cfg, err := origConfig()

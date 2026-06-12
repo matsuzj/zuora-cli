@@ -35,7 +35,7 @@ func runGet(cmd *cobra.Command, f *factory.Factory, itemID string) error {
 			return []output.DetailField{
 				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				{Key: "Fulfillment Key", Value: cmdutil.GetString(raw, "fulfillmentKey")},
-				{Key: "Quantity", Value: cmdutil.GetString(raw, "quantity")},
+				{Key: "Quantity", Value: cmdutil.GetDecimal(raw, "quantity")},
 				{Key: "Description", Value: cmdutil.GetString(raw, "description")},
 			}
 		},

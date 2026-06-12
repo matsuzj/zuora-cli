@@ -30,6 +30,8 @@ func TestInvoiceGet_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "INV00001")
 	assert.Contains(t, stdout, "Posted")
+	assert.Contains(t, stdout, "100.50", "amount renders as money")
+	assert.Contains(t, stdout, "50.25", "balance renders as money")
 }
 
 func TestInvoiceGet_JSON(t *testing.T) {

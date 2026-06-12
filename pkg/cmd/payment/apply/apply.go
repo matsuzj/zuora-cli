@@ -52,7 +52,7 @@ func runApply(cmd *cobra.Command, opts *applyOptions, paymentID string) error {
 			return []output.DetailField{
 				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
 				{Key: "Payment Number", Value: cmdutil.GetDecimal(raw, "paymentNumber")},
-				{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
 				{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
 			}

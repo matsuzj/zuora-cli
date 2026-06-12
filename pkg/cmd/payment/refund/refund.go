@@ -52,7 +52,7 @@ func runRefund(cmd *cobra.Command, opts *refundOptions, paymentID string) error 
 			return []output.DetailField{
 				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
 				{Key: "Refund Number", Value: cmdutil.GetDecimal(raw, "refundNumber")},
-				{Key: "Amount", Value: cmdutil.GetDecimal(raw, "amount")},
+				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
 				{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
 			}

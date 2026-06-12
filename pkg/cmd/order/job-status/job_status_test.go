@@ -3,6 +3,7 @@ package jobstatus
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -156,4 +157,24 @@ func TestOrderJobStatus_TimeoutAbortsInFlightRequest(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting for job J1", "mid-request timeout must use the friendly message")
 	assert.Less(t, elapsed, 500*time.Millisecond, "--timeout must abort an in-flight request promptly")
+}
+
+// TestOrderJobStatus_WatchTreatsCanceledAsTerminal pins the US-spelling fix:
+// Zuora emits "Canceled" for async order jobs; --watch must stop, not poll
+// forever.
+func TestOrderJobStatus_WatchTreatsCanceledAsTerminal(t *testing.T) {
+	var calls int32
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		status := "InProgress"
+		if atomic.AddInt32(&calls, 1) >= 2 {
+			status = "Canceled"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"success":true,"jobId":"J1","status":%q}`, status)
+	}
+
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "10ms")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Canceled")
+	assert.Equal(t, int32(2), atomic.LoadInt32(&calls), "polling must stop at the terminal status")
 }

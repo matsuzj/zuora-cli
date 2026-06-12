@@ -115,6 +115,39 @@ else
   fail "hint cursor extraction → could not parse cursor from: $HINT_LINE"
 fi
 
+# Output-format matrix on real commands: --csv on both command classes
+# (list-class = column header row, detail-class = Field,Value rows) and
+# --template on a detail command. These paths had zero live coverage.
+echo "  Testing: account list --csv (list-class CSV)"
+run $ZR account list --page-size 2 --csv
+mx_csv_head=${RUN_OUT%%$'\n'*}
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$mx_csv_head" | grep -qiE 'id|name'; then
+  pass "account list --csv → header row present"
+else
+  fail "account list --csv → rc=$RUN_RC, first line: '$mx_csv_head' ${RUN_ERR}"
+fi
+
+MX_ACCT=$($ZR query "SELECT AccountNumber FROM Account" --jq '.records[0].AccountNumber' 2>/dev/null | tr -d '"')
+if [ -n "$MX_ACCT" ] && [ "$MX_ACCT" != "null" ]; then
+  echo "  Testing: account get --csv (detail-class CSV)"
+  run $ZR account get "$MX_ACCT" --csv
+  if [ "$RUN_RC" -eq 0 ] && [ "${RUN_OUT%%$'\n'*}" = "Field,Value" ]; then
+    pass "account get --csv → Field,Value detail CSV"
+  else
+    fail "account get --csv → rc=$RUN_RC, first line: '$(printf '%s' "$RUN_OUT" | head -1)' ${RUN_ERR}"
+  fi
+
+  echo "  Testing: account get --template"
+  run $ZR account get "$MX_ACCT" --template '{{.basicInfo.accountNumber}}'
+  if [ "$RUN_RC" -eq 0 ] && [ "$RUN_OUT" = "$MX_ACCT" ]; then
+    pass "account get --template → rendered accountNumber"
+  else
+    fail "account get --template → rc=$RUN_RC: got '$RUN_OUT' ${RUN_ERR}"
+  fi
+else
+  skip "account get --csv/--template → no account number via ZOQL"
+fi
+
 # EnvCredentials are both-or-nothing since #215. A cached token would
 # short-circuit before any credential store is consulted (Codex), so each
 # check runs in an isolated config dir holding the real environment
@@ -247,11 +280,16 @@ else
 fi
 
 echo "  Testing: api --paginate (auto-follow pages)"
+# Structural assert (.products array), not just "any JSON". A guaranteed
+# multi-page --paginate isn't safely boundable on this tenant (no page cap
+# flag; large collections would fetch thousands of pages) — page-2 fetching
+# is live-proven by the account-list --cursor follow in Step 2.5, and the
+# page-body resend has unit coverage (TestDoPaginated_ResendsBodyEachPage).
 run_retry 3 $ZR api /v1/catalog/products --paginate --json
-if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.' >/dev/null 2>&1; then
-  pass "api --paginate → returned aggregated JSON"
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e 'type == "array" and (.[0].products | type == "array")' >/dev/null 2>&1; then
+  pass "api --paginate → array of pages, each with .products"
 else
-  fail "api --paginate (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+  fail "api --paginate (rc=$RUN_RC) → $(printf '%s' "${RUN_ERR:-$RUN_OUT}" | head -1)"
 fi
 
 # ─────────────────────────────────────────
@@ -308,6 +346,24 @@ if echo "$RO_READ" | jq -e '.records' >/dev/null 2>&1 && ! echo "$RO_READ" | gre
   pass "read-only mode → allows query (has .records, not blocked)"
 else
   fail "read-only mode → query not allowed as expected: $(echo "$RO_READ" | head -1)"
+fi
+
+# 6e: the --read-only FLAG must behave like the env var (both block writes,
+# both pass reads). Until now only the env-var form had live coverage.
+echo "  Testing: --read-only flag blocks account create"
+ROF_OUT=$($ZR --read-only account create --body '{"name":"e2e-readonly-flag"}' 2>&1) || true
+if echo "$ROF_OUT" | grep -qF "not allowed in read-only mode"; then
+  pass "--read-only flag → blocks account create"
+else
+  fail "--read-only flag → did not block: $(echo "$ROF_OUT" | head -1)"
+fi
+
+echo "  Testing: --read-only flag allows query (read)"
+run $ZR --read-only query "SELECT Id FROM Account" --jq '.records | length'
+if [ "$RUN_RC" -eq 0 ] && printf '%s' "$RUN_OUT" | grep -qE '^[0-9]+$'; then
+  pass "--read-only flag → allows read (query)"
+else
+  fail "--read-only flag → read blocked? rc=$RUN_RC: ${RUN_ERR:-$RUN_OUT}"
 fi
 
 # ─────────────────────────────────────────

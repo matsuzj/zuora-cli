@@ -520,8 +520,14 @@ UCF_SUCCESS=$(echo "$UCF_RESULT" | jq -r '.success // empty' 2>/dev/null)
 if [ "$UCF_SUCCESS" = "true" ]; then
   pass "subscription update-custom-fields → success"
 else
-  # May fail if no custom fields defined - that's expected
-  skip "update-custom-fields → $(echo "$UCF_RESULT" | jq -r '.reasons[0].message // "no custom fields"' 2>/dev/null)"
+  # ONLY a custom-field-related rejection may skip (tenant without custom
+  # fields defined); any other failure — auth, 4xx/5xx, transport — fails.
+  UCF_MSG=$(echo "$UCF_RESULT" | jq -r '.reasons[0].message // ""' 2>/dev/null)
+  if printf '%s' "$UCF_MSG" | grep -qi "custom\|カスタム"; then
+    skip "update-custom-fields → $UCF_MSG"
+  else
+    fail "update-custom-fields → unexpected failure: $(echo "$UCF_RESULT" | head -2)"
+  fi
 fi
 
 # ─────────────────────────────────────────

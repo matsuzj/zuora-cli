@@ -144,6 +144,24 @@ read_or_skip() {
   fi
 }
 
+# read_or_skip_on <description> <jq-success-filter> <expected-error-substring> -- <command...>
+# Stricter read_or_skip: skip ONLY when the error contains the expected
+# fixed-string (the tenant limitation this check is known to hit); any OTHER
+# Zuora API error fails. Prevents a blanket skip from masking a new failure
+# mode behind a known one.
+read_or_skip_on() {
+  local desc="$1" filter="$2" expect="$3"; shift 3
+  [ "${1:-}" = "--" ] && shift
+  run "$@"
+  if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e "$filter" >/dev/null 2>&1; then
+    pass "$desc"
+  elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF -- "$expect"; then
+    skip "$desc → $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
+  else
+    fail "$desc → rc=$RUN_RC: $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
+  fi
+}
+
 # require_auth — Step 0 gate for live suites: binary present + token valid.
 require_auth() {
   [ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }

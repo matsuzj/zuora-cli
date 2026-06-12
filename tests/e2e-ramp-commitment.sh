@@ -95,7 +95,9 @@ if [ -n "$ACCT_NUM" ]; then
   run $ZR commitment list --account "$ACCT_NUM" --json
   if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.commitments | type == "array"' >/dev/null 2>&1; then
     pass "commitment list → .commitments array (count=$(echo "$RUN_OUT" | jq '.commitments | length'))"
-  elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "Zuora API error"; then
+  elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "50000040"; then
+    # ONLY the documented endpoint-missing error (feature off on this tenant)
+    # may skip; any other Zuora API error is a real failure.
     skip "commitment list → $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
   else
     fail "commitment list (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"

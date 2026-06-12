@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <rate-plan-id>",
 		Short: "Get a rate plan",
-		Long: `Get detailed information about a Zuora rate plan (v1 API).
-
-Examples:
-  zr rateplan get 402880e...
+		Long:  `Get detailed information about a Zuora rate plan (v1 API).`,
+		Example: `  zr rateplan get 402880e...
   zr rateplan get 402880e... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -15,10 +15,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List payments for an account",
-		Long: `List all payments associated with a Zuora billing account.
-
-Examples:
-  zr payment list --account A00000001
+		Long:  `List all payments associated with a Zuora billing account.`,
+		Example: `  zr payment list --account A00000001
   zr payment list --account A00000001 --json
   zr payment list --account A00000001 --page-size 10`,
 		Flags: []listcmd.Flag{

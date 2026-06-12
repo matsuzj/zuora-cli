@@ -15,10 +15,8 @@ func NewCmdListByInvoiceOwner(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list-by-invoice-owner <account-number>",
 		Short: "List orders by invoice owner account",
-		Long: `List Zuora orders for an invoice owner account.
-
-Examples:
-  zr order list-by-invoice-owner A00000001
+		Long:  `List Zuora orders for an invoice owner account.`,
+		Example: `  zr order list-by-invoice-owner A00000001
   zr order list-by-invoice-owner A00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		Flags: []listcmd.Flag{

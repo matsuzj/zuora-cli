@@ -12,10 +12,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List credit memos",
-		Long: `List Zuora credit memos, optionally filtered by account or status.
-
-Examples:
-  zr creditmemo list
+		Long:  `List Zuora credit memos, optionally filtered by account or status.`,
+		Example: `  zr creditmemo list
   zr creditmemo list --account-number A00000001
   zr creditmemo list --account-id 8aca... --status Posted
   zr creditmemo list --page-size 10 --json`,

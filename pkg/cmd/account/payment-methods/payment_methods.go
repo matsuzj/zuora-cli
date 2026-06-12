@@ -16,10 +16,8 @@ func NewCmdPaymentMethods(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payment-methods <account-key>",
 		Short: "List payment methods for an account",
-		Long: `List all payment methods associated with a Zuora billing account.
-
-Examples:
-  zr account payment-methods A00000001
+		Long:  `List all payment methods associated with a Zuora billing account.`,
+		Example: `  zr account payment-methods A00000001
   zr account payment-methods A00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

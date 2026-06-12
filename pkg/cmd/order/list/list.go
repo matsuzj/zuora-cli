@@ -12,10 +12,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List orders",
-		Long: `List Zuora orders.
-
-Examples:
-  zr order list
+		Long:  `List Zuora orders.`,
+		Example: `  zr order list
   zr order list --status Completed
   zr order list --page 2 --page-size 10 --json`,
 		Flags: []listcmd.Flag{

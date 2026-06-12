@@ -16,13 +16,11 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 	var confirm bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <contact-id>",
-		Short: "Delete a contact",
-		Long: `Delete a Zuora contact. This action is irreversible.
-
-Examples:
-  zr contact delete 8aca822f12345 --confirm`,
-		Args: cobra.ExactArgs(1),
+		Use:     "delete <contact-id>",
+		Short:   "Delete a contact",
+		Long:    `Delete a Zuora contact. This action is irreversible.`,
+		Example: `  zr contact delete 8aca822f12345 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

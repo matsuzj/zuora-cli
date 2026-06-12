@@ -23,10 +23,8 @@ func NewCmdEmail(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "email <invoice-id>",
 		Short: "Email an invoice",
-		Long: `Email a Zuora invoice to specified recipients.
-
-Examples:
-  zr invoice email 2c92c0f8... --body '{"emailAddresses":"user@example.com","useEmailTemplateSetting":true}'
+		Long:  `Email a Zuora invoice to specified recipients.`,
+		Example: `  zr invoice email 2c92c0f8... --body '{"emailAddresses":"user@example.com","useEmailTemplateSetting":true}'
   zr invoice email 2c92c0f8... --body @email.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

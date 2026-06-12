@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <bill-run-id>",
 		Short: "Get bill run details",
-		Long: `Get detailed information about a Zuora bill run.
-
-Examples:
-  zr billrun get BR-00000001
+		Long:  `Get detailed information about a Zuora bill run.`,
+		Example: `  zr billrun get BR-00000001
   zr billrun get 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -15,10 +15,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List invoices for an account",
-		Long: `List all invoices associated with a Zuora billing account.
-
-Examples:
-  zr invoice list --account A00000001
+		Long:  `List all invoices associated with a Zuora billing account.`,
+		Example: `  zr invoice list --account A00000001
   zr invoice list --account A00000001 --json
   zr invoice list --account A00000001 --page-size 10`,
 		Flags: []listcmd.Flag{

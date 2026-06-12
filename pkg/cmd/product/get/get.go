@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <product-key>",
 		Short: "Get a commerce product",
-		Long: `Get detailed information about a Zuora commerce product.
-
-Examples:
-  zr product get PROD-001
+		Long:  `Get detailed information about a Zuora commerce product.`,
+		Example: `  zr product get PROD-001
   zr product get PROD-001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

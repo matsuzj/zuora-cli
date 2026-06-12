@@ -17,11 +17,9 @@ func NewCmdUsageRateDetail(f *factory.Factory) *cobra.Command {
 		Short: "Get usage rate detail for an invoice item",
 		Long: `Get detailed usage rate information for a Zuora invoice item.
 
-Output is always JSON due to the complex nested structure.
-
-Examples:
-  zr invoice usage-rate-detail 2c92c0f8...`,
-		Args: cobra.ExactArgs(1),
+Output is always JSON due to the complex nested structure.`,
+		Example: `  zr invoice usage-rate-detail 2c92c0f8...`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUsageRateDetail(cmd, f, args[0])
 		},

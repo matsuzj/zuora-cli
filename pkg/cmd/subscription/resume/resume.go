@@ -29,10 +29,8 @@ func NewCmdResume(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resume <subscription-key>",
 		Short: "Resume a suspended subscription",
-		Long: `Resume a suspended Zuora subscription.
-
-Examples:
-  zr subscription resume A-S001 --policy FixedPeriodsFromSuspendDate --periods 1 --periods-type Month
+		Long:  `Resume a suspended Zuora subscription.`,
+		Example: `  zr subscription resume A-S001 --policy FixedPeriodsFromSuspendDate --periods 1 --periods-type Month
   zr subscription resume A-S001 --policy SpecificDate --resume-date 2026-05-01
   zr sub resume A-S001 --body @resume.json`,
 		Args: cobra.ExactArgs(1),

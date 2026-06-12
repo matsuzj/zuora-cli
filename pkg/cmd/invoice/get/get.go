@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <invoice-id>",
 		Short: "Get invoice details",
-		Long: `Get detailed information about a Zuora invoice.
-
-Examples:
-  zr invoice get 2c92c0f8...
+		Long:  `Get detailed information about a Zuora invoice.`,
+		Example: `  zr invoice get 2c92c0f8...
   zr invoice get 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -29,10 +29,8 @@ func NewCmdSuspend(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "suspend <subscription-key>",
 		Short: "Suspend a subscription",
-		Long: `Suspend a Zuora subscription.
-
-Examples:
-  zr subscription suspend A-S001 --policy FixedPeriodsFromToday --periods 3 --periods-type Month
+		Long:  `Suspend a Zuora subscription.`,
+		Example: `  zr subscription suspend A-S001 --policy FixedPeriodsFromToday --periods 3 --periods-type Month
   zr subscription suspend A-S001 --policy SpecificDate --suspend-date 2026-04-01
   zr sub suspend A-S001 --body @suspend.json`,
 		Args: cobra.ExactArgs(1),

@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <payment-id>",
 		Short: "Get payment details",
-		Long: `Get detailed information about a Zuora payment.
-
-Examples:
-  zr payment get 2c92c0f8...
+		Long:  `Get detailed information about a Zuora payment.`,
+		Example: `  zr payment get 2c92c0f8...
   zr payment get 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

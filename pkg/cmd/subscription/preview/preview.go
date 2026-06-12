@@ -17,10 +17,8 @@ func NewCmdPreview(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview",
 		Short: "Preview a subscription",
-		Long: `Preview a new Zuora subscription without creating it.
-
-Examples:
-  zr subscription preview --body @preview.json
+		Long:  `Preview a new Zuora subscription without creating it.`,
+		Example: `  zr subscription preview --body @preview.json
   zr sub preview --body '{"accountKey":"A001","termType":"TERMED",...}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

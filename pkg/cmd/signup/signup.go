@@ -20,10 +20,8 @@ func NewCmdSignup(f *factory.Factory) *cobra.Command {
 		Long: `Sign up a new customer by creating an account, payment method, and subscription together.
 
 This uses the Zuora Sign Up API (POST /v1/sign-up) which combines
-account creation, payment method setup, and subscription creation in a single call.
-
-Examples:
-  zr signup --body @signup.json
+account creation, payment method setup, and subscription creation in a single call.`,
+		Example: `  zr signup --body @signup.json
   zr signup --body '{"accountInfo":{...},"subscriptionInfo":{...}}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {

@@ -15,10 +15,8 @@ func NewCmdChangelogByOrder(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changelog-by-order <order-number>",
 		Short: "Get subscription change logs by order",
-		Long: `Get subscription change logs filtered by order number.
-
-Examples:
-  zr subscription changelog-by-order O-00000001
+		Long:  `Get subscription change logs filtered by order number.`,
+		Example: `  zr subscription changelog-by-order O-00000001
   zr subscription changelog-by-order O-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -22,10 +22,8 @@ func NewCmdRenew(f *factory.Factory) *cobra.Command {
 		Short: "Renew a subscription",
 		Long: `Renew an existing Zuora subscription.
 
-Renews using existing term settings. Use --body to override billing options.
-
-Examples:
-  zr subscription renew SUB-001
+Renews using existing term settings. Use --body to override billing options.`,
+		Example: `  zr subscription renew SUB-001
   zr subscription renew SUB-001 --body '{"collect":true}'
   zr sub renew SUB-001 --body @renew.json`,
 		Args: cobra.ExactArgs(1),

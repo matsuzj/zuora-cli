@@ -15,10 +15,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List subscriptions for an account",
-		Long: `List all subscriptions associated with a Zuora billing account.
-
-Examples:
-  zr subscription list --account A00000001
+		Long:  `List all subscriptions associated with a Zuora billing account.`,
+		Example: `  zr subscription list --account A00000001
   zr subscription list --account A00000001 --json
   zr sub list --account A00000001 --page-size 5 --page 2`,
 		Flags: []listcmd.Flag{

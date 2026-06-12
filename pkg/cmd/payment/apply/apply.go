@@ -23,10 +23,8 @@ func NewCmdApply(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "apply <payment-id>",
 		Short: "Apply a payment to invoices",
-		Long: `Apply a Zuora payment to one or more invoices.
-
-Examples:
-  zr payment apply 2c92c0f8... --body @apply.json
+		Long:  `Apply a Zuora payment to one or more invoices.`,
+		Example: `  zr payment apply 2c92c0f8... --body @apply.json
   zr payment apply 2c92c0f8... --body '{"invoices":[{"invoiceId":"2c92c0f8...","amount":50}]}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

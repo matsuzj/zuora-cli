@@ -18,10 +18,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <subscription-key>",
 		Short: "Update a subscription",
-		Long: `Update an existing Zuora subscription.
-
-Examples:
-  zr subscription update SUB-001 --body @update.json
+		Long:  `Update an existing Zuora subscription.`,
+		Example: `  zr subscription update SUB-001 --body @update.json
   zr sub update SUB-001 --body '{"notes":"updated"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

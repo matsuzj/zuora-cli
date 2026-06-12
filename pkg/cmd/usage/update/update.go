@@ -23,10 +23,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <id>",
 		Short: "Update a usage record",
-		Long: `Update a usage record by ID via the CRUD API.
-
-Examples:
-  zr usage update 2c92a0f96bd... --body @usage.json
+		Long:  `Update a usage record by ID via the CRUD API.`,
+		Example: `  zr usage update 2c92a0f96bd... --body @usage.json
   zr usage update 2c92a0f96bd... --body '{"Quantity":20}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

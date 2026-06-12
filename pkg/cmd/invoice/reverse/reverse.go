@@ -21,11 +21,9 @@ func NewCmdReverse(f *factory.Factory) *cobra.Command {
 		Short: "Reverse a posted invoice",
 		Long: `Reverse a posted Zuora invoice.
 
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr invoice reverse 2c92c0f8... --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr invoice reverse 2c92c0f8... --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

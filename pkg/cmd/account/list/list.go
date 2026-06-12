@@ -12,10 +12,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List billing accounts",
-		Long: `List Zuora billing accounts via Object Query API.
-
-Examples:
-  zr account list
+		Long:  `List Zuora billing accounts via Object Query API.`,
+		Example: `  zr account list
   zr account list --page-size 5
   zr account list --filter "status.EQ:Active"
   zr account list --json`,

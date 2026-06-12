@@ -22,10 +22,8 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a fulfillment item",
-		Long: `Create a new Zuora fulfillment item.
-
-Examples:
-  zr fulfillment-item create --body @item.json
+		Long:  `Create a new Zuora fulfillment item.`,
+		Example: `  zr fulfillment-item create --body @item.json
   zr fulfillment-item create --body '{"fulfillmentKey":"F-001","quantity":5}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -22,10 +22,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List commerce plans",
-		Long: `List Zuora commerce plans.
-
-Examples:
-  zr plan list --body @query.json
+		Long:  `List Zuora commerce plans.`,
+		Example: `  zr plan list --body @query.json
   zr plan list --body '{"page":0,"page_size":20}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

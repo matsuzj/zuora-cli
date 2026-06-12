@@ -18,10 +18,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 		Short: "Get subscription details",
 		Long: `Get detailed information about a Zuora subscription.
 
-The subscription-key can be a subscription ID or subscription number.
-
-Examples:
-  zr subscription get A-S00000001
+The subscription-key can be a subscription ID or subscription number.`,
+		Example: `  zr subscription get A-S00000001
   zr sub get 402880ec12345 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

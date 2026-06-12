@@ -22,10 +22,8 @@ func NewCmdUpdateTiers(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-tiers",
 		Short: "Update commerce charge tiers",
-		Long: `Update pricing tiers for a Zuora commerce charge.
-
-Examples:
-  zr charge update-tiers --body @tiers.json
+		Long:  `Update pricing tiers for a Zuora commerce charge.`,
+		Example: `  zr charge update-tiers --body @tiers.json
   zr charge update-tiers --body '{"charge_id":"...","tiers":[...]}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

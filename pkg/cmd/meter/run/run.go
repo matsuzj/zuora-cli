@@ -16,10 +16,8 @@ func NewCmdRun(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <meterId> <version>",
 		Short: "Run a usage meter",
-		Long: `Run a usage meter by meter ID and version.
-
-Examples:
-  zr meter run 402880e44c...  1
+		Long:  `Run a usage meter by meter ID and version.`,
+		Example: `  zr meter run 402880e44c...  1
   zr meter run 402880e44c...  1 --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

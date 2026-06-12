@@ -15,13 +15,11 @@ import (
 // NewCmdPost creates the billrun post command.
 func NewCmdPost(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "post <bill-run-id>",
-		Short: "Post a bill run",
-		Long: `Post a Zuora bill run, finalizing its generated invoices and credit memos.
-
-Examples:
-  zr billrun post 2c92c0f8...`,
-		Args: cobra.ExactArgs(1),
+		Use:     "post <bill-run-id>",
+		Short:   "Post a bill run",
+		Long:    `Post a Zuora bill run, finalizing its generated invoices and credit memos.`,
+		Example: `  zr billrun post 2c92c0f8...`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPost(cmd, f, args[0])
 		},

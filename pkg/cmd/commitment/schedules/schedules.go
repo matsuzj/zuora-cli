@@ -15,10 +15,8 @@ func NewCmdSchedules(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "schedules <commitment-key>",
 		Short: "Get commitment schedules",
-		Long: `Get schedules for a Zuora commitment.
-
-Examples:
-  zr commitment schedules CMT-00000001
+		Long:  `Get schedules for a Zuora commitment.`,
+		Example: `  zr commitment schedules CMT-00000001
   zr commitment schedules CMT-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

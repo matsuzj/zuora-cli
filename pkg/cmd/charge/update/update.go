@@ -24,10 +24,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 		Short: "Update a commerce charge",
 		Long: `Update a Zuora commerce charge.
 
-The charge ID is specified in the request body.
-
-Examples:
-  zr charge update --body @charge.json
+The charge ID is specified in the request body.`,
+		Example: `  zr charge update --body @charge.json
   zr charge update --body '{"id":"...","name":"Updated Charge"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

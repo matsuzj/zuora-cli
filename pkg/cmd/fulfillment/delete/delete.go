@@ -25,11 +25,9 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 		Short: "Delete a fulfillment",
 		Long: `Delete a Zuora fulfillment.
 
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr fulfillment delete F-00000001 --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr fulfillment delete F-00000001 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
 				return err

@@ -21,11 +21,9 @@ func NewCmdCancel(f *factory.Factory) *cobra.Command {
 		Short: "Cancel a bill run",
 		Long: `Cancel a Zuora bill run.
 
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr billrun cancel 2c92c0f8... --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr billrun cancel 2c92c0f8... --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

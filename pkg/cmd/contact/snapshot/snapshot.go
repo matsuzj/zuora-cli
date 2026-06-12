@@ -18,10 +18,8 @@ func NewCmdSnapshot(f *factory.Factory) *cobra.Command {
 		Short: "Get a contact snapshot",
 		Long: `Get a contact snapshot by snapshot ID.
 
-Note: This uses the snapshot ID, not the contact ID.
-
-Examples:
-  zr contact snapshot 8aca822f12345
+Note: This uses the snapshot ID, not the contact ID.`,
+		Example: `  zr contact snapshot 8aca822f12345
   zr contact snapshot 8aca822f12345 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

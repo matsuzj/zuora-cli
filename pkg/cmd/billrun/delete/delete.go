@@ -21,11 +21,9 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 		Long: `Delete a Zuora bill run.
 
 This action is irreversible. Use --confirm to proceed. Only bill runs that
-have not been posted can be deleted.
-
-Examples:
-  zr billrun delete 2c92c0f8... --confirm`,
-		Args: cobra.ExactArgs(1),
+have not been posted can be deleted.`,
+		Example: `  zr billrun delete 2c92c0f8... --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

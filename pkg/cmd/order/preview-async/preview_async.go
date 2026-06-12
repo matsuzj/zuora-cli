@@ -15,13 +15,11 @@ func NewCmdPreviewAsync(f *factory.Factory) *cobra.Command {
 	var body string
 
 	cmd := &cobra.Command{
-		Use:   "preview-async",
-		Short: "Preview an order asynchronously",
-		Long: `Preview a Zuora order asynchronously. Returns a job ID.
-
-Examples:
-  zr order preview-async --body @preview.json`,
-		Args: cobra.NoArgs,
+		Use:     "preview-async",
+		Short:   "Preview an order asynchronously",
+		Long:    `Preview a Zuora order asynchronously. Returns a job ID.`,
+		Example: `  zr order preview-async --body @preview.json`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")

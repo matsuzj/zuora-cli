@@ -30,10 +30,8 @@ func NewCmdWriteoff(f *factory.Factory) *cobra.Command {
 		Long: `Write off the balance of a posted Zuora invoice, creating a credit memo.
 
 This action is irreversible. Use --confirm to proceed. An optional --body may
-carry write-off details such as memoDate, comment, and reasonCode.
-
-Examples:
-  zr invoice writeoff 2c92c0f8... --confirm
+carry write-off details such as memoDate, comment, and reasonCode.`,
+		Example: `  zr invoice writeoff 2c92c0f8... --confirm
   zr invoice writeoff 2c92c0f8... --confirm --body '{"comment":"bad debt","reasonCode":"Write-off"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

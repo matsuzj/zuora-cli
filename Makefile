@@ -80,6 +80,11 @@ lint:
 		echo "deadcode found unreachable code (delete it or wire it):"; \
 		echo "$$dead"; exit 1; \
 	fi
+	@bad="$$(grep -rln 'Examples:' pkg/cmd --include='*.go' --exclude='*_test.go' || true)"; \
+	if [ -n "$$bad" ]; then \
+		echo "example invocations belong in the cobra Example: field, not embedded in Long (P5-3):"; \
+		echo "$$bad"; exit 1; \
+	fi
 
 clean:
 	rm -rf bin/

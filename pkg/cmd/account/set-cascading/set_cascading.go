@@ -21,13 +21,11 @@ func NewCmdSetCascading(f *factory.Factory) *cobra.Command {
 	opts := &setCascadingOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "set-cascading <account-key>",
-		Short: "Configure cascading payment methods",
-		Long: `Configure cascading payment methods for a Zuora billing account.
-
-Examples:
-  zr account set-cascading A00000001 --body @cascading.json`,
-		Args: cobra.ExactArgs(1),
+		Use:     "set-cascading <account-key>",
+		Short:   "Configure cascading payment methods",
+		Long:    `Configure cascading payment methods for a Zuora billing account.`,
+		Example: `  zr account set-cascading A00000001 --body @cascading.json`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Body == "" {
 				return fmt.Errorf("--body is required")

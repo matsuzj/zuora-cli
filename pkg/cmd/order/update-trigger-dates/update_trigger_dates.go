@@ -16,13 +16,11 @@ func NewCmdUpdateTriggerDates(f *factory.Factory) *cobra.Command {
 	var body string
 
 	cmd := &cobra.Command{
-		Use:   "update-trigger-dates <order-number>",
-		Short: "Update trigger dates on an order",
-		Long: `Update trigger dates on a Zuora order.
-
-Examples:
-  zr order update-trigger-dates O-00000001 --body @dates.json`,
-		Args: cobra.ExactArgs(1),
+		Use:     "update-trigger-dates <order-number>",
+		Short:   "Update trigger dates on an order",
+		Long:    `Update trigger dates on a Zuora order.`,
+		Example: `  zr order update-trigger-dates O-00000001 --body @dates.json`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")

@@ -15,10 +15,8 @@ func NewCmdMetrics(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "metrics <ramp-number>",
 		Short: "Get ramp metrics",
-		Long: `Get metrics for a Zuora ramp.
-
-Examples:
-  zr ramp metrics R-00000001
+		Long:  `Get metrics for a Zuora ramp.`,
+		Example: `  zr ramp metrics R-00000001
   zr ramp metrics R-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

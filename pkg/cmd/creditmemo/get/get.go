@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <credit-memo-id>",
 		Short: "Get credit memo details",
-		Long: `Get detailed information about a Zuora credit memo.
-
-Examples:
-  zr creditmemo get 2c92c0f8...
+		Long:  `Get detailed information about a Zuora credit memo.`,
+		Example: `  zr creditmemo get 2c92c0f8...
   zr creditmemo get 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

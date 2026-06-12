@@ -28,10 +28,8 @@ func NewCmdPeriods(f *factory.Factory) *cobra.Command {
 		Long: `List periods for a Zuora commitment.
 
 Use --commitment for a specific commitment, or --account + --start-date + --end-date
-to query by account and date range.
-
-Examples:
-  zr commitment periods --commitment CMT-00000001
+to query by account and date range.`,
+		Example: `  zr commitment periods --commitment CMT-00000001
   zr commitment periods --account A00000001 --start-date 2026-01-01 --end-date 2026-12-31`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

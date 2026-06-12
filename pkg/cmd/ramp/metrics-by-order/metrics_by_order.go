@@ -15,10 +15,8 @@ func NewCmdMetricsByOrder(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "metrics-by-order <order-number>",
 		Short: "Get ramp metrics by order",
-		Long: `Get ramp metrics for a Zuora order.
-
-Examples:
-  zr ramp metrics-by-order O-00000001
+		Long:  `Get ramp metrics for a Zuora order.`,
+		Example: `  zr ramp metrics-by-order O-00000001
   zr ramp metrics-by-order O-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

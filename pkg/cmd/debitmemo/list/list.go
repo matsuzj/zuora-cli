@@ -12,10 +12,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list",
 		Short: "List debit memos",
-		Long: `List Zuora debit memos, optionally filtered by account or status.
-
-Examples:
-  zr debitmemo list
+		Long:  `List Zuora debit memos, optionally filtered by account or status.`,
+		Example: `  zr debitmemo list
   zr debitmemo list --account-number A00000001
   zr debitmemo list --account-id 8aca... --status Posted
   zr debitmemo list --page-size 10 --json`,

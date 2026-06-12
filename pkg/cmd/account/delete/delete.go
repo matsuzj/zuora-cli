@@ -25,11 +25,9 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 		Short: "Delete a billing account",
 		Long: `Delete a Zuora billing account. This is an async operation.
 
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr account delete A00000001 --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr account delete A00000001 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
 				return err

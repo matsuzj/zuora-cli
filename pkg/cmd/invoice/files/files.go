@@ -17,11 +17,9 @@ func NewCmdFiles(f *factory.Factory) *cobra.Command {
 		Short: "List invoice files",
 		Long: `List all files associated with a Zuora invoice.
 
-Output is always JSON due to the complex structure of file URLs.
-
-Examples:
-  zr invoice files 2c92c0f8...`,
-		Args: cobra.ExactArgs(1),
+Output is always JSON due to the complex structure of file URLs.`,
+		Example: `  zr invoice files 2c92c0f8...`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runFiles(cmd, f, args[0])
 		},

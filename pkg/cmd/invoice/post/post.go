@@ -15,13 +15,11 @@ import (
 // NewCmdPost creates the invoice post command.
 func NewCmdPost(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "post <invoice-id>",
-		Short: "Post a draft invoice",
-		Long: `Post a draft Zuora invoice, transitioning it to Posted status.
-
-Examples:
-  zr invoice post 2c92c0f8...`,
-		Args: cobra.ExactArgs(1),
+		Use:     "post <invoice-id>",
+		Short:   "Post a draft invoice",
+		Long:    `Post a draft Zuora invoice, transitioning it to Posted status.`,
+		Example: `  zr invoice post 2c92c0f8...`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPost(cmd, f, args[0])
 		},

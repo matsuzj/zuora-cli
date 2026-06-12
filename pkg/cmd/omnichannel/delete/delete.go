@@ -25,11 +25,9 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 		Short: "Delete an omni-channel subscription",
 		Long: `Delete a Zuora omni-channel subscription.
 
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr omnichannel delete S-001 --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr omnichannel delete S-001 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
 				return err

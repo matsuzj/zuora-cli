@@ -22,10 +22,8 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List commitments for an account",
-		Long: `List commitments associated with a Zuora account.
-
-Examples:
-  zr commitment list --account A00000001
+		Long:  `List commitments associated with a Zuora account.`,
+		Example: `  zr commitment list --account A00000001
   zr commitment list --account A00000001 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

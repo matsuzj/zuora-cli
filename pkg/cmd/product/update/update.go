@@ -24,10 +24,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 		Short: "Update a commerce product",
 		Long: `Update a Zuora commerce product.
 
-The product ID is specified in the request body.
-
-Examples:
-  zr product update --body @product.json
+The product ID is specified in the request body.`,
+		Example: `  zr product update --body @product.json
   zr product update --body '{"id":"...","name":"Updated Product"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

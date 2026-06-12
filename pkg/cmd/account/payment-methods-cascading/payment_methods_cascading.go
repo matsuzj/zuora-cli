@@ -16,10 +16,8 @@ func NewCmdPaymentMethodsCascading(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payment-methods-cascading <account-key>",
 		Short: "Get cascading payment method for an account",
-		Long: `Get the cascading (inherited) payment method for a Zuora billing account.
-
-Examples:
-  zr account payment-methods-cascading A00000001
+		Long:  `Get the cascading (inherited) payment method for a Zuora billing account.`,
+		Example: `  zr account payment-methods-cascading A00000001
   zr account payment-methods-cascading A00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

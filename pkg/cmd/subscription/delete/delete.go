@@ -22,11 +22,9 @@ func NewCmdDelete(f *factory.Factory) *cobra.Command {
 		Short: "Delete a subscription",
 		Long: `Delete a Zuora subscription. This action is irreversible.
 
-Note: Zuora uses PUT (not HTTP DELETE) for this operation.
-
-Examples:
-  zr subscription delete A-S001 --confirm`,
-		Args: cobra.ExactArgs(1),
+Note: Zuora uses PUT (not HTTP DELETE) for this operation.`,
+		Example: `  zr subscription delete A-S001 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

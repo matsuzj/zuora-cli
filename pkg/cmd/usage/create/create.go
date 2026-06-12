@@ -22,10 +22,8 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a usage record",
-		Long: `Create a new usage record via the CRUD API.
-
-Examples:
-  zr usage create --body @usage.json
+		Long:  `Create a new usage record via the CRUD API.`,
+		Example: `  zr usage create --body @usage.json
   zr usage create --body '{"AccountId":"abc","Quantity":10,"StartDateTime":"2026-01-01","UOM":"Each"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -22,10 +22,8 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create an omni-channel subscription",
-		Long: `Create a new Zuora omni-channel subscription.
-
-Examples:
-  zr omnichannel create --body @omnichannel.json
+		Long:  `Create a new Zuora omni-channel subscription.`,
+		Example: `  zr omnichannel create --body @omnichannel.json
   zr omnichannel create --body '{"subscriptionKey":"S-001",...}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

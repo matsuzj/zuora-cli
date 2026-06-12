@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <order-number>",
 		Short: "Get order details",
-		Long: `Get detailed information about a Zuora order.
-
-Examples:
-  zr order get O-00000001
+		Long:  `Get detailed information about a Zuora order.`,
+		Example: `  zr order get O-00000001
   zr order get O-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

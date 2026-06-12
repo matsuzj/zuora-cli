@@ -17,10 +17,8 @@ func NewCmdSummary(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "summary <account-key>",
 		Short: "Get account summary",
-		Long: `Get a summary of a Zuora billing account including invoices, payments, and usage.
-
-Examples:
-  zr account summary A00000001
+		Long:  `Get a summary of a Zuora billing account including invoices, payments, and usage.`,
+		Example: `  zr account summary A00000001
   zr account summary A00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

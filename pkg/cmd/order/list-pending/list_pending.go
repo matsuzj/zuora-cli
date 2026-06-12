@@ -15,10 +15,8 @@ func NewCmdListPending(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list-pending <subscription-key>",
 		Short: "List pending orders for a subscription",
-		Long: `List pending Zuora orders for a subscription number or key.
-
-Examples:
-  zr order list-pending A-S00000001
+		Long:  `List pending Zuora orders for a subscription number or key.`,
+		Example: `  zr order list-pending A-S00000001
   zr order list-pending A-S00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		Flags: []listcmd.Flag{

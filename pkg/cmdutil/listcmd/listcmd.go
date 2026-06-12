@@ -49,6 +49,13 @@ type Flag struct {
 	// (strconv.Itoa), matching account list's --page-size default 20.
 	Int        bool
 	IntDefault int
+	// DeprecatedName optionally registers the flag's OLD spelling as a
+	// hidden, deprecated alias writing into the same destination (string
+	// flags only). Renamed flags keep working for one release; the alias is
+	// removed in the next minor. When combined with Required, the value (not
+	// cobra's per-flag Changed bit) is what run() enforces, so the alias
+	// satisfies the requirement.
+	DeprecatedName string
 }
 
 // NextPage declares how the canonical pagination hint carries the next-page
@@ -67,9 +74,12 @@ type NextPage struct {
 
 // Spec declares a standard table list command.
 type Spec struct {
-	Use     string
-	Short   string
-	Long    string
+	Use   string
+	Short string
+	Long  string
+	// Example feeds cobra's Example field (rendered under "Examples:" in
+	// help). Example invocations belong here, not embedded in Long.
+	Example string
 	Aliases []string
 	// Args validates positional arguments (defaults to cobra.NoArgs).
 	Args cobra.PositionalArgs
@@ -101,6 +111,7 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 		Use:     spec.Use,
 		Short:   spec.Short,
 		Long:    spec.Long,
+		Example: spec.Example,
 		Aliases: spec.Aliases,
 		Args:    args,
 		RunE: func(cmd *cobra.Command, posArgs []string) error {
@@ -122,9 +133,23 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 			v := new(string)
 			cmd.Flags().StringVar(v, fl.Name, "", fl.Usage)
 			strVals[fl.Name] = v
+			if fl.DeprecatedName != "" {
+				// The old spelling writes into the SAME destination and
+				// keeps working through the deprecation window (removed in
+				// the next minor); pflag prints the notice on use and hides
+				// the flag from help.
+				cmd.Flags().StringVar(v, fl.DeprecatedName, "", fl.Usage)
+				_ = cmd.Flags().MarkDeprecated(fl.DeprecatedName, "use --"+fl.Name+" instead")
+			}
 		}
 		if fl.Required {
-			_ = cmd.MarkFlagRequired(fl.Name)
+			if fl.DeprecatedName == "" {
+				_ = cmd.MarkFlagRequired(fl.Name)
+			}
+			// With a deprecated alias, cobra's required check would reject
+			// invocations that set only the alias (it inspects the canonical
+			// flag's Changed bit, not the shared destination). run() enforces
+			// the requirement on the VALUE instead, with cobra's wording.
 		}
 	}
 
@@ -132,6 +157,17 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 }
 
 func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, strVals map[string]*string, intVals map[string]*int, arrVals map[string]*[]string) error {
+	// Required flags that carry a deprecated alias are enforced on the value
+	// (cobra's required check would not see the alias as satisfying the
+	// canonical flag). The wording matches cobra's exactly.
+	for _, fl := range spec.Flags {
+		if fl.Required && fl.DeprecatedName != "" {
+			if v := strVals[fl.Name]; v != nil && *v == "" {
+				return fmt.Errorf("required flag(s) %q not set", fl.Name)
+			}
+		}
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err

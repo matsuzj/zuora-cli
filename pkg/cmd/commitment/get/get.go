@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <commitment-key>",
 		Short: "Get commitment details",
-		Long: `Get detailed information about a Zuora commitment.
-
-Examples:
-  zr commitment get CMT-00000001
+		Long:  `Get detailed information about a Zuora commitment.`,
+		Example: `  zr commitment get CMT-00000001
   zr commitment get CMT-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

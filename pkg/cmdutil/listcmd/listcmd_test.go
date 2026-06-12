@@ -359,3 +359,73 @@ func TestList_HintStripsControlCharacters(t *testing.T) {
 	assert.NotContains(t, stderr, "\x1b[31m")
 	assert.Contains(t, stderr, "--cursor 'tok [31mred [0m next'")
 }
+
+// renamedSpec models a P5-1 flag rename: the canonical name is new, the old
+// spelling is a deprecated alias, and the flag is required.
+func renamedSpec() listcmd.Spec {
+	return listcmd.Spec{
+		Use: "list",
+		Flags: []listcmd.Flag{
+			{Name: "account-key", Usage: "Account key", Required: true, DeprecatedName: "account"},
+		},
+		Path: func(args []string, flags map[string]string) string {
+			return "/v1/demo/accounts/" + url.PathEscape(flags["account-key"])
+		},
+		ItemsKey: "items",
+		Columns: []listcmd.ColumnSpec{
+			{Header: "ID", Key: "id"},
+		},
+	}
+}
+
+func TestList_DeprecatedAliasFeedsCanonicalFlag(t *testing.T) {
+	var gotPath string
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		fmt.Fprint(w, `{"items": []}`)
+	}
+
+	// The OLD spelling must keep working through the deprecation window and
+	// must satisfy the requirement (cobra's own required check would not see
+	// the alias — the runner enforces the shared value instead).
+	_, _, err := cmdtest.Run(t, "demo", newCmd(renamedSpec()), handler,
+		"demo", "list", "--account", "A-9")
+	require.NoError(t, err)
+	assert.Equal(t, "/v1/demo/accounts/A-9", gotPath)
+}
+
+func TestList_CanonicalNameWorksAlongsideAlias(t *testing.T) {
+	var gotPath string
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		fmt.Fprint(w, `{"items": []}`)
+	}
+
+	_, _, err := cmdtest.Run(t, "demo", newCmd(renamedSpec()), handler,
+		"demo", "list", "--account-key", "A-10")
+	require.NoError(t, err)
+	assert.Equal(t, "/v1/demo/accounts/A-10", gotPath)
+}
+
+func TestList_RequiredWithAliasUsesCobraWording(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "demo", newCmd(renamedSpec()), nil, "demo", "list")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "account-key" not set`)
+}
+
+func TestList_DeprecatedAliasHiddenAndMarked(t *testing.T) {
+	// Inspect the flag set directly: cobra prints help to the process stdout
+	// (root deliberately leaves cmd.SetOut unset), so help text is not
+	// capturable through the cmdtest streams.
+	cmd := listcmd.New(&factory.Factory{}, renamedSpec())
+
+	alias := cmd.Flags().Lookup("account")
+	require.NotNil(t, alias)
+	assert.True(t, alias.Hidden, "deprecated alias must be hidden from help")
+	assert.Equal(t, "use --account-key instead", alias.Deprecated)
+
+	canonical := cmd.Flags().Lookup("account-key")
+	require.NotNil(t, canonical)
+	assert.False(t, canonical.Hidden)
+	assert.Empty(t, canonical.Deprecated)
+}

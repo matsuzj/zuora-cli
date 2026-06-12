@@ -23,10 +23,8 @@ func NewCmdRefund(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "refund <payment-id>",
 		Short: "Refund a payment",
-		Long: `Create a refund for a Zuora payment.
-
-Examples:
-  zr payment refund 2c92c0f8... --body @refund.json
+		Long:  `Create a refund for a Zuora payment.`,
+		Example: `  zr payment refund 2c92c0f8... --body @refund.json
   zr payment refund 2c92c0f8... --body '{"amount":50,"type":"External"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

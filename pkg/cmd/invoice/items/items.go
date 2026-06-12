@@ -16,10 +16,8 @@ func NewCmdItems(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "items <invoice-id>",
 		Short: "List invoice items",
-		Long: `List all items for a Zuora invoice.
-
-Examples:
-  zr invoice items 2c92c0f8...
+		Long:  `List all items for a Zuora invoice.`,
+		Example: `  zr invoice items 2c92c0f8...
   zr invoice items 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

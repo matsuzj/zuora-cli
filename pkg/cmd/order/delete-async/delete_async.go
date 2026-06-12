@@ -20,11 +20,9 @@ func NewCmdDeleteAsync(f *factory.Factory) *cobra.Command {
 		Short: "Delete an order asynchronously",
 		Long: `Delete a Zuora order asynchronously. Returns a job ID.
 
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr order delete-async O-00000001 --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr order delete-async O-00000001 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

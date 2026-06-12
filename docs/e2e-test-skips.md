@@ -102,6 +102,20 @@ corrected.
   The Sign-Up body's `subscriptionData.subscribeToRatePlans` shape isn't
   accepted by this tenant.
 
+## Commerce live verification — pending on a Commerce-enabled tenant
+
+(docs/plans/phase-05-pending.md から統合、2026-06-13。これは生きた TODO —
+apac-sandbox は Commerce API 未提供のため、以下の live happy-path は
+Commerce 有効テナントでの手動検証待ち。バリデーション・ユニットテスト・
+`rateplan get` の live は検証済み。)
+
+- `product create/update/get/list-legacy` — `/commerce/products` 系の実呼び出し
+- `plan create/update/get/list/purchase-options` — `/commerce/plans` 系の実呼び出し
+- `charge create/update/get/update-tiers` — `/commerce/charges`・`/commerce/tiers` の実呼び出し
+
+検証方法: Commerce 有効テナントに `zr auth login` → `bash tests/e2e-commerce.sh` →
+product list-legacy / plan list のスキップが PASS に変わることを確認。
+
 ## Running the suites
 
 ```sh

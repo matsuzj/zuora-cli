@@ -1,3 +1,15 @@
+> **検証メモ(2026-06-13、P7-1)**: 本書(2026-03 作成)を出荷済みコードと突合した。
+> **記載分は概ね正確**だが以下に注意:
+> - 既知のずれ: ① invoice list の実パスは `/v1/transactions/invoices/accounts/{account-key}`
+>   (pkg/cmd/invoice/list)② order delete-async は `PUT /v1/async/orders/{orderNumber}`
+>   (DELETE ではない)③ billrun cancel/post・invoice post/reverse/writeoff は 415 回避の
+>   ため明示的に `{}` ボディを送る ④ §5/7 の object-query による account 取得は未実装
+>   (実装は `GET /v1/accounts/{key}`)。
+> - **本書は初期グループ(account/subscription/order/contact/usage)のみ**を扱う。
+>   billrun・credit/debitmemo・payment・commitment・ramp・commerce(product/plan/charge)・
+>   fulfillment・omnichannel・prepaid・meter・signup・query 等の出荷済みグループは未記載。
+> - 正は常にコード(`pkg/cmd/<group>/<action>/` の Path)と公式 API リファレンス。
+
 # Zuora API Reference - Extracted Documentation for CLI Implementation
 
 Sources: developer.zuora.com (fetched 2026-03-25)

@@ -1,3 +1,8 @@
+> **歴史的文書(2026-06-13 アーカイブ)**: 初期開発(2026-03)のプラン。進捗表・
+> チェックリストは更新されないまま全コマンドが出荷済みで、現状を反映していない。
+> 現在の正: 構造は [docs/architecture.md](../../architecture.md)、進行管理は
+> [docs/refactoring-plan.md](../../refactoring-plan.md)。
+
 # Phase 8: Ramp + Commitment + Fulfillment + Prepaid
 
 **依存**: Phase 2

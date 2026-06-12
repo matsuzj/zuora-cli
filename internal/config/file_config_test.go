@@ -21,6 +21,8 @@ func TestLoad_CorruptConfigYML(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, cfg)
 	assert.Contains(t, err.Error(), "reading config.yml")
+	assert.Contains(t, err.Error(), "config.yml")
+	assert.Contains(t, err.Error(), "Hint:")
 }
 
 // TestLoad_CorruptEnvironmentsYML asserts a malformed environments.yml is
@@ -34,6 +36,7 @@ func TestLoad_CorruptEnvironmentsYML(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, cfg)
 	assert.Contains(t, err.Error(), "reading environments.yml")
+	assert.Contains(t, err.Error(), "Hint:")
 }
 
 // TestLoad_CorruptTokensYML asserts a malformed tokens.yml is reported. A
@@ -46,6 +49,7 @@ func TestLoad_CorruptTokensYML(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, cfg)
 	assert.Contains(t, err.Error(), "reading tokens.yml")
+	assert.Contains(t, err.Error(), "delete it and zr re-authenticates")
 }
 
 // TestLoad_TokensNull confirms that a tokens.yml with an explicit null map
@@ -115,4 +119,37 @@ func TestSave_UnwritableDir(t *testing.T) {
 	err = cfg.Save()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "writing config.yml")
+}
+
+// ─── T2b: AtomicWriteFile ───
+
+func TestAtomicWriteFile_RoundTripPermAndNoTempLeftover(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "f.yml")
+	require.NoError(t, AtomicWriteFile(p, []byte("a: 1\n"), 0600))
+
+	got, err := os.ReadFile(p)
+	require.NoError(t, err)
+	assert.Equal(t, "a: 1\n", string(got))
+
+	info, err := os.Stat(p)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "no .zr-*.tmp may remain after the rename")
+}
+
+func TestAtomicWriteFile_ReplacesExisting(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "f.yml")
+	require.NoError(t, os.WriteFile(p, []byte("old"), 0600))
+	require.NoError(t, AtomicWriteFile(p, []byte("new"), 0600))
+	got, _ := os.ReadFile(p)
+	assert.Equal(t, "new", string(got))
+}
+
+func TestAtomicWriteFile_MissingDirErrors(t *testing.T) {
+	err := AtomicWriteFile(filepath.Join(t.TempDir(), "no", "such", "f.yml"), []byte("x"), 0600)
+	require.Error(t, err)
 }

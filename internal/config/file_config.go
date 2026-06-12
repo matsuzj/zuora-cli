@@ -89,14 +89,17 @@ func (fc *fileConfig) load() error {
 		Tokens: make(map[string]*TokenEntry),
 	}
 
+	// Corruption errors carry the full path and a recovery hint: the config
+	// files are hand-editable, and a YAML typo should point at the file
+	// instead of leaving the user to guess (tokens.yml is even disposable).
 	if err := readYAML(configFilePath(fc.dir), &fc.cfg); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("reading config.yml: %w", err)
+		return fmt.Errorf("reading config.yml: %w\n  File: %s\n  Hint: fix the YAML syntax (or delete the file to fall back to defaults)", err, configFilePath(fc.dir))
 	}
 	if err := readYAML(environmentsFilePath(fc.dir), &fc.envs); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("reading environments.yml: %w", err)
+		return fmt.Errorf("reading environments.yml: %w\n  File: %s\n  Hint: fix the YAML syntax (deleting the file restores the built-in environments)", err, environmentsFilePath(fc.dir))
 	}
 	if err := readYAML(tokensFilePath(fc.dir), &fc.toks); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("reading tokens.yml: %w", err)
+		return fmt.Errorf("reading tokens.yml: %w\n  File: %s\n  Hint: tokens.yml only caches OAuth tokens — delete it and zr re-authenticates on the next request", err, tokensFilePath(fc.dir))
 	}
 
 	if fc.envs.Environments == nil {
@@ -234,13 +237,22 @@ func writeYAML(path string, v interface{}) error {
 	if err != nil {
 		return err
 	}
+	return AtomicWriteFile(path, data, 0600)
+}
+
+// AtomicWriteFile replaces path with data via the create-temp + fsync +
+// rename pattern, so readers always observe either the previous complete
+// file or the new complete file — never a truncated partial (the bare
+// os.WriteFile truncate-then-write window). Exported so every
+// config-directory writer (e.g. the alias store) shares one implementation.
+func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".zr-*.tmp")
 	if err != nil {
 		return err
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName) // no-op once renamed
-	if err := tmp.Chmod(0600); err != nil {
+	if err := tmp.Chmod(perm); err != nil {
 		tmp.Close()
 		return err
 	}

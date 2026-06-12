@@ -19,10 +19,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 		Short: "Get account details",
 		Long: `Get detailed information about a Zuora billing account.
 
-The account-key can be an account ID or account number.
-
-Examples:
-  zr account get A00000001
+The account-key can be an account ID or account number.`,
+		Example: `  zr account get A00000001
   zr account get 402880ec12345 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

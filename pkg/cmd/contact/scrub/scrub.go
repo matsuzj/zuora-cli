@@ -21,11 +21,9 @@ func NewCmdScrub(f *factory.Factory) *cobra.Command {
 		Long: `Scrub (anonymize) personal data from a Zuora contact.
 
 This replaces personal fields with anonymized values for data privacy compliance.
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr contact scrub 8aca822f12345 --confirm`,
-		Args: cobra.ExactArgs(1),
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr contact scrub 8aca822f12345 --confirm`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(confirm); err != nil {
 				return err

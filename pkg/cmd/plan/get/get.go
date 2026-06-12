@@ -23,10 +23,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get a commerce plan by key",
-		Long: `Get a Zuora commerce plan by querying with a rate plan key.
-
-Examples:
-  zr plan get --key RPK-001
+		Long:  `Get a Zuora commerce plan by querying with a rate plan key.`,
+		Example: `  zr plan get --key RPK-001
   zr plan get --key RPK-001 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

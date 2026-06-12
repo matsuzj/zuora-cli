@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <subscription-key>",
 		Short: "Get an omni-channel subscription",
-		Long: `Get detailed information about a Zuora omni-channel subscription.
-
-Examples:
-  zr omnichannel get S-001
+		Long:  `Get detailed information about a Zuora omni-channel subscription.`,
+		Example: `  zr omnichannel get S-001
   zr omnichannel get S-001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

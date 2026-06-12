@@ -29,10 +29,8 @@ func NewCmdSummary(f *factory.Factory) *cobra.Command {
 		Long: `Get a summary of meter runs for a usage meter.
 
 The --run-type flag is required and specifies the type of run to summarize.
-An optional --body flag can provide additional filter criteria.
-
-Examples:
-  zr meter summary 402880e44c... --run-type FULL
+An optional --body flag can provide additional filter criteria.`,
+		Example: `  zr meter summary 402880e44c... --run-type FULL
   zr meter summary 402880e44c... --run-type FULL --body '{"startDate":"2026-01-01"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

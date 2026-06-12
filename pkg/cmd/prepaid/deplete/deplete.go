@@ -25,10 +25,8 @@ func NewCmdDeplete(f *factory.Factory) *cobra.Command {
 		Short: "Deplete prepaid balance",
 		Long: `Deplete a prepaid balance fund in Zuora.
 
-This irreversibly consumes prepaid balance. Use --confirm to proceed.
-
-Examples:
-  zr prepaid deplete --body @deplete.json --confirm
+This irreversibly consumes prepaid balance. Use --confirm to proceed.`,
+		Example: `  zr prepaid deplete --body @deplete.json --confirm
   zr prepaid deplete --body '{"amount":100,"currency":"USD"}' --confirm`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

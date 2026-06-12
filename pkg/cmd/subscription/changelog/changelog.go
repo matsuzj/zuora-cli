@@ -15,10 +15,8 @@ func NewCmdChangelog(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changelog <subscription-number>",
 		Short: "Get subscription change logs",
-		Long: `Get change logs for a Zuora subscription.
-
-Examples:
-  zr subscription changelog S-00000001
+		Long:  `Get change logs for a Zuora subscription.`,
+		Example: `  zr subscription changelog S-00000001
   zr subscription changelog S-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

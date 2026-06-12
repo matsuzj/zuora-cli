@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <ramp-number>",
 		Short: "Get ramp details",
-		Long: `Get detailed information about a Zuora ramp.
-
-Examples:
-  zr ramp get R-00000001
+		Long:  `Get detailed information about a Zuora ramp.`,
+		Example: `  zr ramp get R-00000001
   zr ramp get R-00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -15,13 +15,11 @@ func NewCmdCreateAsync(f *factory.Factory) *cobra.Command {
 	var body string
 
 	cmd := &cobra.Command{
-		Use:   "create-async",
-		Short: "Create an order asynchronously",
-		Long: `Create a Zuora order asynchronously. Returns a job ID.
-
-Examples:
-  zr order create-async --body @order.json`,
-		Args: cobra.NoArgs,
+		Use:     "create-async",
+		Short:   "Create an order asynchronously",
+		Long:    `Create a Zuora order asynchronously. Returns a job ID.`,
+		Example: `  zr order create-async --body @order.json`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")

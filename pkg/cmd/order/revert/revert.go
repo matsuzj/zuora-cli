@@ -22,10 +22,8 @@ func NewCmdRevert(f *factory.Factory) *cobra.Command {
 		Long: `Revert a Zuora order.
 
 Requires --body with a JSON payload containing the orderDate.
-This action is irreversible. Use --confirm to proceed.
-
-Examples:
-  zr order revert O-00000001 --body '{"orderDate":"2026-01-01"}' --confirm
+This action is irreversible. Use --confirm to proceed.`,
+		Example: `  zr order revert O-00000001 --body '{"orderDate":"2026-01-01"}' --confirm
   zr order revert O-00000001 --body @revert.json --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -23,10 +23,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <fulfillment-item-id>",
 		Short: "Update a fulfillment item",
-		Long: `Update an existing Zuora fulfillment item.
-
-Examples:
-  zr fulfillment-item update 2c92c0f8... --body @update.json
+		Long:  `Update an existing Zuora fulfillment item.`,
+		Example: `  zr fulfillment-item update 2c92c0f8... --body @update.json
   zr fulfillment-item update 2c92c0f8... --body '{"quantity":10}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -23,10 +23,8 @@ func NewCmdPurchaseOptions(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "purchase-options",
 		Short: "List purchase options for a plan",
-		Long: `List available purchase options for a Zuora commerce plan.
-
-Examples:
-  zr plan purchase-options --plan 402880e...
+		Long:  `List available purchase options for a Zuora commerce plan.`,
+		Example: `  zr plan purchase-options --plan 402880e...
   zr plan purchase-options --plan 402880e... --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

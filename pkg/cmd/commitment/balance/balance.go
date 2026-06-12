@@ -15,10 +15,8 @@ func NewCmdBalance(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balance <commitment-id>",
 		Short: "Get commitment balance",
-		Long: `Get the balance of a Zuora commitment.
-
-Examples:
-  zr commitment balance 2c92c0f8...
+		Long:  `Get the balance of a Zuora commitment.`,
+		Example: `  zr commitment balance 2c92c0f8...
   zr commitment balance 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

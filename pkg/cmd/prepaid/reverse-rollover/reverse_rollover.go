@@ -23,10 +23,8 @@ func NewCmdReverseRollover(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reverse-rollover",
 		Short: "Reverse a prepaid rollover",
-		Long: `Reverse a prepaid balance rollover in Zuora.
-
-Examples:
-  zr prepaid reverse-rollover --body @reverse.json
+		Long:  `Reverse a prepaid balance rollover in Zuora.`,
+		Example: `  zr prepaid reverse-rollover --body @reverse.json
   zr prepaid reverse-rollover --body '{"subscriptionNumber":"A-S001"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -18,10 +18,8 @@ func NewCmdPreviewChange(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview-change <subscription-key>",
 		Short: "Preview changes to a subscription",
-		Long: `Preview changes to an existing Zuora subscription without applying them.
-
-Examples:
-  zr subscription preview-change SUB-001 --body @changes.json
+		Long:  `Preview changes to an existing Zuora subscription without applying them.`,
+		Example: `  zr subscription preview-change SUB-001 --body @changes.json
   zr sub preview-change SUB-001 --body '{"update":[...]}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

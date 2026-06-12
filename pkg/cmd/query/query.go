@@ -32,10 +32,8 @@ func NewCmdQuery(f *factory.Factory) *cobra.Command {
 		Short: "Execute a ZOQL query",
 		Long: `Execute a ZOQL query against the Zuora API.
 
-Automatically paginates through all results using queryMore.
-
-Examples:
-  zr query "SELECT Id, Name FROM Account"
+Automatically paginates through all results using queryMore.`,
+		Example: `  zr query "SELECT Id, Name FROM Account"
   zr query "SELECT Id, Name FROM Account" --limit 10
   zr query "SELECT Id, Name FROM Account" --csv
   zr query "SELECT Id, Name FROM Account" --export results.csv --csv

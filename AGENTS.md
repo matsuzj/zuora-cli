@@ -33,6 +33,9 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 - `gofmt` all files; `go vet` + `go tool staticcheck` clean before committing.
 - Exported functions need doc comments. New code needs tests (`*_test.go`).
 - Use `testify` (`require` for fatal, `assert` for non-fatal).
+- Command example invocations go in cobra's `Example:` field (or
+  `listcmd.Spec.Example`), never embedded in `Long` — `make lint` rejects
+  `Examples:` blocks inside `pkg/cmd` Go files.
 
 ## Testing
 

@@ -16,10 +16,8 @@ func NewCmdDebug(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "debug <meterId> <version>",
 		Short: "Debug a usage meter",
-		Long: `Debug a usage meter by meter ID and version.
-
-Examples:
-  zr meter debug 402880e44c... 1
+		Long:  `Debug a usage meter by meter ID and version.`,
+		Example: `  zr meter debug 402880e44c... 1
   zr meter debug 402880e44c... 1 --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

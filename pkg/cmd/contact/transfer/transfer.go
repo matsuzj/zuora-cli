@@ -18,10 +18,8 @@ func NewCmdTransfer(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "transfer <contact-id>",
 		Short: "Transfer a contact to another account",
-		Long: `Transfer a Zuora contact to a different account.
-
-Examples:
-  zr contact transfer 8aca822f12345 --body '{"destinationAccountId":"8aca999f67890"}'
+		Long:  `Transfer a Zuora contact to a different account.`,
+		Example: `  zr contact transfer 8aca822f12345 --body '{"destinationAccountId":"8aca999f67890"}'
   zr contact transfer 8aca822f12345 --body @transfer.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

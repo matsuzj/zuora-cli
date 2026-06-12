@@ -14,13 +14,11 @@ import (
 // NewCmdActivate creates the order activate command.
 func NewCmdActivate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "activate <order-number>",
-		Short: "Activate an order",
-		Long: `Activate a Zuora order.
-
-Examples:
-  zr order activate O-00000001`,
-		Args: cobra.ExactArgs(1),
+		Use:     "activate <order-number>",
+		Short:   "Activate an order",
+		Long:    `Activate a Zuora order.`,
+		Example: `  zr order activate O-00000001`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runActivate(cmd, f, args[0])
 		},

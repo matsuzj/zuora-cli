@@ -23,10 +23,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <account-key>",
 		Short: "Update a billing account",
-		Long: `Update an existing Zuora billing account.
-
-Examples:
-  zr account update A00000001 --body '{"name":"New Name"}'
+		Long:  `Update an existing Zuora billing account.`,
+		Example: `  zr account update A00000001 --body '{"name":"New Name"}'
   zr account update A00000001 --body @update.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

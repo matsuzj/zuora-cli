@@ -23,10 +23,8 @@ func NewCmdMetrics(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "metrics",
 		Short: "Get subscription metrics (MRR, TCV, TCB)",
-		Long: `Get subscription metrics including MRR, TCV, and TCB.
-
-Examples:
-  zr subscription metrics --subscription-numbers A-S001
+		Long:  `Get subscription metrics including MRR, TCV, and TCB.`,
+		Example: `  zr subscription metrics --subscription-numbers A-S001
   zr sub metrics --subscription-numbers A-S001,A-S002 --json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMetrics(cmd, opts)

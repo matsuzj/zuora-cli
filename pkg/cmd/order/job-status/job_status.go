@@ -32,10 +32,8 @@ func NewCmdJobStatus(f *factory.Factory) *cobra.Command {
 
 Use --watch to poll until the job completes; --interval controls the
 polling cadence and --timeout gives up after a duration (0 = no limit).
-Ctrl-C cancels immediately, including mid-interval.
-
-Examples:
-  zr order job-status 2c92c0f9876...
+Ctrl-C cancels immediately, including mid-interval.`,
+		Example: `  zr order job-status 2c92c0f9876...
   zr order job-status 2c92c0f9876... --watch
   zr order job-status 2c92c0f9876... --watch --interval 10s --timeout 5m
   zr order job-status 2c92c0f9876... --json`,

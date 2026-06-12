@@ -26,11 +26,9 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 		Long: `Update a Zuora order (draft or scheduled).
 
 WARNING: This requires a full payload. Any order actions not included
-in the request body will be deleted.
-
-Examples:
-  zr order update O-00000001 --body @order.json`,
-		Args: cobra.ExactArgs(1),
+in the request body will be deleted.`,
+		Example: `  zr order update O-00000001 --body @order.json`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Body == "" {
 				return fmt.Errorf("--body is required")

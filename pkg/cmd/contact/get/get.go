@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <contact-id>",
 		Short: "Get contact details",
-		Long: `Get detailed information about a Zuora contact.
-
-Examples:
-  zr contact get 8aca822f12345
+		Long:  `Get detailed information about a Zuora contact.`,
+		Example: `  zr contact get 8aca822f12345
   zr contact get 8aca822f12345 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

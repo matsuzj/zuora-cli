@@ -29,10 +29,8 @@ func NewCmdAudit(f *factory.Factory) *cobra.Command {
 		Short: "Get meter audit trail entries",
 		Long: `Get audit trail entries for a usage meter.
 
-All flags (--export-type, --run-type, --from, --to) are required.
-
-Examples:
-  zr meter audit 402880e44c... --export-type CSV --run-type FULL --from 2026-01-01 --to 2026-01-31
+All flags (--export-type, --run-type, --from, --to) are required.`,
+		Example: `  zr meter audit 402880e44c... --export-type CSV --run-type FULL --from 2026-01-01 --to 2026-01-31
   zr meter audit 402880e44c... --export-type CSV --run-type FULL --from 2026-01-01 --to 2026-01-31 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

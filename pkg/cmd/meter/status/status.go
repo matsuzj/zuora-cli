@@ -16,10 +16,8 @@ func NewCmdStatus(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status <meterId> <version>",
 		Short: "Get meter run status",
-		Long: `Get the run status of a usage meter by meter ID and version.
-
-Examples:
-  zr meter status 402880e44c... 1
+		Long:  `Get the run status of a usage meter by meter ID and version.`,
+		Example: `  zr meter status 402880e44c... 1
   zr meter status 402880e44c... 1 --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

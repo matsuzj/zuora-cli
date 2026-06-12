@@ -17,10 +17,8 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a contact",
-		Long: `Create a new Zuora contact.
-
-Examples:
-  zr contact create --body @contact.json
+		Long:  `Create a new Zuora contact.`,
+		Example: `  zr contact create --body @contact.json
   zr contact create --body '{"accountId":"...","firstName":"John","lastName":"Doe","country":"US"}'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {

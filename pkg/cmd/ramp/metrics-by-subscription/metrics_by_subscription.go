@@ -15,10 +15,8 @@ func NewCmdMetricsBySubscription(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "metrics-by-subscription <subscription-key>",
 		Short: "Get ramp metrics by subscription",
-		Long: `Get ramp metrics for a Zuora subscription.
-
-Examples:
-  zr ramp metrics-by-subscription A-S00000001
+		Long:  `Get ramp metrics for a Zuora subscription.`,
+		Example: `  zr ramp metrics-by-subscription A-S00000001
   zr ramp metrics-by-subscription A-S00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

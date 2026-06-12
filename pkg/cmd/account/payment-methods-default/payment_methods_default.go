@@ -16,10 +16,8 @@ func NewCmdPaymentMethodsDefault(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payment-methods-default <account-key>",
 		Short: "Get default payment method for an account",
-		Long: `Get the default payment method for a Zuora billing account.
-
-Examples:
-  zr account payment-methods-default A00000001
+		Long:  `Get the default payment method for a Zuora billing account.`,
+		Example: `  zr account payment-methods-default A00000001
   zr account payment-methods-default A00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

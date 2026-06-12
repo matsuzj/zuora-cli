@@ -16,10 +16,8 @@ func NewCmdGet(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <fulfillment-item-id>",
 		Short: "Get fulfillment item details",
-		Long: `Get detailed information about a Zuora fulfillment item.
-
-Examples:
-  zr fulfillment-item get 2c92c0f8...
+		Long:  `Get detailed information about a Zuora fulfillment item.`,
+		Example: `  zr fulfillment-item get 2c92c0f8...
   zr fulfillment-item get 2c92c0f8... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

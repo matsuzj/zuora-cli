@@ -18,10 +18,8 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <contact-id>",
 		Short: "Update a contact",
-		Long: `Update an existing Zuora contact.
-
-Examples:
-  zr contact update 8aca822f12345 --body '{"firstName":"Jane"}'
+		Long:  `Update an existing Zuora contact.`,
+		Example: `  zr contact update 8aca822f12345 --body '{"firstName":"Jane"}'
   zr contact update 8aca822f12345 --body @update.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

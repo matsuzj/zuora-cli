@@ -16,13 +16,11 @@ func NewCmdUpdate(f *factory.Factory) *cobra.Command {
 	var body string
 
 	cmd := &cobra.Command{
-		Use:   "update <item-id>",
-		Short: "Update an order line item",
-		Long: `Update a Zuora order line item.
-
-Examples:
-  zr order-line-item update 2c92c0f9876... --body @item.json`,
-		Args: cobra.ExactArgs(1),
+		Use:     "update <item-id>",
+		Short:   "Update an order line item",
+		Long:    `Update a Zuora order line item.`,
+		Example: `  zr order-line-item update 2c92c0f9876... --body @item.json`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if body == "" {
 				return fmt.Errorf("--body is required")

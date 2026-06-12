@@ -31,10 +31,8 @@ func NewCmdAPI(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api <path>",
 		Short: "Make a raw API request",
-		Long: `Make an authenticated HTTP request to the Zuora API.
-
-Examples:
-  zr api /v1/accounts                          # GET (default)
+		Long:  `Make an authenticated HTTP request to the Zuora API.`,
+		Example: `  zr api /v1/accounts                          # GET (default)
   zr api -X POST /v1/orders --body @order.json # POST with file body
   zr api /v1/accounts --jq '.accounts[].name'  # jq filter
   zr api /v1/accounts --paginate               # Fetch all pages`,

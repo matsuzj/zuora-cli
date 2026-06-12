@@ -22,10 +22,8 @@ func NewCmdListLegacy(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-legacy",
 		Short: "List legacy products",
-		Long: `List Zuora legacy products via the commerce API.
-
-Examples:
-  zr product list-legacy --body @query.json
+		Long:  `List Zuora legacy products via the commerce API.`,
+		Example: `  zr product list-legacy --body @query.json
   zr product list-legacy --body '{"page":0,"page_size":20}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

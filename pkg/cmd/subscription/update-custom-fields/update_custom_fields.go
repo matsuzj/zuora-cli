@@ -18,10 +18,8 @@ func NewCmdUpdateCustomFields(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-custom-fields <subscription-number> <version>",
 		Short: "Update custom fields on a subscription version",
-		Long: `Update custom fields on a specific version of a Zuora subscription.
-
-Examples:
-  zr subscription update-custom-fields A-S001 1 --body @fields.json
+		Long:  `Update custom fields on a specific version of a Zuora subscription.`,
+		Example: `  zr subscription update-custom-fields A-S001 1 --body @fields.json
   zr sub update-custom-fields A-S001 1 --body '{"cf_MyField__c":"value"}'`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

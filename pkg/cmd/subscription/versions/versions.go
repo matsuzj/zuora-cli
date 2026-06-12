@@ -16,10 +16,8 @@ func NewCmdVersions(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "versions <subscription-key> <version>",
 		Short: "Get a specific subscription version",
-		Long: `Get details for a specific version of a Zuora subscription.
-
-Examples:
-  zr subscription versions A-S00000001 1
+		Long:  `Get details for a specific version of a Zuora subscription.`,
+		Example: `  zr subscription versions A-S00000001 1
   zr sub versions A-S00000001 2 --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

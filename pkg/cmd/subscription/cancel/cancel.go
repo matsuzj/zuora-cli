@@ -30,10 +30,8 @@ func NewCmdCancel(f *factory.Factory) *cobra.Command {
 		Short: "Cancel a subscription",
 		Long: `Cancel a Zuora subscription.
 
-Use --policy and --effective-date flags, or --body for full control.
-
-Examples:
-  zr subscription cancel A-S001 --policy EndOfCurrentTerm
+Use --policy and --effective-date flags, or --body for full control.`,
+		Example: `  zr subscription cancel A-S001 --policy EndOfCurrentTerm
   zr subscription cancel A-S001 --policy SpecificDate --effective-date 2026-04-01
   zr sub cancel A-S001 --body @cancel.json`,
 		Args: cobra.ExactArgs(1),

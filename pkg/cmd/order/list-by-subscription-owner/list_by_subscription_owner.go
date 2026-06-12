@@ -15,10 +15,8 @@ func NewCmdListBySubscriptionOwner(f *factory.Factory) *cobra.Command {
 	return listcmd.New(f, listcmd.Spec{
 		Use:   "list-by-subscription-owner <account-number>",
 		Short: "List orders by subscription owner account",
-		Long: `List Zuora orders for a subscription owner account.
-
-Examples:
-  zr order list-by-subscription-owner A00000001
+		Long:  `List Zuora orders for a subscription owner account.`,
+		Example: `  zr order list-by-subscription-owner A00000001
   zr order list-by-subscription-owner A00000001 --json`,
 		Args: cobra.ExactArgs(1),
 		Flags: []listcmd.Flag{

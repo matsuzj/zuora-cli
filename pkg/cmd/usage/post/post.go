@@ -30,11 +30,9 @@ func NewCmdPost(f *factory.Factory) *cobra.Command {
 		Short: "Upload a usage CSV file",
 		Long: `Upload a usage data CSV file to Zuora (async).
 
-The file is uploaded via multipart/form-data to POST /v1/usage.
-
-Examples:
-  zr usage post --file usage.csv`,
-		Args: cobra.NoArgs,
+The file is uploaded via multipart/form-data to POST /v1/usage.`,
+		Example: `  zr usage post --file usage.csv`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.File == "" {
 				return fmt.Errorf("--file is required")

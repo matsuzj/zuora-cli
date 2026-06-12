@@ -313,11 +313,25 @@ header "Step 8: signup"
 echo "  Testing: signup validation (no --body)"
 expect_fail "signup validation → requires --body" 'required flag(s) "body" not set' -- $ZR signup
 
-echo "  Testing: signup --body (tenant may reject with HTTP 500)"
+echo "  Testing: signup --body (corrected Sign-Up shape; tenant may reject with HTTP 500)"
+# Body shape corrected per the official Sign-Up API (the old body used the
+# invalid field "subscribeToRatePlans" -> 69030021). The correct schema is
+# subscriptionData.ratePlans + startDate + terms{initialTerm, renewalSetting,
+# renewalTerms[]}. With this shape the request passes ALL field validation;
+# the residual HTTP 500 (69000060) is a tenant configuration limitation.
 SIGNUP_BODY=$(cat <<JSON
 {
   "accountData": {"name": "E2E-Signup", "currency": "JPY", "billCycleDay": 1, "billToContact": {"firstName": "S", "lastName": "U", "country": "Japan", "state": "Tokyo"}},
-  "subscriptionData": {"subscribeToRatePlans": [{"productRatePlanId": "$RATE_PLAN_ID"}]}
+  "subscriptionData": {
+    "ratePlans": [{"productRatePlanId": "$RATE_PLAN_ID"}],
+    "startDate": "$(date +%Y-%m-%d)",
+    "terms": {
+      "initialTerm": {"period": 12, "periodType": "Month", "termType": "TERMED", "startDate": "$(date +%Y-%m-%d)"},
+      "renewalSetting": "RENEW_WITH_SPECIFIC_TERM",
+      "renewalTerms": [{"period": 12, "periodType": "Month"}],
+      "autoRenew": false
+    }
+  }
 }
 JSON
 )
@@ -325,10 +339,12 @@ run $ZR signup --body "$SIGNUP_BODY" --json
 SIGNUP_SUCCESS=$(echo "$RUN_OUT" | jq -r '.success // empty' 2>/dev/null)
 if [ "$SIGNUP_SUCCESS" = "true" ]; then
   pass "signup → success (account=$(echo "$RUN_OUT" | jq -r '.accountNumber // empty'))"
-elif echo "${RUN_ERR}${RUN_OUT}" | grep -qF "Zuora API error"; then
-  # The Sign-Up call depends on tenant-specific catalog/subscription setup not
-  # present on this apac-sandbox (returns HTTP 400/500); the CLI built and sent
-  # the request correctly, so this is an environment skip, not a CLI defect.
+elif echo "${RUN_ERR}${RUN_OUT}" | grep -qF "69030021"; then
+  # The corrected body must never re-trip field validation on ratePlans.
+  fail "signup → body-shape regression (69030021): ${RUN_ERR:-$RUN_OUT}"
+elif echo "${RUN_ERR}${RUN_OUT}" | grep -qE "HTTP (500|400)"; then
+  # Field validation passes with the corrected body; only the tenant-side
+  # error (HTTP 500 69000060, or a future tenant-config 400) may skip.
   skip "signup → $(echo "${RUN_ERR}${RUN_OUT}" | grep -F 'Zuora API error' | head -1)"
 else
   fail "signup (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"

@@ -89,6 +89,11 @@ if [ "$GOT2" = "json" ]; then
 else
   fail "config get → expected json, got '$GOT2'"
 fi
+# Restore the default: default_output is WIRED now (P4-3) — leaving it on
+# json would flip every later piped check (and the following suites) to JSON
+# output, which is exactly what broke the alias-execution check when the
+# wiring first landed.
+expect_ok "config set → restores default_output" "Set default_output to table" -- zr config set default_output table
 
 # ─────────────────────────────────────────
 header "Step 3: config env"

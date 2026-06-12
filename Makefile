@@ -36,11 +36,18 @@ vuln:
 e2e: build
 	./tests/run-all.sh $(ARGS)
 
-# staticcheck runs via go.mod's `tool` directive, so local and CI always use
-# the same pinned version (dependabot bumps it) — no separate install needed.
+# staticcheck/deadcode run via go.mod's `tool` directive, so local and CI
+# always use the same pinned version (dependabot bumps it) — no separate
+# install needed. deadcode -test must stay EMPTY: code reachable from neither
+# the binary nor any test is deleted, not kept (P4-3 gate).
 lint:
 	go vet ./...
 	go tool staticcheck ./...
+	@dead="$$(go tool deadcode -test ./...)" || { echo "deadcode failed to run"; exit 1; }; \
+	if [ -n "$$dead" ]; then \
+		echo "deadcode found unreachable code (delete it or wire it):"; \
+		echo "$$dead"; exit 1; \
+	fi
 
 clean:
 	rm -rf bin/

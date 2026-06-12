@@ -6,6 +6,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -23,18 +24,18 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List commitments for an account",
 		Long:  `List commitments associated with a Zuora account.`,
-		Example: `  zr commitment list --account A00000001
-  zr commitment list --account A00000001 --json`,
+		Example: `  zr commitment list --account-number A00000001
+  zr commitment list --account-number A00000001 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.Account == "" {
-				return fmt.Errorf("--account is required")
+			if opts.Account == "" { // enforced on the value: the deprecated --account alias must satisfy it
+				return fmt.Errorf("--account-number is required")
 			}
 			return runList(cmd, opts)
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.Account, "account", "", "Account number (required)")
+	cmdutil.AddAccountNumberFlag(cmd, &opts.Account, "account")
 
 	return cmd
 }

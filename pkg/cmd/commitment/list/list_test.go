@@ -2,6 +2,7 @@ package list
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -28,7 +29,7 @@ func TestCommitmentList_Success(t *testing.T) {
 		})
 	})
 
-	stdout, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "list", "--account", "A00000001")
+	stdout, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "list", "--account-number", "A00000001")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "CMT-001")
@@ -38,5 +39,20 @@ func TestCommitmentList_RequiresAccount(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "list")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--account is required")
+	assert.Contains(t, err.Error(), "--account-number is required")
+}
+
+// TestCommitmentList_DeprecatedAccountAliasStillWorks pins the P5-1
+// deprecation contract for the handwritten (cmdutil.AddAccountNumberFlag)
+// path: --account keeps feeding accountNumber through v0.5.x.
+func TestCommitmentList_DeprecatedAccountAliasStillWorks(t *testing.T) {
+	var gotAccount string
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		gotAccount = r.URL.Query().Get("accountNumber")
+		fmt.Fprint(w, `{"commitments": []}`)
+	}
+
+	_, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "list", "--account", "A00000001", "--json")
+	require.NoError(t, err)
+	assert.Equal(t, "A00000001", gotAccount)
 }

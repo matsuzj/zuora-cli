@@ -58,7 +58,7 @@ func TestCommitmentPeriods_ByAccount_Success(t *testing.T) {
 		})
 	})
 
-	stdout, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "periods", "--account", "A00000001", "--start-date", "2026-01-01", "--end-date", "2026-12-31")
+	stdout, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "periods", "--account-number", "A00000001", "--start-date", "2026-01-01", "--end-date", "2026-12-31")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "PRD-00000002")
 	assert.Contains(t, stdout, "A00000001")
@@ -70,13 +70,13 @@ func TestCommitmentPeriods_RequiresCommitmentOrAccount(t *testing.T) {
 }
 
 func TestCommitmentPeriods_MutuallyExclusive(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "periods", "--commitment", "CMT-00000001", "--account", "A00000001")
+	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "periods", "--commitment", "CMT-00000001", "--account-number", "A00000001")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "mutually exclusive")
 }
 
 func TestCommitmentPeriods_AccountRequiresDates(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "periods", "--account", "A00000001")
+	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "periods", "--account-number", "A00000001")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "start-date")
 }

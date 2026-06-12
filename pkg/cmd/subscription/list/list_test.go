@@ -23,7 +23,7 @@ func TestSubscriptionList_Table(t *testing.T) {
 		},
 	})
 
-	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account", "A001")
+	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account-key", "A001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Gold Plan")
 	assert.Contains(t, stdout, "A-S001")
@@ -37,7 +37,7 @@ func TestSubscriptionList_JSON(t *testing.T) {
 		},
 	})
 
-	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account", "A001", "--json")
+	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account-key", "A001", "--json")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, `"name"`)
 }
@@ -47,7 +47,7 @@ func TestSubscriptionList_SuccessFalse(t *testing.T) {
 	// (the success-flag check is on by default in the API client).
 	handler := cmdtest.Reasons(t, 50000040, "Account not found")
 
-	_, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account", "A001")
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account-key", "A001")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Account not found")
 }

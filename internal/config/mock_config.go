@@ -40,26 +40,55 @@ func NewMockConfig() *MockConfig {
 	}
 }
 
-func (m *MockConfig) ActiveEnvironment() string              { return m.fc.ActiveEnvironment() }
-func (m *MockConfig) SetActiveEnvironment(name string) error { return m.fc.SetActiveEnvironment(name) }
-func (m *MockConfig) ZuoraVersion() string                   { return m.fc.ZuoraVersion() }
-func (m *MockConfig) SetZuoraVersion(v string) error         { return m.fc.SetZuoraVersion(v) }
-func (m *MockConfig) DefaultOutput() string                  { return m.fc.DefaultOutput() }
-func (m *MockConfig) SetDefaultOutput(v string) error        { return m.fc.SetDefaultOutput(v) }
-func (m *MockConfig) ConfigDir() string                      { return m.Dir }
+// sync re-points the delegate at the exported maps before every delegated
+// call, so a test that REPLACES a whole map (cfg.Envs = map[...]) — not just
+// mutates it — is still honored, exactly like the old field-backed mock
+// (review finding on this PR).
+func (m *MockConfig) sync() {
+	m.fc.envs.Environments = m.Envs
+	m.fc.toks.Tokens = m.Toks
+}
 
-func (m *MockConfig) Environment(name string) (*Environment, error) { return m.fc.Environment(name) }
-func (m *MockConfig) Environments() map[string]*Environment         { return m.fc.Environments() }
+func (m *MockConfig) ActiveEnvironment() string { return m.fc.ActiveEnvironment() }
+func (m *MockConfig) SetActiveEnvironment(name string) error {
+	m.sync()
+	return m.fc.SetActiveEnvironment(name)
+}
+func (m *MockConfig) ZuoraVersion() string            { return m.fc.ZuoraVersion() }
+func (m *MockConfig) SetZuoraVersion(v string) error  { return m.fc.SetZuoraVersion(v) }
+func (m *MockConfig) DefaultOutput() string           { return m.fc.DefaultOutput() }
+func (m *MockConfig) SetDefaultOutput(v string) error { return m.fc.SetDefaultOutput(v) }
+func (m *MockConfig) ConfigDir() string               { return m.Dir }
+
+func (m *MockConfig) Environment(name string) (*Environment, error) {
+	m.sync()
+	return m.fc.Environment(name)
+}
+func (m *MockConfig) Environments() map[string]*Environment {
+	m.sync()
+	return m.fc.Environments()
+}
 func (m *MockConfig) AddEnvironment(name string, env *Environment) error {
+	m.sync()
 	return m.fc.AddEnvironment(name, env)
 }
-func (m *MockConfig) RemoveEnvironment(name string) error { return m.fc.RemoveEnvironment(name) }
+func (m *MockConfig) RemoveEnvironment(name string) error {
+	m.sync()
+	return m.fc.RemoveEnvironment(name)
+}
 
-func (m *MockConfig) Token(envName string) (*TokenEntry, error) { return m.fc.Token(envName) }
+func (m *MockConfig) Token(envName string) (*TokenEntry, error) {
+	m.sync()
+	return m.fc.Token(envName)
+}
 func (m *MockConfig) SetToken(envName string, token *TokenEntry) error {
+	m.sync()
 	return m.fc.SetToken(envName, token)
 }
-func (m *MockConfig) RemoveToken(envName string) error { return m.fc.RemoveToken(envName) }
+func (m *MockConfig) RemoveToken(envName string) error {
+	m.sync()
+	return m.fc.RemoveToken(envName)
+}
 
 // Save records the call and returns the injected error without writing
 // anything to disk.

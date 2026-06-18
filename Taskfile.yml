@@ -46,6 +46,11 @@ tasks:
     cmds:
       - make clean
 
+  e2e-clean:
+    desc: Prune E2E log files older than 30 days (delegates to make e2e-clean)
+    cmds:
+      - make e2e-clean
+
   fmt:
     desc: Format Go source files
     cmds:

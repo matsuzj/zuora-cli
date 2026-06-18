@@ -109,7 +109,22 @@ zr api /v1/orders -X POST --body @order.json
                            billing data, so plain -v never includes them
     --read-only            Block write operations (POST/PUT/DELETE/PATCH)
 ```
+### Audit Trail Example
 
+Verbose output is written to `stderr`, making it easy to persist request and response diagnostics for auditing purposes.
+
+```bash
+# Persist request/response headers and bodies
+zr subscription create --account-key A-001 ... -vv 2>>mutations.log
+
+# Session-wide body logging
+export ZR_DEBUG=api
+zr account list 2>>mutations.log
+```
+
+- `-v` captures request and response headers (including `Idempotency-Key`).
+- `-vv` additionally captures request and response bodies (4KB cap; multipart bodies are skipped).
+- `ZR_DEBUG=api` is equivalent to `-vv` and can be used for session-wide body logging.
 **Output modes**: `--json` and `--template` are mutually exclusive. `--jq` implies JSON output and takes precedence when combined with other flags. `--csv` renders list/table output as CSV (and detail output as a `Field,Value` table) with spreadsheet formula-injection sanitization; `--json` / `--jq` / `--template` take precedence over it. Default output is a formatted table.
 
 **Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.

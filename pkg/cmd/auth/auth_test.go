@@ -10,6 +10,7 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -48,6 +49,40 @@ func TestAuthLogin_WithFlags(t *testing.T) {
 	token, err := cfg.Token("sandbox")
 	assert.NoError(t, err)
 	assert.Equal(t, "new-token", token.AccessToken)
+}
+
+// TestAuthLogin_VerboseDoesNotLeakSecret pins the command-layer guarantee that
+// `auth login --verbose` never echoes the client secret or the issued token to
+// stderr (login.go wires ts.Logf → ErrOut). The unit-level oauth leak guard
+// covers TokenSource.Logf in isolation; this covers the wiring end-to-end and
+// would catch a future direct ErrOut write in runLogin that bypasses Logf. The
+// root registers the global flags so --verbose resolves, as in production.
+func TestAuthLogin_VerboseDoesNotLeakSecret(t *testing.T) {
+	const secret = "super-secret-value"
+	const issued = "issued-token-value"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": issued, "token_type": "bearer", "expires_in": 3600,
+		})
+	}))
+	defer server.Close()
+
+	ios, _, _, errOut := iostreams.Test()
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+	f := factory.NewTestFactory(ios, cfg, server.URL, "")
+
+	root := &cobra.Command{Use: "zr"}
+	globalflags.Register(root) // defines --verbose so login.go's GetCount resolves
+	root.AddCommand(NewCmdAuth(f))
+	root.SetArgs([]string{"auth", "login", "--verbose", "--client-id", "test-id", "--client-secret", secret})
+	require.NoError(t, root.Execute())
+
+	out := errOut.String()
+	assert.Contains(t, out, "* auth:", "verbose output must actually be produced (else NotContains is vacuous)")
+	assert.NotContains(t, out, secret, "client secret must never appear in verbose stderr")
+	assert.NotContains(t, out, issued, "the issued token must never appear in verbose stderr")
 }
 
 func TestAuthLogout(t *testing.T) {

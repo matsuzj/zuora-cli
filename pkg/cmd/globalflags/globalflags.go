@@ -8,9 +8,11 @@
 package globalflags
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -29,6 +31,7 @@ func Register(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("zuora-version", "", "Override Zuora API version header")
 	cmd.PersistentFlags().CountP("verbose", "v", "Verbose output (-vv or ZR_DEBUG=api adds request/response bodies)")
 	cmd.PersistentFlags().Bool("read-only", false, "Block write operations (POST/PUT/DELETE/PATCH)")
+	cmd.PersistentFlags().Duration("timeout", 0, "Abort if the command runs longer than this across all retries (e.g. 30s, 2m; 0 = no limit)")
 }
 
 // Apply is the PersistentPreRunE body shared by the real root and the test
@@ -124,6 +127,45 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	}
 
 	ctx := cmd.Context()
+	// A positive --timeout bounds the WHOLE command (all retries + backoff), not
+	// just one request. Apply runs as PersistentPreRunE, so it must NOT defer
+	// cancel (that would fire before the command runs); instead it sets the
+	// derived context on the command + client and releases the timer via the
+	// root's PersistentPostRunE. No command sets one, so it always runs on the
+	// success path; on the error path the process exits, so the timer cannot
+	// outlive it. A deadline surfaces as context.DeadlineExceeded → exit 1,
+	// distinct from Ctrl-C's context.Canceled → exit 130 (see cmd/zr/main.go).
+	// Read the GLOBAL timeout from the ROOT's persistent flags, not cmd.Flags():
+	// `order job-status` defines a LOCAL --timeout (its watch poll deadline) that
+	// shadows the inherited persistent flag in the merged set, so cmd.Flags()
+	// would read the wrong one (Codex review finding). The local flag keeps its
+	// own meaning; the global whole-command deadline is set by
+	// `zr --timeout … <cmd>`, which lands on the root persistent flag.
+	var globalTimeout time.Duration
+	if r := cmd.Root(); r != nil {
+		globalTimeout, _ = r.PersistentFlags().GetDuration("timeout")
+	}
+	if globalTimeout > 0 {
+		// cmd.Context() is non-nil under Execute/ExecuteContext, but guard the
+		// nil parent (a command Apply'd directly without Execute) so WithTimeout
+		// cannot panic — mirrors the `if ctx != nil` guard below.
+		parent := ctx
+		if parent == nil {
+			parent = context.Background()
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(parent, globalTimeout)
+		cmd.SetContext(ctx)
+		root := cmd.Root()
+		prev := root.PersistentPostRunE
+		root.PersistentPostRunE = func(c *cobra.Command, args []string) error {
+			cancel()
+			if prev != nil {
+				return prev(c, args)
+			}
+			return nil
+		}
+	}
 	origHttpClient := f.HttpClient
 	f.HttpClient = func() (*api.Client, error) {
 		client, err := origHttpClient()

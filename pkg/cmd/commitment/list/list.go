@@ -35,7 +35,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmdutil.AddAccountNumberFlag(cmd, &opts.Account, "account")
+	cmdutil.AddAccountNumberFlag(cmd, &opts.Account)
 
 	return cmd
 }

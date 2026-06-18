@@ -243,7 +243,7 @@ header "Step 7: output flag contract (v0.4.0 behavior changes, offline)"
 # silently ignored before). charge get rejects it pre-request.
 echo "  Testing: --csv on a JSON-only command"
 expect_fail "--csv on JSON-only command → explicit error" \
-  "--csv is not supported for JSON-only output" -- zr charge get --key FAKE --csv
+  "--csv is not supported for JSON-only output" -- zr charge get FAKE --csv
 
 # List commands reject stray positional arguments (cobra.NoArgs) since the
 # P3-2 listcmd migration; previously extra args were silently ignored.

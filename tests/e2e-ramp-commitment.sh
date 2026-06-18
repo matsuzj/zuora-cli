@@ -62,7 +62,7 @@ expect_fail "commitment balance validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR commitment balance
 
 # commitment periods is flag-driven (no positional): it requires --commitment,
-# or --account together with --start-date and --end-date.
+# or --account-number together with --start-date and --end-date.
 echo "  Testing: commitment periods without flags"
 expect_fail "commitment periods validation → requires --commitment/--account-number" \
   "--commitment or --account-number (with --start-date and --end-date) is required" -- $ZR commitment periods

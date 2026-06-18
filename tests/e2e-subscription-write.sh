@@ -184,15 +184,10 @@ else
   fail "subscription list → missing $SUB_A"
 fi
 
-# P5-1 deprecation contract: the OLD --account spelling must keep working
-# through v0.5.x (removed in v0.6.0) and print a deprecation notice.
-echo "  Testing: deprecated --account alias (removed in v0.6.0)"
-ALIAS_OUT=$($ZR subscription list --account "$ACCT_NUM" 2>&1) || true
-if echo "$ALIAS_OUT" | grep -q "$SUB_A" && echo "$ALIAS_OUT" | grep -qi "deprecated"; then
-  pass "subscription list --account → alias works + deprecation notice"
-else
-  fail "subscription list --account alias → $(echo "$ALIAS_OUT" | head -2)"
-fi
+# v0.7.0 removed the deprecated --account alias; only --account-key is accepted.
+echo "  Testing: removed --account alias errors as an unknown flag"
+expect_fail "subscription list --account → removed (unknown flag)" \
+  "unknown flag: --account" -- $ZR subscription list --account "$ACCT_NUM"
 
 # ─────────────────────────────────────────
 header "Step 4: subscription create (Orders 有効テナント → 期待エラー)"

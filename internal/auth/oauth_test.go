@@ -488,30 +488,35 @@ func TestTokenSource_LogfObservabilityAndLeakDenial(t *testing.T) {
 		Logf:   func(format string, args ...any) { fmt.Fprintf(&buf, format, args...) },
 	}
 
-	// Cache miss → refresh.
+	// Cache miss → refresh. This phase builds the client_secret request body,
+	// so its log output is the highest-risk for an accidental credential leak.
 	_, err := ts.TokenContext(context.Background(), "sandbox")
 	require.NoError(t, err)
-	out := buf.String()
+	missOut := buf.String()
 	// MockCredentialStore IS a StaticCredentialStore — the label must say so
 	// (Codex: auth login passes one built from flags/prompt, not the keyring).
-	assert.Contains(t, out, `* auth: fetching token for environment "sandbox" (credentials from explicitly provided values)`)
-	assert.Contains(t, out, "* auth: token acquired, expires in 3600s")
+	assert.Contains(t, missOut, `* auth: fetching token for environment "sandbox" (credentials from explicitly provided values)`)
+	assert.Contains(t, missOut, "* auth: token acquired, expires in 3600s")
 
 	// Cache hit.
 	buf.Reset()
 	_, err = ts.TokenContext(context.Background(), "sandbox")
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), `* auth: cache hit for environment "sandbox"`)
+	hitOut := buf.String()
+	assert.Contains(t, hitOut, `* auth: cache hit for environment "sandbox"`)
 
 	// Force refresh.
 	buf.Reset()
 	_, err = ts.ForceRefreshContext(context.Background(), "sandbox")
 	require.NoError(t, err)
-	out = buf.String()
-	assert.Contains(t, out, `* auth: force-refreshing token for environment "sandbox"`)
+	forceOut := buf.String()
+	assert.Contains(t, forceOut, `* auth: force-refreshing token for environment "sandbox"`)
 
-	// Leak denial across everything logged in this test.
-	full := out
+	// Leak denial across EVERY phase logged in this test — most importantly the
+	// cache-miss refresh above. Earlier this only checked the force-refresh
+	// buffer, because the two buf.Reset() calls discarded the miss/hit output
+	// before the assertions ran, leaving the highest-risk phase unguarded.
+	full := missOut + hitOut + forceOut
 	assert.NotContains(t, full, secret, "client secret must never be logged")
 	assert.NotContains(t, full, issuedToken, "token values must never be logged")
 	assert.NotContains(t, full, "test-id", "client id is deliberately not logged")

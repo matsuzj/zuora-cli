@@ -139,6 +139,31 @@ func TestRetry_429_RetriesAndSucceeds(t *testing.T) {
 	assert.Equal(t, int32(2), atomic.LoadInt32(&calls), "one 429 then one success = exactly 2 calls")
 }
 
+// TestRetry_429_Exhausted pins the give-up path: when every attempt is rate-
+// limited, doWithRetry exhausts maxRetries+1 attempts and surfaces the final
+// 429 as a non-nil *APIError (not a nil error, not a hang). The existing 429
+// tests only cover "one 429 then success", never the loop-exhaustion exit.
+func TestRetry_429_Exhausted(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.Header().Set("Retry-After", "0")
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`{"message":"rate limited"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+	assert.Equal(t, int32(maxRetries+1), atomic.LoadInt32(&calls),
+		"all attempts must be made before giving up")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr,
+		"exhausted 429 retries must surface as *APIError, not nil or a generic error")
+	assert.Equal(t, http.StatusTooManyRequests, apiErr.StatusCode)
+}
+
 func TestRetry_POST_429_SendsIdempotencyKeyStableAcrossRetries(t *testing.T) {
 	var keys []string
 	var calls int32

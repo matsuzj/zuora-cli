@@ -230,6 +230,55 @@ func TestClient_Verbose(t *testing.T) {
 	assert.Contains(t, output, "HTTP 200")
 }
 
+// TestClient_Verbose_MasksBearerAcrossMethods pins the credential-masking
+// invariant for EVERY method, not just GET: the Authorization header is logged
+// as "Bearer ***" and the raw token never appears in verbose output. The
+// masking lives in the shared Do() path (client.go), so this is correct today;
+// the test guards against a future per-method refactor of the verbose block
+// silently unmasking writes (POST/PUT/PATCH/DELETE).
+func TestClient_Verbose_MasksBearerAcrossMethods(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+
+	const token = "secret-write-token"
+
+	cases := []struct {
+		name string
+		do   func(c *Client) (*Response, error)
+	}{
+		{"GET", func(c *Client) (*Response, error) { return c.Get("/v1/test") }},
+		{"POST", func(c *Client) (*Response, error) { return c.Post("/v1/test", strings.NewReader(`{}`)) }},
+		{"PUT", func(c *Client) (*Response, error) { return c.Put("/v1/test", strings.NewReader(`{}`)) }},
+		// No Client.Patch convenience method exists; drive PATCH through Do.
+		{"PATCH", func(c *Client) (*Response, error) {
+			return c.Do(http.MethodPatch, "/v1/test", WithBody(strings.NewReader(`{}`)))
+		}},
+		{"DELETE", func(c *Client) (*Response, error) { return c.Delete("/v1/test") }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			c := NewClient(
+				WithBaseURL(server.URL),
+				WithTokenSource(func(context.Context) (string, error) { return token, nil }),
+			)
+			c.SetVerbose(&buf)
+
+			_, err := tc.do(c)
+			require.NoError(t, err)
+
+			out := buf.String()
+			assert.Contains(t, out, tc.name, "the request method must be logged in verbose output")
+			assert.Contains(t, out, "Bearer ***", "Authorization header must be masked")
+			assert.NotContains(t, out, token, "the raw bearer token must never appear in verbose output")
+		})
+	}
+}
+
 // --- Read-Only Mode Tests ---
 
 func TestClient_ReadOnly_POSTBlocked(t *testing.T) {

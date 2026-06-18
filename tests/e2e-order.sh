@@ -23,6 +23,11 @@ LOG_FILE="$LOG_DIR/e2e-order-${TIMESTAMP}.log"
 source "$SCRIPT_DIR/lib/e2e-common.sh"
 setup_log
 
+# Sandbox resources this suite creates (NO auto-teardown — prune manually after
+# a broken run; see docs/e2e-test-skips.md "Manual cleanup after a broken run"):
+#   Account "E2E-Order-Test" (+ the order/subscription created under it).
+#   Prune: zr account list  →  zr account delete <account-key> --confirm
+
 # ─────────────────────────────────────────
 header "Step 0: Auth check"
 # ─────────────────────────────────────────

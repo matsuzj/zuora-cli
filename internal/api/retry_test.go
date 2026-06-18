@@ -164,6 +164,28 @@ func TestRetry_429_Exhausted(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, apiErr.StatusCode)
 }
 
+// TestRetry_POST_5xx_PopulatesIdemKey pins that a non-retried POST 5xx surfaces
+// the request's Idempotency-Key on the APIError, so the SafeToRetry hint can
+// show the key the user should quote to Zuora support.
+func TestRetry_POST_5xx_PopulatesIdemKey(t *testing.T) {
+	var sawKey string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawKey = r.Header.Get("Idempotency-Key")
+		w.WriteHeader(500)
+		w.Write([]byte(`{"message":"boom"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := c.Post("/v1/orders", strings.NewReader(`{}`))
+	require.Error(t, err)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	require.NotEmpty(t, sawKey)
+	assert.Equal(t, sawKey, apiErr.IdemKey, "the hint key must match the key actually sent")
+	assert.Contains(t, apiErr.Error(), "Idempotency-Key: "+apiErr.IdemKey)
+}
+
 func TestRetry_POST_429_SendsIdempotencyKeyStableAcrossRetries(t *testing.T) {
 	var keys []string
 	var calls int32

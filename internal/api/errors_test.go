@@ -40,6 +40,19 @@ func TestAPIError_Error_SafeToRetryHint(t *testing.T) {
 	assert.NotContains(t, got, reauthHintSub)
 }
 
+// TestAPIError_Error_SafeToRetryHintIncludesIdemKey pins that the SafeToRetry
+// hint surfaces the Idempotency-Key VALUE when present, and omits the
+// "Idempotency-Key: <value>" line when the key is empty (the generic sentence,
+// which uses "Idempotency-Key," with a comma, still appears).
+func TestAPIError_Error_SafeToRetryHintIncludesIdemKey(t *testing.T) {
+	withKey := (&APIError{StatusCode: http.StatusInternalServerError, SafeToRetry: true, IdemKey: "zr-abc123"}).Error()
+	assert.Contains(t, withKey, "Idempotency-Key: zr-abc123")
+
+	noKey := (&APIError{StatusCode: http.StatusInternalServerError, SafeToRetry: true}).Error()
+	assert.Contains(t, noKey, retryHintSub, "the generic retry hint still appears")
+	assert.NotContains(t, noKey, "Idempotency-Key: ", "no key line when IdemKey is empty")
+}
+
 // TestAPIError_Error_UnauthorizedAndSafeToRetry pins that a 401 that is also
 // safe to retry shows BOTH hints (the two branches are independent).
 func TestAPIError_Error_UnauthorizedAndSafeToRetry(t *testing.T) {

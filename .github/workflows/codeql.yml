@@ -1,0 +1,39 @@
+name: CodeQL
+
+# Weekly, NON-BLOCKING security scan. Deliberately NOT wired into the PR/CI gate
+# (no push/pull_request trigger) and NOT in `make ci`: staticcheck + govulncheck
+# stay the per-PR gates, and this adds CodeQL's taint-analysis query packs as a
+# low-noise background signal that also picks up new query-pack rules over time.
+# Findings surface in the repo's Security tab. workflow_dispatch allows an
+# on-demand run (e.g. to validate the workflow without waiting for the schedule).
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version-file: go.mod
+
+      - uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          languages: go
+
+      - uses: github/codeql-action/autobuild@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+
+      - uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3

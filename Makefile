@@ -60,8 +60,16 @@ cover: test
 # Note: ./... covers code reachable from this module's packages only — go.mod
 # `tool` deps (staticcheck) are NOT scanned. Acceptable: they never ship in the
 # binary and only run on developer/CI machines.
+#
+# PINNED to v1.3.0 (was @latest): govulncheck v1.4.0 bundles x/tools v0.46.0,
+# which PANICS under the Go 1.26 toolchain during call-graph analysis
+# ("ForEachElement called on type containing *types.TypeParam"). v1.3.0 ships
+# x/tools v0.44.0 and runs clean. `go run …@version` uses govulncheck's OWN
+# module graph (x/tools v0.44.0), independent of this repo's x/tools v0.46.0
+# (kept for cmd/deadcode). Revisit the pin once a govulncheck > v1.4.0 fixes the
+# Go 1.26 crash; it is not dependabot-tracked, so the bump is manual.
 vuln:
-	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
 
 # E2E suites hit a real Zuora tenant — requires `zr auth login` first.
 # Optionally run a subset by suite name (tests/e2e-<name>.sh): make e2e ARGS="local"

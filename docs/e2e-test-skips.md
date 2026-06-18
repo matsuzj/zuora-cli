@@ -129,4 +129,28 @@ task build            # or: make build  (produces ./bin/zr)
 `Passed / Failed / Skipped` summary and a final `RESULT:` line. The latest full
 run: **10/10 suites pass** (the 2026-06-12 expansion added the billrun suite
 plus behavior-change, flag-matrix, and lifecycle coverage; check counts grow
-with coverage — see the latest run logs for exact numbers).
+with coverage — see the latest run logs for exact numbers). Prune old logs with
+`make e2e-clean` (deletes `tests/logs/*.log` older than 30 days).
+
+## Manual cleanup after a broken run
+
+The write suites delete what they create on a clean run, but there is **no
+auto-teardown**: a mid-suite failure can leave a sandbox account behind. There
+is deliberately no `make` target for this (account deletion is async and active
+subscriptions can block it), so prune manually. Each suite names its account in
+a comment right after `setup_log`.
+
+| Suite | Account name | Note |
+|-------|--------------|------|
+| `e2e-order` | `E2E-Order-Test` | also removes its order/subscription |
+| `e2e-subscription-write` | `E2E-Sub-Write-Test` | **cancel SUB_A/SUB_B/SUB_C first** — active subscriptions block account deletion |
+| `e2e-contact-signup` | `E2E-Contact-Test` | |
+| `e2e-invoice-payment` | `E2E-InvoicePay-Test` | |
+
+```sh
+zr account list | grep <name>            # find the leftover account key
+zr account delete <account-key> --confirm   # async; returns a Job ID
+```
+
+(e2e-order's `--body` resolution step also created throwaway `E2E-BodyResolve`
+accounts; the suite now deletes those inline — see #257.)

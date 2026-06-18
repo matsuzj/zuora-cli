@@ -162,19 +162,49 @@ read_or_skip_on() {
   fi
 }
 
-# require_auth — Step 0 gate for live suites: binary present + token valid.
+# require_auth — Step 0 gate for live suites: binary present, token valid, AND
+# the active tenant is a sandbox. `auth status` reports a valid token regardless
+# of WHICH tenant it targets, so without this check a maintainer who left the
+# active environment pointed at production would have the write suites silently
+# create real, IRREVERSIBLE billing state (accounts, orders, subscriptions, bill
+# runs) on it. See issue #267.
+#
+# The tenant gate FAILS CLOSED: it proceeds only when the Base URL looks like a
+# sandbox; a known production host OR an unrecognized tenant is blocked unless
+# the operator explicitly opts in with ZR_E2E_ALLOW_PROD=1. This is deliberately
+# stricter than a production-host denylist — a denylist fails OPEN on any host it
+# does not know (a new prod region, a custom domain), which is the wrong default
+# for a guard standing in front of irreversible writes.
 require_auth() {
   [ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }
   # auth status always exits 0 and prints "Token: valid|expired"; the only
   # reliable signal of a usable session is a "Token: ... valid" line.
   local auth_out
   auth_out=$("$ZR" auth status 2>&1)
-  if echo "$auth_out" | grep -qE "Token:[[:space:]]+valid"; then
-    pass "Auth OK"
-  else
+  if ! echo "$auth_out" | grep -qE "Token:[[:space:]]+valid"; then
     fail "Auth failed (token not valid): $(echo "$auth_out" | grep -i 'token' | head -1)"
     exit 1
   fi
+
+  # Tenant-safety gate. Zuora sandbox hosts carry a "sandbox" or ".test." marker
+  # (rest.apisandbox.zuora.com, rest.test.ap.zuora.com); the production hosts
+  # (rest.zuora.com, rest.na/eu/ap.zuora.com) carry neither.
+  local base_url
+  base_url=$(echo "$auth_out" | awk '/^Base URL:/ {print $NF}')
+  case "$base_url" in
+    *sandbox*|*.test.*)
+      pass "Auth OK (sandbox tenant: $base_url)"
+      ;;
+    *)
+      if [ "${ZR_E2E_ALLOW_PROD:-0}" = "1" ]; then
+        yellow "  ⚠ ZR_E2E_ALLOW_PROD=1 set — running write suites against a NON-sandbox tenant: ${base_url:-<unknown>}"
+        pass "Auth OK (production override)"
+      else
+        fail "Active tenant does not look like a sandbox: ${base_url:-<unknown>}. E2E write suites must NOT run against production. Switch with: zr config env apac-sandbox   (intentional override: ZR_E2E_ALLOW_PROD=1)"
+        exit 1
+      fi
+      ;;
+  esac
 }
 
 # print_summary — counts + log path + RESULT line; exits 1 when FAIL > 0.

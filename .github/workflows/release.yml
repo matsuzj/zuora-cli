@@ -5,6 +5,12 @@ on:
     tags:
       - 'v*'
 
+# Never cancel an in-progress release — it may be mid-publish. Each tag is a
+# distinct ref, so this only serializes an accidental re-push of the SAME tag.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

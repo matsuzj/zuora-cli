@@ -42,10 +42,10 @@ func TestPlanGet_RequiresKey(t *testing.T) {
 	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
-// TestPlanGet_DeprecatedKeyFlagStillWorks pins the P5-3c deprecation
-// contract: --key keeps working through v0.5.x (removed in v0.6.0).
-func TestPlanGet_DeprecatedKeyFlagStillWorks(t *testing.T) {
-	handler := cmdtest.OK(t, "POST", "", map[string]interface{}{"success": true})
-	_, _, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "get", "--key", "RPK-001")
-	require.NoError(t, err)
+// TestPlanGet_KeyFlagRemoved pins that the deprecated --key flag is gone
+// (v0.7.0): the key is a positional argument now, so --key is an unknown flag.
+func TestPlanGet_KeyFlagRemoved(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "plan", newCmd, nil, "plan", "get", "--key", "RPK-001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --key")
 }

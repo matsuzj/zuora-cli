@@ -48,7 +48,7 @@ to query by account and date range.`,
 	}
 
 	cmd.Flags().StringVar(&opts.Commitment, "commitment", "", "Commitment key")
-	cmdutil.AddAccountNumberFlag(cmd, &opts.Account, "account")
+	cmdutil.AddAccountNumberFlag(cmd, &opts.Account)
 	cmd.Flags().StringVar(&opts.StartDate, "start-date", "", "Start date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&opts.EndDate, "end-date", "", "End date (YYYY-MM-DD)")
 

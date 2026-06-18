@@ -2,7 +2,6 @@ package list
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 
@@ -42,17 +41,10 @@ func TestCommitmentList_RequiresAccount(t *testing.T) {
 	assert.Contains(t, err.Error(), "--account-number is required")
 }
 
-// TestCommitmentList_DeprecatedAccountAliasStillWorks pins the P5-1
-// deprecation contract for the handwritten (cmdutil.AddAccountNumberFlag)
-// path: --account keeps feeding accountNumber through v0.5.x.
-func TestCommitmentList_DeprecatedAccountAliasStillWorks(t *testing.T) {
-	var gotAccount string
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		gotAccount = r.URL.Query().Get("accountNumber")
-		fmt.Fprint(w, `{"commitments": []}`)
-	}
-
-	_, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "list", "--account", "A00000001", "--json")
-	require.NoError(t, err)
-	assert.Equal(t, "A00000001", gotAccount)
+// TestCommitmentList_AccountAliasRemoved pins that the deprecated --account
+// alias is gone (v0.7.0): only --account-number is accepted.
+func TestCommitmentList_AccountAliasRemoved(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "list", "--account", "A00000001", "--json")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --account")
 }

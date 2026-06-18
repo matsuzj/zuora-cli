@@ -41,13 +41,13 @@ zr account list --jq '.data[].name'
 zr account get A00000001
 
 # List subscriptions for an account
-zr subscription list --account A00000001
+zr subscription list --account-key A00000001
 
 # Create an order
 zr order create --body @order.json
 
 # List invoices
-zr invoice list --account A00000001
+zr invoice list --account-key A00000001
 
 # Execute a ZOQL query
 zr query "SELECT Id, Name, Status FROM Account WHERE Status = 'Active'"
@@ -316,7 +316,7 @@ Add the appropriate line to your shell profile (`~/.bashrc`, `~/.zshrc`) to load
 ```bash
 # Create aliases
 zr alias set ls "account list"
-zr alias set inv "invoice list --account"
+zr alias set inv "invoice list --account-key"
 
 # Use them
 zr ls              # expands to: zr account list

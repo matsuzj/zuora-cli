@@ -1,8 +1,6 @@
 package list
 
 import (
-	"fmt"
-	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -69,17 +67,10 @@ func TestInvoiceList_SuccessFalse(t *testing.T) {
 	assert.Contains(t, err.Error(), "Account not found")
 }
 
-// TestInvoiceList_DeprecatedAccountAliasStillWorks pins the P5-1 deprecation
-// contract: the old --account spelling keeps feeding the account-key path
-// through v0.5.x (removed in v0.6.0) and satisfies the required check.
-func TestInvoiceList_DeprecatedAccountAliasStillWorks(t *testing.T) {
-	var gotPath string
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.EscapedPath()
-		fmt.Fprint(w, `{"invoices": []}`)
-	}
-
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "list", "--account", "A00000001")
-	require.NoError(t, err)
-	assert.Equal(t, "/v1/transactions/invoices/accounts/A00000001", gotPath)
+// TestInvoiceList_AccountAliasRemoved pins that the deprecated --account alias
+// is gone (v0.7.0): only --account-key is accepted, so --account is unknown.
+func TestInvoiceList_AccountAliasRemoved(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "list", "--account", "A00000001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --account")
 }

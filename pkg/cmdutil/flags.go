@@ -23,14 +23,8 @@ func AddConfirmFlag(cmd *cobra.Command, dest *bool, operation string) {
 	cmd.Flags().BoolVar(dest, "confirm", false, "Confirm the "+operation)
 }
 
-// AddAccountNumberFlag registers the canonical --account-number flag plus an
-// optional hidden, deprecated old spelling writing into the same destination
-// (P5-1 rename; deprecated aliases are removed in v0.6.0). Requirement checks
-// stay in the command (on the VALUE, so the alias satisfies them).
-func AddAccountNumberFlag(cmd *cobra.Command, dest *string, deprecatedName string) {
+// AddAccountNumberFlag registers the canonical --account-number flag.
+// (The v0.5-era deprecated --account alias was removed in v0.7.0.)
+func AddAccountNumberFlag(cmd *cobra.Command, dest *string) {
 	cmd.Flags().StringVar(dest, "account-number", "", "Account number")
-	if deprecatedName != "" {
-		cmd.Flags().StringVar(dest, deprecatedName, "", "Account number")
-		_ = cmd.Flags().MarkDeprecated(deprecatedName, "use --account-number instead")
-	}
 }

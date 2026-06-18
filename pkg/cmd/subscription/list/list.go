@@ -20,7 +20,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
   zr subscription list --account-key A00000001 --json
   zr sub list --account-key A00000001 --page-size 5 --page 2`,
 		Flags: []listcmd.Flag{
-			{Name: "account-key", Usage: "Account key (ID or account number)", Required: true, DeprecatedName: "account"},
+			{Name: "account-key", Usage: "Account key (ID or account number)", Required: true},
 			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page", Int: true, OmitZero: true},
 			{Name: "page", Query: "page", Usage: "Page number (1-based)"},
 			{Name: "charge-detail", Query: "charge-detail", Usage: "Charge detail level"},

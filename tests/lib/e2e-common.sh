@@ -186,6 +186,19 @@ require_auth() {
     exit 1
   fi
 
+  # When ZR_ENV pins the environment for this run, confirm the binary actually
+  # targeted it. `zr auth status` honors ZR_ENV, so a mismatch means something
+  # unexpected (e.g. the binary ignored it) — fail rather than write to a tenant
+  # the operator did not name. Unset ZR_ENV keeps the default behavior.
+  if [ -n "${ZR_ENV:-}" ]; then
+    local env_name
+    env_name=$(echo "$auth_out" | awk '/^Environment:/ {print $2}')
+    if [ "$env_name" != "$ZR_ENV" ]; then
+      fail "ZR_ENV=$ZR_ENV but the active environment is '${env_name:-<unknown>}' — refusing to run against an unexpected tenant"
+      exit 1
+    fi
+  fi
+
   # Tenant-safety gate. Zuora sandbox hosts carry a "sandbox" or ".test." marker
   # (rest.apisandbox.zuora.com, rest.test.ap.zuora.com); the production hosts
   # (rest.zuora.com, rest.na/eu/ap.zuora.com) carry neither.

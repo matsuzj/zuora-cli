@@ -4,8 +4,14 @@
 # the binary built at ./bin/zr (run `task build` or `make build` first).
 #
 # Usage:
-#   ./tests/run-all.sh                # run every suite
-#   ./tests/run-all.sh order usage-meter   # run only the named suites
+#   ./tests/run-all.sh                       # run every suite
+#   ./tests/run-all.sh order usage-meter     # run only the named suites
+#   ZR_ENV=apac-sandbox ./tests/run-all.sh   # pin the environment for this run
+#
+# Environment selection: the suites use whichever environment `zr` resolves —
+# ZR_ENV (exported, inherited by every suite) wins over the persisted
+# active_environment. When ZR_ENV is set, require_auth also asserts the active
+# environment matches it, so a typo can't route writes at another tenant.
 #
 # Tenant safety: the live suites refuse to run unless the active environment is a
 # sandbox (require_auth in tests/lib/e2e-common.sh fails closed). To run write

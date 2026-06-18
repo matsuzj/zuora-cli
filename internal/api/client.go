@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -306,43 +307,77 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		fmt.Fprintln(c.verboseWriter)
 	}
 
-	resp, err := c.doWithRetry(req)
-	if err != nil {
-		return nil, err
+	// Buffer the request body once so a transient HTTP-200 success=false retry
+	// (below) can resend it: doWithRetry consumes req.Body, so without a fresh
+	// reader per attempt a resend would transmit an EMPTY body for POST/PATCH.
+	var reqBody []byte
+	if req.Body != nil {
+		reqBody, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("buffering request body: %w", err)
+		}
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body: %w", err)
-	}
-
-	if c.verbose && c.verboseWriter != nil {
-		fmt.Fprintf(c.verboseWriter, "< HTTP %d\n", resp.StatusCode)
-		for k, vs := range resp.Header {
-			for _, v := range vs {
-				fmt.Fprintf(c.verboseWriter, "< %s: %s\n", k, v)
+	// Shared retry budget for this request: doWithRetry (transport/429/401/5xx)
+	// and this outer loop (HTTP-200 success=false transient codes) both draw
+	// from it, so a request that hits both classes still makes at most
+	// maxRetries+1 total requests rather than nesting two full retry loops.
+	// doWithRetry decrements it per HTTP send; the success-envelope retry below
+	// only continues while budget remains.
+	budget := maxRetries + 1
+	for attempt := 0; ; attempt++ {
+		if attempt > 0 {
+			total := backoffDuration(attempt)
+			c.vlogf("retrying after %.1fs backoff (HTTP 200 success=false transient error)", total.Seconds())
+			if err := c.sleep(ctx, total); err != nil {
+				return nil, err
 			}
 		}
-		fmt.Fprintln(c.verboseWriter)
-		c.vlogBody("<", resp.Header.Get("Content-Type"), body)
-	}
+		if reqBody != nil {
+			req.Body = io.NopCloser(bytes.NewReader(reqBody))
+		}
 
-	if resp.StatusCode >= 400 {
-		return nil, parseAPIError(resp.StatusCode, body)
-	}
-
-	if rc.checkSuccess {
-		if err := successEnvelopeError(resp.StatusCode, body); err != nil {
+		resp, err := c.doWithRetry(req, &budget)
+		if err != nil {
 			return nil, err
 		}
-	}
 
-	return &Response{
-		StatusCode: resp.StatusCode,
-		Header:     resp.Header,
-		Body:       body,
-	}, nil
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+
+		if c.verbose && c.verboseWriter != nil {
+			fmt.Fprintf(c.verboseWriter, "< HTTP %d\n", resp.StatusCode)
+			for k, vs := range resp.Header {
+				for _, v := range vs {
+					fmt.Fprintf(c.verboseWriter, "< %s: %s\n", k, v)
+				}
+			}
+			fmt.Fprintln(c.verboseWriter)
+			c.vlogBody("<", resp.Header.Get("Content-Type"), body)
+		}
+
+		if resp.StatusCode >= 400 {
+			return nil, parseAPIError(resp.StatusCode, body)
+		}
+
+		if rc.checkSuccess {
+			if envErr := successEnvelopeError(resp.StatusCode, body); envErr != nil {
+				if budget > 0 && isRetriableSuccessEnvelope(envErr, method) {
+					continue
+				}
+				return nil, envErr
+			}
+		}
+
+		return &Response{
+			StatusCode: resp.StatusCode,
+			Header:     resp.Header,
+			Body:       body,
+		}, nil
+	}
 }
 
 // Get performs a GET request.

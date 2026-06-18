@@ -155,7 +155,7 @@ func (c *Client) doWithRetry(req *http.Request, budget *int) (*http.Response, er
 					return nil, ctxErr
 				}
 				c.vlogf("transport error on non-idempotent %s, not retrying: %v", req.Method, err)
-				return nil, &APIError{Message: err.Error(), Err: err, SafeToRetry: carriesIdempotencyKey(req.Method)}
+				return nil, &APIError{Message: err.Error(), Err: err, SafeToRetry: carriesIdempotencyKey(req.Method), IdemKey: req.Header.Get("Idempotency-Key")}
 			}
 			c.vlogf("transport error, will retry: %v", err)
 			lastErr = err
@@ -221,6 +221,7 @@ func (c *Client) doWithRetry(req *http.Request, budget *int) (*http.Response, er
 			apiErr := c.readAPIError(resp)
 			if ae, ok := apiErr.(*APIError); ok {
 				ae.SafeToRetry = carriesIdempotencyKey(req.Method)
+				ae.IdemKey = req.Header.Get("Idempotency-Key")
 			}
 			return nil, apiErr
 

@@ -22,6 +22,10 @@ type APIError struct {
 	// retried automatically, to tell the user the command can be safely re-run
 	// because it carries an Idempotency-Key.
 	SafeToRetry bool
+	// IdemKey is the Idempotency-Key the failed POST/PATCH carried, surfaced in
+	// the SafeToRetry hint so the user can quote it to Zuora support without
+	// having to re-run under -v. Empty when the request carried no key.
+	IdemKey string
 	// Err is the underlying transport error, when this APIError wraps one
 	// (StatusCode 0). Response-derived errors leave it nil.
 	Err error
@@ -53,6 +57,9 @@ func (e *APIError) Error() string {
 			" command again — it carries an Idempotency-Key, so if the original" +
 			" request did go through, the retry returns HTTP 409 instead of" +
 			" creating a duplicate."
+		if e.IdemKey != "" {
+			msg += fmt.Sprintf("\n  Idempotency-Key: %s", e.IdemKey)
+		}
 	}
 	return msg
 }

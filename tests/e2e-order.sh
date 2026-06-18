@@ -195,7 +195,12 @@ printf '%s' "$BODY_JSON" > "$BODY_FILE"
 run $ZR account create --body "@$BODY_FILE" --json
 rm -f "$BODY_FILE"
 if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.accountNumber' >/dev/null 2>&1; then
-  pass "--body @file → created $(echo "$RUN_OUT" | jq -r '.accountNumber')"
+  BODY_ACCT=$(echo "$RUN_OUT" | jq -r '.accountNumber')
+  pass "--body @file → created $BODY_ACCT"
+  # This step only exercises body resolution; the account is disposable. Delete
+  # it so the suite stops leaking a new E2E-BodyResolve account every run
+  # (account delete is async + best-effort here — never fail the step on cleanup).
+  $ZR account delete "$BODY_ACCT" --confirm >/dev/null 2>&1 || true
 else
   fail "--body @file (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
 fi
@@ -204,7 +209,9 @@ echo "  Testing: --body - (stdin)"
 RUN_OUT=$(printf '%s' "$BODY_JSON" | $ZR account create --body - --json 2>"$LOG_DIR/.berr.$$"); RUN_RC=$?
 RUN_ERR=$(cat "$LOG_DIR/.berr.$$" 2>/dev/null); rm -f "$LOG_DIR/.berr.$$"
 if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.accountNumber' >/dev/null 2>&1; then
-  pass "--body - (stdin) → created $(echo "$RUN_OUT" | jq -r '.accountNumber')"
+  BODY_ACCT=$(echo "$RUN_OUT" | jq -r '.accountNumber')
+  pass "--body - (stdin) → created $BODY_ACCT"
+  $ZR account delete "$BODY_ACCT" --confirm >/dev/null 2>&1 || true
 else
   fail "--body - (stdin) (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
 fi

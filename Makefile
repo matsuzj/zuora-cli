@@ -7,7 +7,7 @@ LDFLAGS := -s -w \
 	-X github.com/matsuzj/zuora-cli/internal/build.Commit=$(COMMIT) \
 	-X github.com/matsuzj/zuora-cli/internal/build.Date=$(DATE)
 
-.PHONY: build test e2e lint vuln cover clean fmt fmtcheck modverify check ci release-check
+.PHONY: build test e2e e2e-clean lint vuln cover clean fmt fmtcheck modverify check ci release-check
 
 build:
 	mkdir -p bin
@@ -103,6 +103,14 @@ lint:
 
 clean:
 	rm -rf bin/
+
+# Prune old E2E logs. tests/logs/ is gitignored but accumulates a timestamped
+# log per suite run. Kept SEPARATE from `clean` so a routine `make clean` never
+# silently destroys logs a developer may still want to inspect. The 2>/dev/null
+# || true keeps it a no-op (exit 0) on a fresh checkout with no tests/logs/.
+e2e-clean:
+	@find tests/logs -name '*.log' -mtime +30 -delete 2>/dev/null || true
+	@echo "Pruned E2E logs older than 30 days (tests/logs/)."
 
 fmt:
 	gofmt -w .

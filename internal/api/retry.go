@@ -41,7 +41,50 @@ func carriesIdempotencyKey(method string) bool {
 	return method == http.MethodPost || method == http.MethodPatch
 }
 
-func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
+// backoffDuration returns the exponential backoff with equal jitter for a
+// 1-based retry attempt: attempt 1 → [1s,1.5s), 2 → [2s,3s), 3 → [4s,6s).
+func backoffDuration(attempt int) time.Duration {
+	base := time.Duration(1<<(attempt-1)) * time.Second
+	return base + time.Duration(rand.Int64N(int64(base/2)))
+}
+
+// isTransientBodyCode reports whether a Zuora application error code (the
+// numeric "code" of an HTTP-200 success=false reason) is a TRANSIENT condition
+// that is safe to retry. Per docs/zuora-api-reference.md the retryable
+// categories are codes ending in 50 (locking), 61 (temporary), 70 (limit
+// exceeded), and 99 (integration error). Non-numeric codes (e.g. "INVALID")
+// are never retried.
+func isTransientBodyCode(code string) bool {
+	n, err := strconv.Atoi(code)
+	if err != nil {
+		return false
+	}
+	switch n % 100 {
+	case 50, 61, 70, 99:
+		return true
+	}
+	return false
+}
+
+// isRetriableSuccessEnvelope reports whether an HTTP-200 success=false error
+// should be retried for the given method. It must be a single-reason transient
+// code: parseAPIError leaves Code empty for multi-reason responses, so a batch
+// that includes any non-transient reason is conservatively NOT resent. PUT is
+// excluded — it carries no Idempotency-Key (Zuora rejects PUT+key), so a resend
+// could double-apply; GET/HEAD/OPTIONS/DELETE are idempotent and POST/PATCH
+// carry an Idempotency-Key, so their resends deduplicate server-side.
+func isRetriableSuccessEnvelope(err error, method string) bool {
+	if !isIdempotent(method) && !carriesIdempotencyKey(method) {
+		return false
+	}
+	apiErr, ok := err.(*APIError)
+	if !ok {
+		return false
+	}
+	return isTransientBodyCode(apiErr.Code)
+}
+
+func (c *Client) doWithRetry(req *http.Request, budget *int) (*http.Response, error) {
 	ctx := req.Context()
 
 	// Save body for replay on retry (POST/PUT/PATCH)
@@ -62,18 +105,25 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 	tokenRefreshed := false
 	skipBackoff := false
 
-	for attempt := 0; attempt <= maxRetries; attempt++ {
+	for attempt := 0; ; attempt++ {
 		// Honor cancellation before each attempt. Return the cancellation error
 		// (not a stale prior API error) so Ctrl-C is classified as cancellation.
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
+		// Shared attempt budget across BOTH this transport/429/401/5xx loop and
+		// Do()'s success-envelope retry loop, so the two cannot multiply: a mixed
+		// transient-HTTP + success=false sequence makes at most maxRetries+1 total
+		// requests, not (maxRetries+1) squared. Checked before any backoff so an
+		// exhausted budget never sleeps first.
+		if *budget <= 0 {
+			return nil, lastErr
+		}
+
 		if attempt > 0 {
 			if !skipBackoff {
-				backoff := time.Duration(1<<(attempt-1)) * time.Second
-				jitter := time.Duration(rand.Int64N(int64(backoff / 2)))
-				total := backoff + jitter
+				total := backoffDuration(attempt)
 				c.vlogf("retrying after %.1fs backoff (attempt %d/%d)", total.Seconds(), attempt+1, maxRetries+1)
 				if err := c.sleep(ctx, total); err != nil {
 					return nil, err
@@ -86,6 +136,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 			}
 		}
 
+		*budget--
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			// A blocked redirect (off-host / cleartext downgrade) is a
@@ -177,8 +228,6 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 			return resp, nil
 		}
 	}
-
-	return nil, lastErr
 }
 
 // readAPIError reads and closes the response body, returning a parsed APIError

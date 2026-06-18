@@ -26,7 +26,12 @@ func newCmdLogin(f *factory.Factory) *cobra.Command {
 		Long: `Authenticate with a Zuora environment using OAuth 2.0 client credentials.
 
 Credentials can be provided via flags, environment variables (ZR_CLIENT_ID,
-ZR_CLIENT_SECRET), or interactive prompts.`,
+ZR_CLIENT_SECRET), or interactive prompts.
+
+Note: passing --client-secret on the command line leaves the secret in your
+shell history. For scripting, prefer the ZR_CLIENT_ID / ZR_CLIENT_SECRET
+environment variables; for interactive use, omit the flag and enter the secret
+at the (no-echo) prompt.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runLogin(cmd, opts)

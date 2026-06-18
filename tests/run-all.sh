@@ -7,6 +7,10 @@
 #   ./tests/run-all.sh                # run every suite
 #   ./tests/run-all.sh order usage-meter   # run only the named suites
 #
+# Tenant safety: the live suites refuse to run unless the active environment is a
+# sandbox (require_auth in tests/lib/e2e-common.sh fails closed). To run write
+# suites against a non-sandbox tenant on purpose, set ZR_E2E_ALLOW_PROD=1.
+#
 # Each suite is an independent script that exits non-zero on failure; this
 # runner reports per-suite RESULT and a final roll-up, and exits non-zero if any
 # suite failed.

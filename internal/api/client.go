@@ -189,6 +189,26 @@ func (c *Client) vlogf(format string, args ...any) {
 	}
 }
 
+// redactHeaderValue masks the value of credential- or session-bearing headers
+// for verbose logging. Applied symmetrically to BOTH the request and response
+// header dumps so a plain -v never echoes a secret: request Authorization /
+// Cookie and response Set-Cookie (a session token equivalent to a bearer) are
+// the concern. For Authorization-class headers the auth scheme (e.g. "Bearer")
+// is preserved and only the credential is masked, keeping the dump diagnostic.
+func redactHeaderValue(key, value string) string {
+	switch http.CanonicalHeaderKey(key) {
+	case "Authorization", "Proxy-Authorization":
+		if scheme, _, found := strings.Cut(value, " "); found && scheme != "" {
+			return scheme + " ***"
+		}
+		return "***"
+	case "Cookie", "Set-Cookie":
+		return "***"
+	default:
+		return value
+	}
+}
+
 // SetReadOnly enables or disables read-only mode.
 func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
 
@@ -297,11 +317,7 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		fmt.Fprintf(c.verboseWriter, "> %s %s\n", method, fullURL)
 		for k, vs := range req.Header {
 			for _, v := range vs {
-				if k == "Authorization" {
-					fmt.Fprintf(c.verboseWriter, "> %s: Bearer ***\n", k)
-				} else {
-					fmt.Fprintf(c.verboseWriter, "> %s: %s\n", k, v)
-				}
+				fmt.Fprintf(c.verboseWriter, "> %s: %s\n", k, redactHeaderValue(k, v))
 			}
 		}
 		fmt.Fprintln(c.verboseWriter)
@@ -352,7 +368,7 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 			fmt.Fprintf(c.verboseWriter, "< HTTP %d\n", resp.StatusCode)
 			for k, vs := range resp.Header {
 				for _, v := range vs {
-					fmt.Fprintf(c.verboseWriter, "< %s: %s\n", k, v)
+					fmt.Fprintf(c.verboseWriter, "< %s: %s\n", k, redactHeaderValue(k, v))
 				}
 			}
 			fmt.Fprintln(c.verboseWriter)

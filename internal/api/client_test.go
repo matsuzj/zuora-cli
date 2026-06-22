@@ -279,6 +279,58 @@ func TestClient_Verbose_MasksBearerAcrossMethods(t *testing.T) {
 	}
 }
 
+// TestRedactHeaderValue pins the shared verbose redaction helper: credential-
+// and session-bearing headers are masked (Authorization keeps its scheme),
+// everything else renders verbatim, and the key match is case-insensitive.
+func TestRedactHeaderValue(t *testing.T) {
+	cases := []struct {
+		key, in, want string
+	}{
+		{"Authorization", "Bearer abc.def", "Bearer ***"},
+		{"Authorization", "opaque-no-scheme", "***"},
+		{"Proxy-Authorization", "Basic dXNlcjpwYXNz", "Basic ***"},
+		{"Cookie", "ZSession=secret", "***"},
+		{"Set-Cookie", "ZSession=secret; HttpOnly; Secure", "***"},
+		{"set-cookie", "ZSession=secret", "***"}, // non-canonical key still matches
+		{"Content-Type", "application/json", "application/json"},
+		{"X-Request-Id", "req-1", "req-1"},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, redactHeaderValue(tc.key, tc.in), "%s: %q", tc.key, tc.in)
+	}
+}
+
+// TestClient_Verbose_RedactsResponseHeaders pins that the -v RESPONSE header
+// dump masks a session-bearing Set-Cookie (equivalent to a bearer token)
+// symmetrically with the request-side Authorization masking, while leaving
+// non-secret response headers verbatim. Guards the asymmetry where the request
+// dump masked Authorization but the response dump printed every header raw.
+func TestClient_Verbose_RedactsResponseHeaders(t *testing.T) {
+	const sessionCookie = "ZSession=super-secret-session-value"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Set-Cookie", sessionCookie)
+		w.Header().Set("X-Request-Id", "req-123")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	client := NewClient(
+		WithBaseURL(server.URL),
+		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
+	)
+	client.SetVerbose(&buf)
+
+	_, err := client.Get("/v1/test")
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.NotContains(t, out, "super-secret-session-value", "Set-Cookie value must not leak in verbose output")
+	assert.Contains(t, out, "Set-Cookie: ***", "Set-Cookie must be redacted in the response dump")
+	assert.Contains(t, out, "X-Request-Id: req-123", "non-secret response headers still render verbatim")
+}
+
 // --- Read-Only Mode Tests ---
 
 func TestClient_ReadOnly_POSTBlocked(t *testing.T) {

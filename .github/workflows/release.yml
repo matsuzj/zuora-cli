@@ -48,7 +48,7 @@ jobs:
       # attest checksums.txt. Runs AFTER goreleaser has populated dist/. If this
       # step ever fails it does NOT unpublish the release — goreleaser has
       # already run — it only leaves the job red, so it is safe to add.
-      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+      - uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
             dist/*.tar.gz

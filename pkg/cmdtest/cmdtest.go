@@ -2,8 +2,8 @@
 // wires a command under a stub root (with all of root.go's persistent flags),
 // backs it with an httptest server, executes it, and returns both streams.
 // Handler builders for the canonical Zuora envelopes live in handlers.go.
-// Command tests migrate onto this harness in P3-4 (docs/refactoring-plan.md);
-// until then the package carries only its own tests.
+// Command tests across pkg/cmd use this harness to keep root flag behavior,
+// HTTP setup, and output capture consistent.
 package cmdtest
 
 import (

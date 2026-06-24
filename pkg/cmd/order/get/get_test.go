@@ -1,6 +1,7 @@
 package get
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -13,20 +14,12 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestOrderGet_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "GET", "/v1/orders/O-00000001", map[string]interface{}{
-		"success": true,
-		"order": map[string]interface{}{
-			"orderNumber": "O-00000001",
-			"status":      "Completed",
-			"orderDate":   "2026-01-01",
-			// Distinctive value so the assertion below genuinely bites: the
-			// "Account Number" column reads "existingAccountNumber" (NOT the
-			// flatter "accountNumber"), a drift-prone key. Without asserting it,
-			// a swap to the wrong key would render empty yet keep the test green.
-			"existingAccountNumber": "ACCT-9000001",
-			"createdDate":           "2026-01-01T00:00:00Z",
-		},
-	})
+	// Real-shaped GET /v1/orders/{id} response (nested under "order") loaded from
+	// a golden fixture. The asserts below bite on nested, drift-prone keys — esp.
+	// "existingAccountNumber" (NOT the flatter "accountNumber"): a swap to the
+	// wrong key would render empty yet keep the test green without that assert.
+	handler := cmdtest.OK(t, "GET", "/v1/orders/O-00000001",
+		json.RawMessage(cmdtest.LoadFixture(t, "order_get")))
 
 	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "get", "O-00000001")
 	require.NoError(t, err)

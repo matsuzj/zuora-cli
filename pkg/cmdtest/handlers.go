@@ -2,7 +2,9 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,5 +78,62 @@ func Route(t *testing.T, routes map[string]http.HandlerFunc) http.HandlerFunc {
 		assert.Failf(t, "unexpected request path",
 			"no cmdtest.Route handler registered for %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// Expect is a declarative request matcher + responder for the assertions OK and
+// Status don't cover: request body, headers, and query. A zero field is not
+// asserted (Expect{Path: "/v1/orders"} checks only the path), so it scales from
+// "just the path" up to a full request contract without a hand-rolled handler.
+type Expect struct {
+	Method   string            // asserted when non-empty
+	Path     string            // asserted when non-empty
+	Query    map[string]string // each key asserted when the map is non-nil
+	Headers  map[string]string // each header asserted when the map is non-nil
+	JSONBody string            // request body asserted JSON-equal when non-empty
+	Status   int               // response status (0 -> 200)
+	Respond  interface{}       // response body, JSON-encoded (nil -> no body)
+}
+
+// Handler builds the http.HandlerFunc for Run from e, and arms a t.Cleanup that
+// fails the test if the handler is never reached — so a command that short-
+// circuits before its HTTP call (yet was given a request-asserting handler) is
+// caught instead of passing on assertions that never ran. Assertions use assert
+// (not require) because the handler runs on the test server's goroutine.
+func (e Expect) Handler(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	var reached atomic.Bool
+	t.Cleanup(func() {
+		assert.True(t, reached.Load(),
+			"expected request never arrived — the command made no matching HTTP call")
+	})
+	return func(w http.ResponseWriter, r *http.Request) {
+		reached.Store(true)
+		if e.Method != "" {
+			assert.Equal(t, e.Method, r.Method)
+		}
+		if e.Path != "" {
+			assert.Equal(t, e.Path, r.URL.Path)
+		}
+		for k, v := range e.Query {
+			assert.Equal(t, v, r.URL.Query().Get(k), "query param %q", k)
+		}
+		for k, v := range e.Headers {
+			assert.Equal(t, v, r.Header.Get(k), "header %q", k)
+		}
+		if e.JSONBody != "" {
+			body, err := io.ReadAll(r.Body)
+			if assert.NoError(t, err, "reading request body") {
+				assert.JSONEq(t, e.JSONBody, string(body))
+			}
+		}
+		status := e.Status
+		if status == 0 {
+			status = http.StatusOK
+		}
+		w.WriteHeader(status)
+		if e.Respond != nil {
+			_ = json.NewEncoder(w).Encode(e.Respond)
+		}
 	}
 }

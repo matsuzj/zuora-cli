@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -109,6 +111,37 @@ func TestRoute_DispatchesByPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Widget")
 	assert.NotContains(t, stdout, "Gadget", "the P-2 route must not fire for a P-1 request")
+}
+
+func TestExpect_AssertsRequestAndResponds(t *testing.T) {
+	// Drive the handler directly with a fully-matching request: method, path,
+	// query, header, and JSON body are all asserted, then Respond is returned.
+	h := Expect{
+		Method:   "POST",
+		Path:     "/v1/orders",
+		Query:    map[string]string{"async": "true"},
+		Headers:  map[string]string{"Content-Type": "application/json"},
+		JSONBody: `{"existingAccountNumber":"A001"}`,
+		Respond:  map[string]interface{}{"success": true, "orderNumber": "O-1"},
+	}.Handler(t)
+
+	req := httptest.NewRequest("POST", "/v1/orders?async=true", strings.NewReader(`{"existingAccountNumber":"A001"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h(rec, req)
+
+	assert.Equal(t, 200, rec.Code)
+	assert.Contains(t, rec.Body.String(), "O-1")
+}
+
+func TestRun_WithExpect(t *testing.T) {
+	// Expect plugs into Run like any handler; the reached-guard passes because
+	// the probe command makes the GET.
+	stdout, _, err := Run(t, "", newProbeCmd,
+		Expect{Method: "GET", Path: "/v1/probe/P-1", Respond: map[string]interface{}{"success": true, "name": "Widget"}}.Handler(t),
+		"probe", "P-1")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Widget")
 }
 
 // newWriteProbeCmd POSTs — for asserting the harness applies real global-flag

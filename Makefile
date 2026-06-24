@@ -32,7 +32,7 @@ COVER_EXEMPT := pkg/cmd/account pkg/cmd/billrun pkg/cmd/charge pkg/cmd/commitmen
 # (78%, was 73%) alone hid a dozen sub-floor packages behind the average.
 COVER_PKG_FLOOR := 60.0
 
-# Enforce the same coverage floors CI uses: total (73%) + per-package ratchet.
+# Enforce the same coverage floors CI uses: total (78%) + per-package ratchet.
 cover: test
 	@total="$$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $$3); print $$3}')"; \
 	echo "Total coverage: $$total%"; \

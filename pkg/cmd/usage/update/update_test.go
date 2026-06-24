@@ -35,6 +35,16 @@ func TestUsageUpdate_Success(t *testing.T) {
 	assert.Contains(t, stderr, "Usage record usage123 updated.")
 }
 
+func TestUsageUpdate_SuccessFalse(t *testing.T) {
+	// usage update PUTs to the Object-CRUD endpoint, which reports failures via
+	// the uppercase {"Success":false,"Errors":[...]} envelope — model that shape.
+	handler := cmdtest.ObjectCRUDFailure(t, "INVALID_VALUE", "Invalid quantity")
+
+	_, _, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "update", "usage123", "--body", `{"Quantity":-1}`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid quantity")
+}
+
 func TestUsageUpdate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "update", "usage123")
 

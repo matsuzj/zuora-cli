@@ -13,10 +13,15 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCreate(f) }
 
 func TestOrderCreate_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "POST", "/v1/orders", map[string]interface{}{
-		"success":     true,
-		"orderNumber": "O-00000001",
-	})
+	handler := cmdtest.Expect{
+		Method:   "POST",
+		Path:     "/v1/orders",
+		JSONBody: `{"existingAccountNumber":"A001"}`,
+		Respond: map[string]interface{}{
+			"success":     true,
+			"orderNumber": "O-00000001",
+		},
+	}.Handler(t)
 
 	stdout, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "create", "--body", `{"existingAccountNumber":"A001"}`)
 

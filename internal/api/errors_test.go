@@ -111,6 +111,27 @@ func TestParseAPIError_MultipleReasons(t *testing.T) {
 	assert.Contains(t, got, "53100020", "numeric reason codes should appear as digits, not quoted")
 }
 
+// TestParseAPIError_ObjectCRUDSingleError pins that the uppercase Object-CRUD
+// failure envelope ({"Success":false,"Errors":[{"Code","Message"}]}) is parsed
+// into a clean Code/Message — before this branch existed it fell through to the
+// raw-body fallback, leaking the whole JSON blob as the message.
+func TestParseAPIError_ObjectCRUDSingleError(t *testing.T) {
+	e := parseAPIError(http.StatusBadRequest, []byte(`{"Success":false,"Errors":[{"Code":"INVALID_VALUE","Message":"bad quantity"}]}`))
+	assert.Equal(t, "INVALID_VALUE", e.Code)
+	assert.Equal(t, "bad quantity", e.Message)
+}
+
+// TestParseAPIError_ObjectCRUDMultipleErrors pins that every uppercase error is
+// surfaced, mirroring the v1 multi-reason behavior.
+func TestParseAPIError_ObjectCRUDMultipleErrors(t *testing.T) {
+	body := []byte(`{"Success":false,"Errors":[{"Code":"C1","Message":"first"},{"Code":"REQUIRED_VALUE_MISSING","Message":"second"}]}`)
+	got := parseAPIError(http.StatusBadRequest, body).Error()
+	assert.Contains(t, got, "2 errors")
+	assert.Contains(t, got, "first")
+	assert.Contains(t, got, "second")
+	assert.Contains(t, got, "REQUIRED_VALUE_MISSING")
+}
+
 // TestReadOnlyError_Error_BothForms pins both ReadOnlyError messages: the
 // detailed form when Method+Path are set, and the generic fallback otherwise.
 func TestReadOnlyError_Error_BothForms(t *testing.T) {

@@ -1,8 +1,10 @@
 package list
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -81,4 +83,42 @@ func TestCreditMemoList_SuccessFalse(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "creditmemo", newCmd, handler, "creditmemo", "list", "--account-id", "BAD")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Invalid account")
+}
+
+func TestCreditMemoList_AccountIDMapsToAccountIdQuery(t *testing.T) {
+	// --account-id must populate the accountId query param (NOT accountNumber) —
+	// the flag-vocabulary contract AGENTS.md warns is easy to mis-wire.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "acct-123", r.URL.Query().Get("accountId"))
+		assert.Empty(t, r.URL.Query().Get("accountNumber"), "--account-id must not populate accountNumber")
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"creditmemos": []map[string]interface{}{}, "success": true})
+	})
+
+	_, _, err := cmdtest.Run(t, "creditmemo", newCmd, handler, "creditmemo", "list", "--account-id", "acct-123")
+	require.NoError(t, err)
+}
+
+func TestCreditMemoList_CSVHeaderAndColumnOrder(t *testing.T) {
+	// The CSV header row and column ORDER are a compatibility contract for scripts
+	// (cut -d, / fixed columns). Pin them so a Columns reorder/rename is a visible,
+	// reviewed change rather than a silent break.
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"creditmemos": []map[string]interface{}{
+			{"id": "cm-001", "number": "CM00001", "creditMemoDate": "2026-01-15", "amount": 100.5, "balance": 25.25, "status": "Posted", "accountNumber": "A1"},
+		},
+		"success": true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "creditmemo", newCmd, handler, "creditmemo", "list", "--csv")
+	require.NoError(t, err)
+
+	rows, err := csv.NewReader(strings.NewReader(stdout)).ReadAll()
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(rows), 2, "CSV must have a header row plus the data row")
+	assert.Equal(t, []string{"ID", "NUMBER", "DATE", "AMOUNT", "BALANCE", "STATUS", "ACCOUNT"}, rows[0])
+	assert.Equal(t, "CM00001", rows[1][1]) // NUMBER
+	assert.Equal(t, "100.50", rows[1][3])  // AMOUNT (Money)
+	assert.Equal(t, "25.25", rows[1][4])   // BALANCE (Money)
+	assert.Equal(t, "Posted", rows[1][5])  // STATUS
 }

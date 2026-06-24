@@ -104,6 +104,27 @@ func TestList_TableCellsAndMoneyZeroValue(t *testing.T) {
 	assert.NotContains(t, stdout, "<nil>")
 }
 
+func TestList_MoneyCellNonFloatPassthrough(t *testing.T) {
+	// JSON numbers unmarshal to float64, so Money cells normally hit the %.2f
+	// path. But a money value delivered as a STRING is passed through verbatim —
+	// NOT coerced to two decimals (a known divergence from a strict money
+	// contract; see #352/F-29). Pin it so any change to the Money-cell rule is a
+	// visible, reviewed edit rather than a silent display change.
+	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+		"memos": []map[string]interface{}{
+			{"id": "s-1", "amount": "100.5", "status": "Posted"}, // string money
+			{"id": "f-1", "amount": 1000.0, "status": "Posted"},  // float64 money
+		},
+	})
+
+	stdout, _, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
+	require.NoError(t, err)
+
+	assert.Contains(t, stdout, "100.5")     // string passes through verbatim...
+	assert.NotContains(t, stdout, "100.50") // ...NOT re-formatted to two decimals
+	assert.Contains(t, stdout, "1000.00")   // float64 still gets %.2f
+}
+
 func TestList_ConditionalQueryAssembly(t *testing.T) {
 	var gotQuery url.Values
 	handler := func(w http.ResponseWriter, r *http.Request) {

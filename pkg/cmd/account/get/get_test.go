@@ -59,13 +59,23 @@ func TestAccountGet_TypeMismatchRendersEmpty(t *testing.T) {
 }
 
 func TestAccountGet_JSON(t *testing.T) {
-	handler := cmdtest.OK(t, "", "", map[string]interface{}{
-		"id": "id-1", "name": "Acme",
+	// --json is a raw passthrough, so feed the REAL nested envelope (the same
+	// shape the detail view unwraps) and assert the nested keys survive verbatim.
+	// A flat {id,name} fixture never reflects what `account get --json` emits.
+	handler := cmdtest.OK(t, "GET", "/v1/accounts/A001", map[string]interface{}{
+		"basicInfo": map[string]interface{}{
+			"id": "id-1", "name": "Acme Corp", "accountNumber": "A001",
+		},
+		"billingAndPayment": map[string]interface{}{"currency": "USD"},
+		"metrics":           map[string]interface{}{"balance": 1234.5},
+		"success":           true,
 	})
 
 	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "get", "A001", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, `"name"`)
+	assert.Contains(t, stdout, `"basicInfo"`)
+	assert.Contains(t, stdout, `"billingAndPayment"`)
+	assert.Contains(t, stdout, `"Acme Corp"`)
 }
 
 func TestAccountGet_RequiresArg(t *testing.T) {

@@ -62,15 +62,26 @@ run() {
   RUN_ERR=$(cat "$ef" 2>/dev/null); rm -f "$ef"
 }
 
-# run_retry <attempts> <command...> — run(), retrying transient Zuora API
-# errors (HTTP 429 / 5xx / rate limit) with a 2s pause between attempts.
+# _transient_error <text> — true when an error is worth retrying: Zuora
+# throttling/5xx, OR a transport-level network blip. The api client retries
+# transport errors only for IDEMPOTENT methods, so a POST like `zr query` (ZOQL
+# /v1/action/query) surfaces a raw "connection reset by peer" that this layer
+# must absorb — otherwise a network blip reads as a CLI regression. Kept targeted
+# (not "retry any error"), per the precise-skip philosophy in docs/e2e-test-skips.md.
+_transient_error() {
+  printf '%s' "$1" | grep -qiE \
+    "HTTP 429|HTTP 5[0-9][0-9]|rate limit|connection reset|connection refused|broken pipe|i/o timeout|TLS handshake timeout|unexpected EOF"
+}
+
+# run_retry <attempts> <command...> — run(), retrying transient errors (Zuora
+# 429/5xx/rate-limit + transport blips like connection reset) with a 2s pause.
 run_retry() {
   local attempts="$1"; shift
   local i
   for ((i=1; i<=attempts; i++)); do
     run "$@"
     [ "$RUN_RC" -eq 0 ] && return 0
-    echo "$RUN_ERR" | grep -qiE "HTTP 429|HTTP 5[0-9][0-9]|rate limit" || return "$RUN_RC"
+    _transient_error "$RUN_ERR" || return "$RUN_RC"
     sleep 2
   done
   return "$RUN_RC"
@@ -91,7 +102,7 @@ run_retry_nonempty() {
       return 0
     fi
     if [ "$RUN_RC" -ne 0 ]; then
-      echo "$RUN_ERR" | grep -qiE "HTTP 429|HTTP 5[0-9][0-9]|rate limit" || return "$RUN_RC"
+      _transient_error "$RUN_ERR" || return "$RUN_RC"
     fi
     sleep "$delay"; delay=$((delay * 2))
   done

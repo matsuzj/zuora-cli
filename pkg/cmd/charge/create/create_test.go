@@ -39,3 +39,13 @@ func TestChargeCreate_RequiresBody(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
+
+func TestChargeCreate_BareCSVRejectedBeforePost(t *testing.T) {
+	// --csv on a JSON-only write must be rejected BEFORE any HTTP call — a
+	// rejected-then-retried create could otherwise double-create. nil handler =
+	// unexpected requests fail loudly; surfacing the CSV error (not a connection
+	// error) proves no POST was attempted.
+	_, _, err := cmdtest.Run(t, "charge", newCmd, nil, "charge", "create", "--body", `{"name":"X"}`, "--csv")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--csv is not supported for JSON-only output")
+}

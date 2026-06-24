@@ -72,6 +72,17 @@ func TestRun_ReasonsEnvelopeErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "Missing field")
 }
 
+func TestRun_ObjectCRUDFailureEnvelopeErrors(t *testing.T) {
+	// The default success-flag check covers the uppercase Object-CRUD envelope
+	// too, so {"Success":false,"Errors":[...]} must surface as a non-zero error
+	// carrying the message. (The client currently renders this shape via its
+	// raw-body fallback — see api.parseAPIError — so the message is still present
+	// even though the Code/Message are not yet pulled out cleanly.)
+	_, _, err := Run(t, "", newProbeCmd, ObjectCRUDFailure(t, "INVALID_VALUE", "Missing field"), "probe", "P-1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Missing field")
+}
+
 func TestRun_NilHandlerForValidationTests(t *testing.T) {
 	_, _, err := Run(t, "", newProbeCmd, nil, "probe")
 	require.Error(t, err, "arg validation fails before any HTTP call")

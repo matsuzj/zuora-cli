@@ -40,3 +40,33 @@ func TestOrderGet_SuccessFalse(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Order not found")
 }
+
+func TestOrderGet_FlatResponseFallsBackToRaw(t *testing.T) {
+	// When a response is NOT nested under "order", the fallback (order = raw) must
+	// render the detail fields from the top level instead of empty.
+	handler := cmdtest.OK(t, "GET", "/v1/orders/O-00000001", map[string]interface{}{
+		"orderNumber": "O-FLAT-1",
+		"status":      "Completed",
+		"success":     true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "get", "O-00000001")
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^Order Number:\s+O-FLAT-1$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Completed$`, stdout)
+}
+
+func TestOrderGet_NonMapOrderKeyFallsBackToRaw(t *testing.T) {
+	// raw["order"] is a non-map value: the type assertion fails (order stays nil),
+	// so the fallback to raw must still render from the top level — and must not
+	// panic on the unexpected shape.
+	handler := cmdtest.OK(t, "GET", "/v1/orders/O-00000001", map[string]interface{}{
+		"order":       []interface{}{"unexpected"}, // not a map
+		"orderNumber": "O-RAW-1",
+		"success":     true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "get", "O-00000001")
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^Order Number:\s+O-RAW-1$`, stdout)
+}

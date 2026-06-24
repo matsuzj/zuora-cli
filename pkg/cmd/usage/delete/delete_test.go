@@ -35,11 +35,12 @@ func TestUsageDelete_RequiresArg(t *testing.T) {
 }
 
 func TestUsageDelete_BodyResponse(t *testing.T) {
-	handler := cmdtest.OK(t, "", "", map[string]interface{}{"Id": "u-1"})
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{"Id": "u-1", "Success": true})
 
 	stdout, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "delete", "u-1", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "u-1")
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout) // bool Success rendered via GetString (%v)
 	assert.Contains(t, stderr, "Usage record u-1 deleted.")
 }
 

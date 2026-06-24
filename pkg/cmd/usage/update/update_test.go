@@ -32,6 +32,7 @@ func TestUsageUpdate_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "usage123")
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout) // bool Success rendered via GetString (%v)
 	assert.Contains(t, stderr, "Usage record usage123 updated.")
 }
 

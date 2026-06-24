@@ -33,6 +33,42 @@ func TestRenderJSON_CanonicalOrder(t *testing.T) {
 	assert.Empty(t, out3.String())
 }
 
+func TestRenderJSON_InvalidJQPropagatesError(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	handled, err := RenderJSON(ios, []byte(`{"a":1}`), FormatOptions{JQ: ".["})
+	assert.True(t, handled, "a JQ path was taken")
+	require.Error(t, err, "an invalid jq filter must surface an error")
+	assert.Empty(t, out.String(), "no partial output on a jq error")
+}
+
+func TestRenderJSON_InvalidTemplatePropagatesError(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	handled, err := RenderJSON(ios, []byte(`{"a":1}`), FormatOptions{Template: "{{.x"})
+	assert.True(t, handled, "a Template path was taken")
+	require.Error(t, err, "an invalid template must surface an error")
+	assert.Empty(t, out.String(), "no partial output on a template error")
+}
+
+// TestRender_JQErrorDoesNotFallThroughToTable pins the (handled, err) contract:
+// when --jq errors, Render must propagate the error and NOT also print the table
+// (no double output).
+func TestRender_JQErrorDoesNotFallThroughToTable(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	rows := [][]string{{"r1c1", "r1c2"}}
+	cols := []Column{{Header: "A"}, {Header: "B"}}
+	err := Render(ios, []byte(`{"a":1}`), FormatOptions{JQ: ".["}, rows, cols)
+	require.Error(t, err)
+	assert.Empty(t, out.String(), "the table must not print when jq errored")
+}
+
+func TestRenderDetail_JQErrorDoesNotFallThroughToFields(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	fields := []DetailField{{Key: "K", Value: "V"}}
+	err := RenderDetail(ios, []byte(`{"a":1}`), FormatOptions{JQ: ".["}, fields)
+	require.Error(t, err)
+	assert.Empty(t, out.String(), "the detail view must not print when jq errored")
+}
+
 func TestRenderSuccess_HumanAndMachine(t *testing.T) {
 	ios, _, out, errOut := iostreams.Test()
 	require.NoError(t, RenderSuccess(ios, FormatOptions{}, "Done.\n"))

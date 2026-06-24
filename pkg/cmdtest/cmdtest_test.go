@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -95,6 +96,19 @@ func TestStatus_ExplicitCode(t *testing.T) {
 		"probe", "P-9")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "404")
+}
+
+func TestRoute_DispatchesByPath(t *testing.T) {
+	// Two endpoints registered; the probe command hits /v1/probe/P-1 and must be
+	// routed to THAT handler (proving Route dispatches by path, not first-match).
+	routes := map[string]http.HandlerFunc{
+		"/v1/probe/P-1": OK(t, "GET", "/v1/probe/P-1", map[string]interface{}{"success": true, "name": "Widget"}),
+		"/v1/probe/P-2": OK(t, "GET", "/v1/probe/P-2", map[string]interface{}{"success": true, "name": "Gadget"}),
+	}
+	stdout, _, err := Run(t, "", newProbeCmd, Route(t, routes), "probe", "P-1")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Widget")
+	assert.NotContains(t, stdout, "Gadget", "the P-2 route must not fire for a P-1 request")
 }
 
 // newWriteProbeCmd POSTs — for asserting the harness applies real global-flag

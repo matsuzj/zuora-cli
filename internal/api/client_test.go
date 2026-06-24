@@ -473,6 +473,41 @@ func TestClient_ReadOnly_SubscriptionPreviewChangeRegexAllowed(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
+// TestIsReadOnlyAllowed_NearMissAndNormalization pins that the read-only POST
+// allowlist fails CLOSED on near-miss / normalization tricks: a path must match
+// an allowlisted read-only endpoint EXACTLY (after lowercasing + query strip) to
+// be permitted. Trailing slashes, dot-segments, and extra path segments must NOT
+// sneak a write past the gate, and PUT/DELETE/PATCH are blocked even on an
+// allowlisted path.
+func TestIsReadOnlyAllowed_NearMissAndNormalization(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		want   bool
+	}{
+		// allowed baselines
+		{"GET always allowed", "GET", "v1/orders/O-1", true},
+		{"allowlisted ZOQL query", "POST", "v1/action/query", true},
+		{"case-insensitive allowlist", "POST", "V1/ACTION/QUERY", true},
+		{"query string stripped before matching", "POST", "v1/orders/preview?async=true", true},
+		{"regexp preview-change match", "POST", "v1/subscriptions/SUB-1/preview", true},
+		// near-misses: must fail closed (blocked)
+		{"trailing slash is not the allowlisted path", "POST", "v1/action/query/", false},
+		{"dot-segments do not resolve into an allowlisted path", "POST", "v1/action/query/../../v1/orders", false},
+		{"extra segment after preview is not allowlisted", "POST", "v1/subscriptions/SUB-1/preview/extra", false},
+		{"non-allowlisted write POST is blocked", "POST", "v1/orders", false},
+		{"PUT to an allowlisted path is still blocked", "PUT", "v1/action/query", false},
+		{"DELETE is always blocked", "DELETE", "v1/orders/O-1", false},
+		{"PATCH is always blocked", "PATCH", "v1/orders/O-1", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isReadOnlyAllowed(tc.method, tc.path), "%s %s", tc.method, tc.path)
+		})
+	}
+}
+
 func TestClient_ReadOnly_MeterSummaryRegexAllowed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)

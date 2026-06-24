@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "order": {
+    "orderNumber": "O-00000001",
+    "status": "Completed",
+    "orderDate": "2026-01-01",
+    "existingAccountNumber": "ACCT-9000001",
+    "createdDate": "2026-01-01T00:00:00Z"
+  }
+}

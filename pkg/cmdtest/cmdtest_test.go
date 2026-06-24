@@ -144,6 +144,13 @@ func TestRun_WithExpect(t *testing.T) {
 	assert.Contains(t, stdout, "Widget")
 }
 
+func TestLoadFixture(t *testing.T) {
+	b := LoadFixture(t, "order_get")
+	// Nested, drift-prone keys are present in the captured shape.
+	assert.Contains(t, string(b), "O-00000001")
+	assert.Contains(t, string(b), "ACCT-9000001")
+}
+
 // newWriteProbeCmd POSTs — for asserting the harness applies real global-flag
 // behavior (--read-only must block it before any HTTP call).
 func newWriteProbeCmd(f *factory.Factory) *cobra.Command {

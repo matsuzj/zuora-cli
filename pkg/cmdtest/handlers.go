@@ -45,3 +45,21 @@ func Status(t *testing.T, method, path string, statusCode int, body interface{})
 		}
 	}
 }
+
+// Route returns a handler that dispatches by exact URL path to the matching
+// handler in routes. It is for commands that call more than one endpoint (e.g.
+// resolve an id via GET, then act via POST); single-endpoint tests should use
+// OK/Status directly. A request to an unregistered path fails the test loudly —
+// so a command hitting an unexpected endpoint is caught, not silently 404'd.
+func Route(t *testing.T, routes map[string]http.HandlerFunc) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h, ok := routes[r.URL.Path]; ok {
+			h(w, r)
+			return
+		}
+		assert.Failf(t, "unexpected request path",
+			"no cmdtest.Route handler registered for %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}
+}

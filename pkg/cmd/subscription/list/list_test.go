@@ -57,3 +57,11 @@ func TestSubscriptionList_RequiresAccount(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "account")
 }
+
+func TestSubscriptionList_AccountAliasRemoved(t *testing.T) {
+	// --account/--key were removed in v0.7.0 (#291); the deprecated alias must be
+	// rejected, not silently revived via a resurrected DeprecatedName.
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "list", "--account", "A00000001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --account")
+}

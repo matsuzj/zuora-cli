@@ -28,6 +28,21 @@ func Reasons(t *testing.T, code interface{}, message string) http.HandlerFunc {
 	})
 }
 
+// ObjectCRUDFailure returns a handler that responds 200 with the canonical
+// Zuora Object-CRUD logical-failure envelope:
+// {"Success":false,"Errors":[{"Code":code,"Message":message}]}. It is the
+// uppercase counterpart to Reasons (which emits the v1 {"success":false} shape):
+// Object-CRUD endpoints (/v1/object/...) report failures this way, so a test for
+// such a command should model that shape, not the v1 one. code is a string
+// because Object-CRUD error codes are string enums (e.g. "INVALID_VALUE").
+func ObjectCRUDFailure(t *testing.T, code, message string) http.HandlerFunc {
+	t.Helper()
+	return OK(t, "", "", map[string]interface{}{
+		"Success": false,
+		"Errors":  []map[string]interface{}{{"Code": code, "Message": message}},
+	})
+}
+
 // Status is OK with an explicit status code, for 4xx/5xx and 204 shapes.
 // body may be nil to send no body.
 func Status(t *testing.T, method, path string, statusCode int, body interface{}) http.HandlerFunc {

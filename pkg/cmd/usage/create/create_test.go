@@ -33,7 +33,10 @@ func TestUsageCreate_Success(t *testing.T) {
 }
 
 func TestUsageCreate_SuccessFalse(t *testing.T) {
-	handler := cmdtest.Reasons(t, 50000040, "Missing required field")
+	// usage create POSTs to the Object-CRUD endpoint, which reports failures via
+	// the uppercase {"Success":false,"Errors":[...]} envelope — model that shape,
+	// not the v1 one.
+	handler := cmdtest.ObjectCRUDFailure(t, "INVALID_VALUE", "Missing required field")
 
 	_, _, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "create", "--body", `{"bad":"data"}`)
 	assert.Error(t, err)

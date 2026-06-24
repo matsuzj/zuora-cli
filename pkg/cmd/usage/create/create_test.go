@@ -29,6 +29,7 @@ func TestUsageCreate_Success(t *testing.T) {
 	stdout, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "create", "--body", `{"AccountId":"abc","Quantity":10}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "2c92a0f96bd...abc")
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout) // bool Success rendered via GetString (%v)
 	assert.Contains(t, stderr, "Usage record 2c92a0f96bd...abc created.")
 }
 

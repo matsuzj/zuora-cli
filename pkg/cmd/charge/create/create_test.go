@@ -1,7 +1,6 @@
 package create
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -14,15 +13,16 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCreate(f) }
 
 func TestChargeCreate_Success(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/commerce/charges", r.URL.Path)
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		cmdtest.OK(t, "", "", map[string]interface{}{
+	handler := cmdtest.Expect{
+		Method:   "POST",
+		Path:     "/commerce/charges",
+		Headers:  map[string]string{"Content-Type": "application/json"},
+		JSONBody: `{"name":"Monthly Charge","plan_id":"plan-001"}`,
+		Respond: map[string]interface{}{
 			"id":   "chg-001",
 			"name": "Monthly Charge",
-		})(w, r)
-	}
+		},
+	}.Handler(t)
 
 	stdout, stderr, err := cmdtest.Run(t, "charge", newCmd, handler,
 		"charge", "create", "--body", `{"name":"Monthly Charge","plan_id":"plan-001"}`)

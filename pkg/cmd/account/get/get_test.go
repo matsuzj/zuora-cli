@@ -43,6 +43,22 @@ func TestAccountGet_Detail(t *testing.T) {
 	assert.Regexp(t, `(?m)^Currency:\s+USD$`, stdout)
 }
 
+func TestAccountGet_CurrencyFallsBackToMetrics(t *testing.T) {
+	// F-18: currency placement varies. When billingAndPayment carries no currency,
+	// fall back to metrics so the Currency row isn't blank (a real account has it
+	// in both billingAndPayment and metrics; verified by live probe).
+	handler := cmdtest.OK(t, "GET", "/v1/accounts/A001", map[string]interface{}{
+		"basicInfo":         map[string]interface{}{"name": "Acme", "status": "Active"},
+		"billingAndPayment": map[string]interface{}{"autoPay": true}, // no currency here
+		"metrics":           map[string]interface{}{"balance": 0.0, "currency": "JPY"},
+		"success":           true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "get", "A001")
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^Currency:\s+JPY$`, stdout, "currency must fall back to metrics when billingAndPayment lacks it")
+}
+
 func TestAccountGet_TypeMismatchRendersEmpty(t *testing.T) {
 	// GetInt silently drops a type-mismatched value (the helper contract): a
 	// string billCycleDay must render an EMPTY Bill Cycle Day, not the raw string.

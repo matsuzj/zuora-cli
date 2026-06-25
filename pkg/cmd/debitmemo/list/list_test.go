@@ -103,3 +103,12 @@ func TestDebitMemoList_CSVHeaderAndColumnOrder(t *testing.T) {
 	assert.Equal(t, "95.50", rows[1][4])   // BALANCE (Money)
 	assert.Equal(t, "Posted", rows[1][5])  // STATUS
 }
+
+func TestDebitMemoList_RejectsWrongAccountFlag(t *testing.T) {
+	// debitmemo list filters by --account-id / --account-number (query params),
+	// NOT --account-key. The wrong sibling flag (AGENTS.md 3-flag confusion) must
+	// be rejected.
+	_, _, err := cmdtest.Run(t, "debitmemo", newCmd, nil, "debitmemo", "list", "--account-key", "A001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --account-key")
+}

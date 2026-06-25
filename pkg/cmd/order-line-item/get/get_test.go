@@ -31,10 +31,11 @@ func TestOrderLineItemGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "order-line-item", newCmd, handler, "order-line-item", "get", "OLI-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "OLI-001")
-	assert.Contains(t, stdout, "Widget")
-	assert.Contains(t, stdout, "2000000.00", "amount must render as money, not 2e+06")
-	assert.Contains(t, stdout, "Executing")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^ID:\s+OLI-001$`, stdout)
+	assert.Regexp(t, `(?m)^Item Name:\s+Widget$`, stdout)
+	assert.Regexp(t, `(?m)^Amount:\s+2000000\.00$`, stdout) // money, not 2e+06
+	assert.Regexp(t, `(?m)^Item State:\s+Executing$`, stdout)
 }
 
 func TestOrderLineItemGet_RequiresArg(t *testing.T) {

@@ -32,6 +32,7 @@ Requires --account-id (the Zuora account ID, not account number).
 Use "zr account get <number> --jq .basicInfo.id" to find the account ID.`,
 		Example: `  zr contact list --account-id 8aca822f12345
   zr contact list --account-id 8aca822f12345 --json`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(cmd, f, accountID)
 		},

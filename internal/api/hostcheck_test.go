@@ -207,3 +207,55 @@ func TestDo_GetHasNoIdempotencyKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, key)
 }
+
+// TestDo_PutHasNoAutoIdempotencyKey pins the safety property the SafeToRetry
+// promise depends on: Zuora rejects PUT requests carrying an Idempotency-Key
+// (HTTP 400), so Do must NOT auto-attach one to a PUT.
+func TestDo_PutHasNoAutoIdempotencyKey(t *testing.T) {
+	var key string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key = r.Header.Get("Idempotency-Key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.Do(http.MethodPut, "/v1/accounts/A-1", WithBody(strings.NewReader("{}")))
+	require.NoError(t, err)
+	assert.Empty(t, key, "PUT must not carry an auto Idempotency-Key (Zuora rejects PUT+key)")
+}
+
+// TestDo_CustomIdempotencyKeyPreservedNotOverwritten pins that a caller-supplied
+// key (e.g. `zr api -H 'Idempotency-Key: ...'`) wins over the generated one.
+func TestDo_CustomIdempotencyKeyPreservedNotOverwritten(t *testing.T) {
+	var key string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key = r.Header.Get("Idempotency-Key")
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.Do(http.MethodPost, "/v1/accounts", WithBody(strings.NewReader("{}")), WithHeader("Idempotency-Key", "user-key-123"))
+	require.NoError(t, err)
+	assert.Equal(t, "user-key-123", key)
+}
+
+// TestDo_PutCarriesCustomKeyDocumentedFootgun pins that Do does NOT strip
+// user-supplied headers: adding an Idempotency-Key to a PUT via `zr api -H`
+// sends it, and Zuora rejects PUT+key with HTTP 400 (F-28). Pinned so this stays
+// a visible, reviewed choice — the CLI surfaces Zuora's error rather than
+// silently rewriting the user's explicit request.
+func TestDo_PutCarriesCustomKeyDocumentedFootgun(t *testing.T) {
+	var key string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key = r.Header.Get("Idempotency-Key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.Do(http.MethodPut, "/v1/accounts/A-1", WithBody(strings.NewReader("{}")), WithHeader("Idempotency-Key", "injected"))
+	require.NoError(t, err)
+	assert.Equal(t, "injected", key, "user header passes through verbatim (Zuora will reject PUT+key)")
+}

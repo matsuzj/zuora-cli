@@ -14,6 +14,14 @@ import (
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdMetrics(f) }
 
+func TestSubscriptionMetrics_RejectsStrayArg(t *testing.T) {
+	// subscription metrics targets via --subscription-numbers and takes no
+	// positional args; a stray positional must be rejected (cobra.NoArgs).
+	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "metrics", "stray", "--subscription-numbers", "A-S001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown command "stray"`)
+}
+
 func TestSubscriptionMetrics_Table(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/subscriptions/subscription-metrics", r.URL.Path)

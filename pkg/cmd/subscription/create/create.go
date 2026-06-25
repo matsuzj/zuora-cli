@@ -20,6 +20,7 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Long:  `Create a new Zuora subscription.`,
 		Example: `  zr subscription create --body @subscription.json
   zr sub create --body '{"accountKey":"A001","termType":"TERMED",...}'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, f, body)
 		},

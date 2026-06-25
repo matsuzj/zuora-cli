@@ -25,6 +25,7 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Long:  `Create a new Zuora billing account.`,
 		Example: `  zr account create --body @account.json
   zr account create --body '{"name":"Acme Corp","currency":"USD","billCycleDay":1}'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, opts)
 		},

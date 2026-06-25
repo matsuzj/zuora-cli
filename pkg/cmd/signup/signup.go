@@ -23,6 +23,7 @@ This uses the Zuora Sign Up API (POST /v1/sign-up) which combines
 account creation, payment method setup, and subscription creation in a single call.`,
 		Example: `  zr signup --body @signup.json
   zr signup --body '{"accountInfo":{...},"subscriptionInfo":{...}}'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSignup(cmd, f, body)
 		},

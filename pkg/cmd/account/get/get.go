@@ -63,13 +63,22 @@ func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
 		metrics = raw
 	}
 
+	// Currency placement varies (F-18): a full account get carries it under
+	// billingAndPayment, but a leaner response may only have it under metrics /
+	// metricsData (a real account has it in both). Prefer billingAndPayment, fall
+	// back to metrics so the field is not blank for the leaner shape.
+	currency := cmdutil.GetString(billing, "currency")
+	if currency == "" {
+		currency = cmdutil.GetString(metrics, "currency")
+	}
+
 	fields := []output.DetailField{
 		{Key: "ID", Value: cmdutil.GetString(basicInfo, "id")},
 		{Key: "Name", Value: cmdutil.GetString(basicInfo, "name")},
 		{Key: "Account Number", Value: cmdutil.GetString(basicInfo, "accountNumber")},
 		{Key: "Status", Value: cmdutil.GetString(basicInfo, "status")},
 		{Key: "Balance", Value: cmdutil.GetMoney(metrics, "balance")},
-		{Key: "Currency", Value: cmdutil.GetString(billing, "currency")},
+		{Key: "Currency", Value: currency},
 		{Key: "Auto Pay", Value: cmdutil.GetBool(billing, "autoPay")},
 		{Key: "Payment Term", Value: cmdutil.GetString(billing, "paymentTerm")},
 		{Key: "Bill Cycle Day", Value: cmdutil.GetInt(billing, "billCycleDay")},

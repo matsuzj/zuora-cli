@@ -30,10 +30,11 @@ func TestFulfillmentGet_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "fulfillment", newCmd, handler, "fulfillment", "get", "F-00000001")
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "F-00000001") // fulfillmentNumber (was read from the absent "key")
-	assert.Contains(t, stdout, "Executed")   // nested state
-	assert.Contains(t, stdout, "OLI-001")    // nested orderLineItemId
-	assert.Contains(t, stdout, "2026-05-30") // fulfillmentDate (was read from the absent "date")
+	// Label-bound (F-08): each value under its own label.
+	assert.Regexp(t, `(?m)^Fulfillment Number:\s+F-00000001$`, stdout) // not the absent "key"
+	assert.Regexp(t, `(?m)^State:\s+Executed$`, stdout)                // nested state
+	assert.Regexp(t, `(?m)^Order Line Item ID:\s+OLI-001$`, stdout)    // nested orderLineItemId
+	assert.Regexp(t, `(?m)^Date:\s+2026-05-30$`, stdout)               // fulfillmentDate, not absent "date"
 }
 
 func TestFulfillmentGet_RequiresArg(t *testing.T) {

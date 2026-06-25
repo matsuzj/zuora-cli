@@ -29,15 +29,15 @@ func TestRatePlanGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "rateplan", newCmd, handler, "rateplan", "get", "402880e123")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "402880e123")
-	assert.Contains(t, stdout, "Monthly Plan")
-	assert.Contains(t, stdout, "My Product")
-	// Guard every renamed/new key: each distinctive value only renders if the
-	// command reads the correct subscription-rate-plan key.
-	assert.Contains(t, stdout, "SKU-1")   // productSku
-	assert.Contains(t, stdout, "PRP-001") // productRatePlanId
-	assert.Contains(t, stdout, "sub-001") // subscriptionId
-	assert.Contains(t, stdout, "99")      // subscriptionVersion
+	// Label-bound (F-08): each distinctive value only renders under its OWN label
+	// when the command reads the correct subscription-rate-plan key.
+	assert.Regexp(t, `(?m)^ID:\s+402880e123$`, stdout)
+	assert.Regexp(t, `(?m)^Rate Plan Name:\s+Monthly Plan$`, stdout)
+	assert.Regexp(t, `(?m)^Product Name:\s+My Product$`, stdout)
+	assert.Regexp(t, `(?m)^Product SKU:\s+SKU-1$`, stdout)
+	assert.Regexp(t, `(?m)^Product Rate Plan ID:\s+PRP-001$`, stdout)
+	assert.Regexp(t, `(?m)^Subscription ID:\s+sub-001$`, stdout)
+	assert.Regexp(t, `(?m)^Subscription Version:\s+99$`, stdout)
 }
 
 func TestRatePlanGet_PathEscape(t *testing.T) {

@@ -14,6 +14,15 @@ import (
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCreate(f) }
 
+func TestAccountCreate_RejectsStrayArg(t *testing.T) {
+	// account create takes no positional args (body via --body); a stray
+	// positional must be rejected (cobra.NoArgs), not silently ignored. The nil
+	// handler proves it errors before any HTTP call.
+	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "create", "stray", "--body", "{}")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown command "stray"`)
+}
+
 func TestAccountCreate_Success(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)

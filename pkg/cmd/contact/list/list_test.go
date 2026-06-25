@@ -14,6 +14,14 @@ import (
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdList(f) }
 
+func TestContactList_RejectsStrayArg(t *testing.T) {
+	// contact list filters via flags and takes no positional args; a stray
+	// positional must be rejected (cobra.NoArgs), not silently ignored.
+	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "list", "stray", "--account-id", "acct-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown command "stray"`)
+}
+
 func TestContactList_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "POST", "/v1/action/query", map[string]interface{}{
 		"records": []map[string]interface{}{

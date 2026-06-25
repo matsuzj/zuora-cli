@@ -27,9 +27,10 @@ func TestRampGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "get", "R-00000001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "R-00000001") // ramp.number (was read from flat "rampNumber")
-	assert.Contains(t, stdout, "Test Ramp")
-	assert.Contains(t, stdout, "A-S00000001") // proves the nested read works
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^Ramp Number:\s+R-00000001$`, stdout) // ramp.number (nested), not flat "rampNumber"
+	assert.Regexp(t, `(?m)^Name:\s+Test Ramp$`, stdout)
+	assert.Regexp(t, `(?m)^Subscription Number:\s+A-S00000001$`, stdout) // proves the nested read works
 }
 
 func TestRampGet_RequiresArg(t *testing.T) {

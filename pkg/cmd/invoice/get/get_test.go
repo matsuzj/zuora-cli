@@ -28,10 +28,11 @@ func TestInvoiceGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "get", "inv-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "INV00001")
-	assert.Contains(t, stdout, "Posted")
-	assert.Contains(t, stdout, "100.50", "amount renders as money")
-	assert.Contains(t, stdout, "50.25", "balance renders as money")
+	// Label-bound (F-08): each value under its own label.
+	assert.Regexp(t, `(?m)^Invoice Number:\s+INV00001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
+	assert.Regexp(t, `(?m)^Amount:\s+100\.50$`, stdout) // money
+	assert.Regexp(t, `(?m)^Balance:\s+50\.25$`, stdout) // money
 }
 
 func TestInvoiceGet_JSON(t *testing.T) {

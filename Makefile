@@ -100,6 +100,12 @@ lint:
 		echo "refresh the block between the markers with: scripts/gen-destructive-list.sh"; \
 		exit 1; \
 	fi
+	@bad="$$(grep -rln 'WithoutCheckSuccess' pkg/cmd --include='*.go' | grep -v '^pkg/cmd/api/' || true)"; \
+	if [ -n "$$bad" ]; then \
+		echo "WithoutCheckSuccess is for the raw 'zr api' GET/HEAD passthrough only — typed"; \
+		echo "commands must keep the default success-flag check (AGENTS.md, Response handling):"; \
+		echo "$$bad"; exit 1; \
+	fi
 
 clean:
 	rm -rf bin/

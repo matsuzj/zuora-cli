@@ -74,3 +74,29 @@ func TestRenderDeleteResult_SuccessSynthesizedForJSONFlag(t *testing.T) {
 	assert.Contains(t, out.String(), `"success": true`)
 	assert.Empty(t, errOut.String(), "machine output suppresses the human message")
 }
+
+func TestRenderDeleteResult_JSONBodyWithJSONFlag_StdoutStaysMachineClean(t *testing.T) {
+	// shape 3 (JSON body) + --json: the raw JSON goes to STDOUT and the human
+	// message to STDERR, so a machine consumer reading stdout never sees the
+	// human sentence (no double output on stdout).
+	ios, _, out, errOut := iostreams.Test()
+	resp := &api.Response{StatusCode: 200, Body: []byte(`{"success":true,"id":"D-9"}`)}
+
+	err := RenderDeleteResult(ios, resp, output.FormatOptions{JSON: true}, "Thing D-9 deleted.\n", deleteFields)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), `"id": "D-9"`, "raw JSON on stdout")
+	assert.NotContains(t, out.String(), "deleted.", "the human sentence must not pollute machine stdout")
+	assert.Contains(t, errOut.String(), "Thing D-9 deleted.")
+}
+
+func TestRenderDeleteResult_JSONBodyWithJQ_StdoutShapedNotDoubled(t *testing.T) {
+	// shape 3 + --jq: only the jq-shaped value on stdout (NOT also the detail
+	// table), human on stderr.
+	ios, _, out, errOut := iostreams.Test()
+	resp := &api.Response{StatusCode: 200, Body: []byte(`{"success":true,"id":"D-9"}`)}
+
+	err := RenderDeleteResult(ios, resp, output.FormatOptions{JQ: ".id"}, "Thing D-9 deleted.\n", deleteFields)
+	require.NoError(t, err)
+	assert.Equal(t, "\"D-9\"\n", out.String(), "jq output only — no detail table double-render")
+	assert.Contains(t, errOut.String(), "Thing D-9 deleted.")
+}

@@ -477,3 +477,20 @@ func TestList_OmitZeroIntFlagSkippedWhenUnset(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "5", got.Get("pageSize"))
 }
+
+func TestList_NonStringNextPageEmitsNoHintAndNoPanic(t *testing.T) {
+	// The pagination hint reads nextPage via a `.(string)` assertion. A nextPage
+	// delivered as a non-string (number / object / bool) must fail that assertion
+	// to "" → no hint is emitted, and the command must not panic on the shape.
+	for _, np := range []interface{}{12345, map[string]interface{}{"url": "x"}, true} {
+		handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+			"memos":    []map[string]interface{}{{"id": "m-1"}},
+			"nextPage": np,
+		})
+
+		stdout, stderr, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
+		require.NoError(t, err, "non-string nextPage (%T) must not error", np)
+		assert.Contains(t, stdout, "m-1")
+		assert.NotContains(t, stderr, "More results available", "non-string nextPage (%T) must not emit a hint", np)
+	}
+}

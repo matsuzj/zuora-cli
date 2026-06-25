@@ -62,3 +62,12 @@ func TestPaymentList_AccountAliasRemoved(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown flag: --account")
 }
+
+func TestPaymentList_RejectsWrongAccountFlag(t *testing.T) {
+	// payment list's account vocabulary is --account-key (a path param). Using a
+	// sibling account flag (the AGENTS.md 3-flag confusion) must be rejected, not
+	// silently accepted.
+	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "list", "--account-id", "A001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --account-id")
+}

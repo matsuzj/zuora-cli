@@ -43,4 +43,5 @@ func TestProductGet_PathEscape(t *testing.T) {
 func TestProductGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "product", newCmd, nil, "product", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

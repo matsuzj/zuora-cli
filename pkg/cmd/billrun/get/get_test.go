@@ -31,6 +31,7 @@ func TestBillRunGet_Success(t *testing.T) {
 func TestBillRunGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestBillRunGet_SuccessFalse(t *testing.T) {

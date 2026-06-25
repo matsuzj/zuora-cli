@@ -54,4 +54,5 @@ func TestRatePlanGet_PathEscape(t *testing.T) {
 func TestRatePlanGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "rateplan", newCmd, nil, "rateplan", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

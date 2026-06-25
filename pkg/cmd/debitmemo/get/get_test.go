@@ -46,6 +46,7 @@ func TestDebitMemoGet_JSON(t *testing.T) {
 func TestDebitMemoGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "debitmemo", newCmd, nil, "debitmemo", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestDebitMemoGet_SuccessFalse(t *testing.T) {

@@ -166,7 +166,9 @@ func (c *Client) vlogBody(dir, contentType string, body []byte) {
 		fmt.Fprintf(c.verboseWriter, "%s [multipart body omitted]\n\n", dir)
 		return
 	}
-	b := body
+	// Redact known-sensitive field values BEFORE truncation so a secret can never
+	// survive in a cut-off tail (#325).
+	b := maskSecrets(body)
 	truncated := false
 	if len(b) > maxBodyLog {
 		b = b[:maxBodyLog]

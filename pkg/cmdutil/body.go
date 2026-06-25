@@ -3,13 +3,18 @@ package cmdutil
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 )
 
-// ResolveBody resolves a body flag value to an io.Reader.
+// ResolveBody resolves a body flag value to an io.Reader and validates that the
+// resolved content is well-formed JSON. Every --body command targets a Zuora
+// JSON endpoint, so a malformed body is caught here with a clear local error
+// instead of a confusing server-side 4xx (F-22).
+//
 // Supported formats:
 //   - "-" reads from stdin
 //   - "@file" reads from the specified file
@@ -22,16 +27,27 @@ func ResolveBody(body string, stdin io.Reader) (io.Reader, error) {
 	if body == "" {
 		return nil, fmt.Errorf("request body is empty")
 	}
-	if body == "-" {
-		return stdin, nil
-	}
-	if strings.HasPrefix(body, "@") {
-		filePath := body[1:]
-		data, err := os.ReadFile(filePath)
+
+	var data []byte
+	switch {
+	case body == "-":
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return nil, fmt.Errorf("reading body from stdin: %w", err)
+		}
+		data = b
+	case strings.HasPrefix(body, "@"):
+		b, err := os.ReadFile(body[1:])
 		if err != nil {
 			return nil, fmt.Errorf("reading body file: %w", err)
 		}
-		return bytes.NewReader(data), nil
+		data = b
+	default:
+		data = []byte(body)
 	}
-	return strings.NewReader(body), nil
+
+	if !json.Valid(data) {
+		return nil, fmt.Errorf("request body is not valid JSON")
+	}
+	return bytes.NewReader(data), nil
 }

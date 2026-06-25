@@ -32,6 +32,7 @@ func TestUsageDelete_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "delete", "--confirm")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestUsageDelete_BodyResponse(t *testing.T) {

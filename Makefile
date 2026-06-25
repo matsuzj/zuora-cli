@@ -106,6 +106,13 @@ lint:
 		echo "commands must keep the default success-flag check (AGENTS.md, Response handling):"; \
 		echo "$$bad"; exit 1; \
 	fi
+	@for fx in pkg/cmdtest/fixtures/*.json; do \
+		base="$$(basename "$$fx")"; \
+		if ! grep -q "$$base" pkg/cmdtest/fixtures/PROVENANCE.md; then \
+			echo "golden fixture $$base has no provenance row in pkg/cmdtest/fixtures/PROVENANCE.md (F-37):"; \
+			echo "record its real-response source so the shape stays re-verifiable"; exit 1; \
+		fi; \
+	done
 
 clean:
 	rm -rf bin/

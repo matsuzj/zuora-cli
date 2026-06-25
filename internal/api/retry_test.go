@@ -515,6 +515,31 @@ func TestVerboseBody_RequestAndResponseAtLevel2(t *testing.T) {
 	assert.Contains(t, out, `RESP-BODY`)
 }
 
+// TestVerboseBody_RedactsSecrets pins the end-to-end masking (#325): sensitive
+// field VALUES in both the request and the response body must be redacted before
+// they reach the verbose log, even at level 2.
+func TestVerboseBody_RedactsSecrets(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true,"token":"resp-secret-xyz"}`))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	_, err := c.Post("/v1/payment-methods",
+		strings.NewReader(`{"cardNumber":"4111111111111111","cardSecurityCode":"999888777"}`))
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.NotContains(t, out, "4111111111111111", "request card number must be redacted")
+	assert.NotContains(t, out, "999888777", "request security code must be redacted")
+	assert.NotContains(t, out, "resp-secret-xyz", "response token must be redacted")
+	assert.Contains(t, out, "***REDACTED***", "the redaction marker must appear")
+}
+
 func TestVerboseBody_Level1OmitsBodies(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"success":true,"marker":"RESP-BODY"}`))

@@ -81,6 +81,7 @@ func TestAccountGet_JSON(t *testing.T) {
 func TestAccountGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "account", newCmd, nil, "account", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestAccountGet_SuccessFalse(t *testing.T) {

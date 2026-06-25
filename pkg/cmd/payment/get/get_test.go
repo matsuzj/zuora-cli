@@ -62,6 +62,7 @@ func TestPaymentGet_JSON(t *testing.T) {
 func TestPaymentGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestPaymentGet_SuccessFalse(t *testing.T) {

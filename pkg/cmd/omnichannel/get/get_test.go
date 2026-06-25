@@ -29,4 +29,5 @@ func TestOmnichannelGet_Success(t *testing.T) {
 func TestOmnichannelGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, nil, "omnichannel", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

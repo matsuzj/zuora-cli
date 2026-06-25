@@ -37,6 +37,7 @@ func TestContactGet_Success(t *testing.T) {
 func TestContactGet_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestContactGet_SuccessFalse(t *testing.T) {

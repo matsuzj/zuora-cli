@@ -50,6 +50,7 @@ func TestInvoiceGet_JSON(t *testing.T) {
 func TestInvoiceGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestInvoiceGet_SuccessFalse(t *testing.T) {

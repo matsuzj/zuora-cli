@@ -40,6 +40,7 @@ func TestFulfillmentItemGet_Success(t *testing.T) {
 func TestFulfillmentItemGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestFulfillmentItemGet_SuccessFalse(t *testing.T) {

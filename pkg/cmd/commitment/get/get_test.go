@@ -36,4 +36,5 @@ func TestCommitmentGet_Success(t *testing.T) {
 func TestCommitmentGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

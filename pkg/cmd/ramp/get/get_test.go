@@ -36,6 +36,7 @@ func TestRampGet_Success(t *testing.T) {
 func TestRampGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "ramp", newCmd, nil, "ramp", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestRampGet_SuccessFalse(t *testing.T) {

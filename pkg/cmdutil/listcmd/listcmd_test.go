@@ -494,3 +494,21 @@ func TestList_NonStringNextPageEmitsNoHintAndNoPanic(t *testing.T) {
 		assert.NotContains(t, stderr, "More results available", "non-string nextPage (%T) must not emit a hint", np)
 	}
 }
+
+func TestList_CSVSanitizesMaliciousCells(t *testing.T) {
+	// End-to-end wiring guard (F-04): attacker-controlled cell data rendered via
+	// --csv must route through PrintCSV's sanitizer — a spreadsheet-formula
+	// trigger gets a leading quote, and ANSI escape / BiDi-override characters
+	// are stripped. Proves the sanitizer isn't bypassed on the real render path.
+	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+		"memos": []map[string]interface{}{
+			{"id": "=cmd()", "amount": 1.0, "status": "Active\x1b[31m\u202eevil"},
+		},
+	})
+
+	stdout, _, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list", "--csv")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, `'=cmd()`, "formula trigger must be neutralized with a leading quote")
+	assert.NotContains(t, stdout, "\x1b[", "ANSI escape must be stripped")
+	assert.NotContains(t, stdout, "\u202e", "BiDi override must be stripped")
+}

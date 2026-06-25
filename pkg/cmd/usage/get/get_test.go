@@ -24,8 +24,9 @@ func TestUsageGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "get", "2c92a0f96bd")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "2c92a0f96bd")
-	assert.Contains(t, stdout, "Each")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^ID:\s+2c92a0f96bd$`, stdout)
+	assert.Regexp(t, `(?m)^UOM:\s+Each$`, stdout)
 }
 
 func TestUsageGet_RequiresArg(t *testing.T) {

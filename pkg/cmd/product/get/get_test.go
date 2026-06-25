@@ -24,8 +24,9 @@ func TestProductGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "product", newCmd, handler, "product", "get", "PROD-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "My Product")
-	assert.Contains(t, stdout, "prod-001")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^Name:\s+My Product$`, stdout)
+	assert.Regexp(t, `(?m)^ID:\s+prod-001$`, stdout)
 }
 
 func TestProductGet_PathEscape(t *testing.T) {

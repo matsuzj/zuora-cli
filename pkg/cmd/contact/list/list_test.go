@@ -37,6 +37,23 @@ func TestContactList_Success(t *testing.T) {
 	assert.Contains(t, stdout, "j@example.com")
 }
 
+func TestContactList_RejectsZOQLInjection(t *testing.T) {
+	// A crafted --account-id must be rejected BEFORE any query is sent. The nil
+	// handler means reaching the API yields a connection error, not "invalid
+	// --account-id" — so the message assert confirms the *validation* rejected it.
+	for _, bad := range []string{
+		`x' OR '1'='1`,
+		`x' OR Id != '`,
+		`acct'; DELETE FROM Contact WHERE Id != '`,
+		`has space`,
+		`quote'inside`,
+	} {
+		_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "list", "--account-id", bad)
+		require.Error(t, err, "account-id %q must be rejected", bad)
+		assert.Contains(t, err.Error(), "invalid --account-id", "must fail validation, not reach the API: %q", bad)
+	}
+}
+
 func TestContactList_Pagination(t *testing.T) {
 	callCount := 0
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

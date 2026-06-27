@@ -69,3 +69,23 @@ func TestApply_DefaultOutputJSON_RootLevelShadowedFlagWins(t *testing.T) {
 	v, _ := sub.Flags().GetBool("json")
 	assert.False(t, v, "an explicit root-level --csv must suppress the json default even when shadowed")
 }
+
+// TestApply_DefaultOutputJSON_SkippedOnTTY covers the human/TTY branch that was
+// previously untestable: on an interactive terminal, default_output=json must
+// NOT force --json (humans keep the readable table). Reachable now via
+// SetTTYForTest (F-25). The piped counterpart is _AppliesWhenPiped above.
+func TestApply_DefaultOutputJSON_SkippedOnTTY(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	ios.SetTTYForTest(true) // simulate an interactive terminal
+	cfg := config.NewMockConfig()
+	require.NoError(t, cfg.SetDefaultOutput("json"))
+	f := factory.NewTestFactory(ios, cfg, "http://localhost", "tok")
+
+	cmd := &cobra.Command{Use: "x"}
+	globalflags.Register(cmd)
+	require.NoError(t, cmd.ParseFlags(nil))
+	require.NoError(t, globalflags.Apply(f, cmd))
+
+	v, _ := cmd.Flags().GetBool("json")
+	assert.False(t, v, "default_output=json must NOT apply on a TTY — humans get the table")
+}

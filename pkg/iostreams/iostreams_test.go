@@ -33,3 +33,14 @@ func TestIsTerminal_Buffer(t *testing.T) {
 	ios, _, _, _ := Test()
 	assert.False(t, ios.IsTerminal())
 }
+
+func TestIsTerminal_OverrideForTest(t *testing.T) {
+	// Buffer-backed streams are non-TTY by default; SetTTYForTest lets a test
+	// drive the human/TTY branches (F-25).
+	ios, _, _, _ := Test()
+	assert.False(t, ios.IsTerminal(), "default is non-TTY")
+	ios.SetTTYForTest(true)
+	assert.True(t, ios.IsTerminal(), "override forces TTY")
+	ios.SetTTYForTest(false)
+	assert.False(t, ios.IsTerminal(), "override forces non-TTY")
+}

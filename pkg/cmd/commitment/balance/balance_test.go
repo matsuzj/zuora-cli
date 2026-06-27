@@ -13,7 +13,7 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdBalance(f) }
 
 func TestCommitmentBalance_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "GET", "/v1/commitments/CMT-00000001/balance", map[string]interface{}{
+	handler := cmdtest.OK(t, "GET", "/v1/commitments/CMT-00000001/balancepreview", map[string]interface{}{
 		"success":         true,
 		"commitmentKey":   "CMT-00000001",
 		"totalAmount":     1000.0,

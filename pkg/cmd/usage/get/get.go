@@ -39,7 +39,10 @@ func runGet(cmd *cobra.Command, f *factory.Factory, id string) error {
 				{Key: "Start Date", Value: cmdutil.GetString(raw, "StartDateTime")},
 				{Key: "End Date", Value: cmdutil.GetString(raw, "EndDateTime")},
 				{Key: "UOM", Value: cmdutil.GetString(raw, "UOM")},
-				{Key: "Status", Value: cmdutil.GetString(raw, "Status")},
+				// The Usage CRUD object's status field is "RbeStatus" (rating/
+				// billing engine status, e.g. Pending/Processed); a plain
+				// "Status" key never existed, so it always rendered empty.
+				{Key: "Status", Value: cmdutil.GetString(raw, "RbeStatus")},
 				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "SubscriptionId")},
 				{Key: "Charge ID", Value: cmdutil.GetString(raw, "ChargeId")},
 				{Key: "Created Date", Value: cmdutil.GetString(raw, "CreatedDate")},

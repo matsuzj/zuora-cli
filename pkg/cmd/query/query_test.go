@@ -152,6 +152,17 @@ func TestQuery_JQBeatsCSV(t *testing.T) {
 	assert.Equal(t, "1\n", stdout, "jq output wins over --csv (the JSON family is rendered first)")
 }
 
+// TestQuery_JSONTemplateMutuallyExclusive pins that the --json/--template
+// exclusion fires on a REAL command that shadows a global flag (query shadows
+// --csv) — not just on the network-free version command (F-20). The nil handler
+// proves it errors in PersistentPreRunE before any request.
+func TestQuery_JSONTemplateMutuallyExclusive(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "", newCmd, nil,
+		"query", "SELECT Id FROM Account", "--json", "--template", "{{.}}")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use --json and --template together")
+}
+
 func TestQuery_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "query")
 

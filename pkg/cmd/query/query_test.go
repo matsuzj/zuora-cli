@@ -123,6 +123,35 @@ func TestQuery_CSV(t *testing.T) {
 	assert.Contains(t, stdout, "Acme")
 }
 
+// query precedence (query.go): the JSON family (--json/--jq/--template) is
+// rendered BEFORE the --csv branch, so when combined with the inherited global
+// --csv, the JSON family wins and --csv is ignored (F-15).
+func TestQuery_JSONBeatsCSV(t *testing.T) {
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"records": []map[string]interface{}{{"Id": "001", "Name": "Acme"}},
+		"size":    1, "done": true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "", newCmd, handler,
+		"query", "SELECT Id, Name FROM Account", "--csv", "--json")
+	require.NoError(t, err)
+	assert.True(t, json.Valid([]byte(stdout)), "output must be JSON — the JSON family wins over --csv")
+	assert.Contains(t, stdout, `"records"`)
+	assert.NotContains(t, stdout, "Id,Name", "must NOT be CSV when --json is also set")
+}
+
+func TestQuery_JQBeatsCSV(t *testing.T) {
+	handler := cmdtest.OK(t, "", "", map[string]interface{}{
+		"records": []map[string]interface{}{{"Id": "001", "Name": "Acme"}},
+		"size":    1, "done": true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "", newCmd, handler,
+		"query", "SELECT Id FROM Account", "--csv", "--jq", ".size")
+	require.NoError(t, err)
+	assert.Equal(t, "1\n", stdout, "jq output wins over --csv (the JSON family is rendered first)")
+}
+
 func TestQuery_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "query")
 

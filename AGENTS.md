@@ -69,8 +69,8 @@ When adding/maintaining a command that calls the API:
 ## Git hygiene
 
 - **Never `git add -A` / `git add .`** — the harness can drop stray files (e.g. `.claude/scheduled_tasks.lock`) into the worktree, and they get committed. Stage **explicit paths**.
-- Branch naming: `feature/` `fix/` `docs/` `chore/` `refactor/` `test/`.
-- Conventional Commits: `feat:` `fix:` `docs:` `chore:` `test:` `refactor:`.
+- Branch naming: `feat/` `fix/` `docs/` `chore/` `refactor/` `test/` `perf/` `sec/`.
+- Conventional Commits: `feat:` `fix:` `docs:` `chore:` `test:` `refactor:` `perf:` `ci:`.
 
 ## Reviewing a branch with sub-agents / tools
 

@@ -80,3 +80,15 @@ func TestRenderSuccess_HumanAndMachine(t *testing.T) {
 	assert.Contains(t, out2.String(), `"success": true`)
 	assert.Empty(t, errOut2.String())
 }
+
+// TestRenderJSON_JQBeatsJSON pins the precedence inside the central renderer:
+// --jq is checked before --json, so when both are set the jq filter wins (F-20).
+// (--json+--template is rejected upstream, so the reachable multi-flag cases are
+// jq-vs-json and jq-vs-template.)
+func TestRenderJSON_JQBeatsJSON(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	handled, err := RenderJSON(ios, []byte(`{"a":1,"b":2}`), FormatOptions{JQ: ".a", JSON: true})
+	require.NoError(t, err)
+	assert.True(t, handled)
+	assert.Equal(t, "1\n", out.String(), "--jq must win over --json")
+}

@@ -19,11 +19,11 @@ func TestPaymentApply_Success(t *testing.T) {
 		assert.Equal(t, "/v1/payments/pay-001/apply", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		cmdtest.OK(t, "", "", map[string]interface{}{
-			"id":            "pay-001",
-			"paymentNumber": "P-00000001",
-			"amount":        100.00,
-			"status":        "Processed",
-			"success":       true,
+			"id":      "pay-001",
+			"number":  "P-00000001", // real Payments field is "number" (see payment/get); "paymentNumber" never existed
+			"amount":  100.00,
+			"status":  "Processed",
+			"success": true,
 		})(w, r)
 	}
 
@@ -31,6 +31,7 @@ func TestPaymentApply_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "pay-001")
+	assert.Contains(t, stdout, "P-00000001", "Payment Number must render from the real response key")
 	assert.Contains(t, stderr, "Payment pay-001 applied.")
 }
 

@@ -33,6 +33,7 @@ func TestOmnichannelDelete_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, nil, "omnichannel", "delete", "--confirm")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestOmnichannelDelete_JSON(t *testing.T) {

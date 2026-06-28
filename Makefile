@@ -32,7 +32,7 @@ COVER_EXEMPT := pkg/cmd/account pkg/cmd/billrun pkg/cmd/charge pkg/cmd/commitmen
 # (78%, was 73%) alone hid a dozen sub-floor packages behind the average.
 COVER_PKG_FLOOR := 60.0
 
-# Enforce the same coverage floors CI uses: total (73%) + per-package ratchet.
+# Enforce the same coverage floors CI uses: total (78%) + per-package ratchet.
 cover: test
 	@total="$$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $$3); print $$3}')"; \
 	echo "Total coverage: $$total%"; \
@@ -100,6 +100,19 @@ lint:
 		echo "refresh the block between the markers with: scripts/gen-destructive-list.sh"; \
 		exit 1; \
 	fi
+	@bad="$$(grep -rln 'WithoutCheckSuccess' pkg/cmd --include='*.go' | grep -v '^pkg/cmd/api/' || true)"; \
+	if [ -n "$$bad" ]; then \
+		echo "WithoutCheckSuccess is for the raw 'zr api' GET/HEAD passthrough only — typed"; \
+		echo "commands must keep the default success-flag check (AGENTS.md, Response handling):"; \
+		echo "$$bad"; exit 1; \
+	fi
+	@for fx in pkg/cmdtest/fixtures/*.json; do \
+		base="$$(basename "$$fx")"; \
+		if ! grep -q "$$base" pkg/cmdtest/fixtures/PROVENANCE.md; then \
+			echo "golden fixture $$base has no provenance row in pkg/cmdtest/fixtures/PROVENANCE.md (F-37):"; \
+			echo "record its real-response source so the shape stays re-verifiable"; exit 1; \
+		fi; \
+	done
 
 clean:
 	rm -rf bin/

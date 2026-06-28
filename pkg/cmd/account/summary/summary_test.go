@@ -29,6 +29,9 @@ func TestAccountSummary_Detail(t *testing.T) {
 	assert.Contains(t, stdout, "1")
 	assert.Contains(t, stdout, "Invoices")
 	assert.Contains(t, stdout, "2")
+	// Balance is numeric (100.0) in the fixture, so this exercises GetMoney's
+	// float -> %.2f contract (a GetMoney -> GetDecimal swap would render "100").
+	assert.Regexp(t, `(?m)^Balance:\s+100\.00$`, stdout)
 }
 
 func TestAccountSummary_SuccessFalse(t *testing.T) {

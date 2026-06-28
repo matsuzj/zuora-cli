@@ -343,8 +343,8 @@ Aliases are stored in `$XDG_CONFIG_HOME/zr/aliases.yml` (defaults to `~/.config/
 ### Build & Test
 
 Run `make ci` (or `task ci`) before pushing — it mirrors the full CI gate
-(go mod verify, gofmt, vet, staticcheck, govulncheck, race tests with the
-coverage floors, build). Individual targets, the E2E suites, and every
+(go mod verify, gofmt, vet, staticcheck, deadcode, govulncheck, race tests
+with the coverage floors, build). Individual targets, the E2E suites, and every
 contributor convention are documented in [AGENTS.md](AGENTS.md) — the single
 source for the contributor workflow; [docs/architecture.md](docs/architecture.md)
 describes the structure.

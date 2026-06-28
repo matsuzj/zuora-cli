@@ -26,13 +26,15 @@ func TestCommitmentGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "commitment", newCmd, handler, "commitment", "get", "CMT-00000001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "CMT-00000001") // commitmentNumber (was read from the absent "commitmentKey")
-	assert.Contains(t, stdout, "8aca-commit-id")
-	assert.Contains(t, stdout, "Test Commitment")
-	assert.Contains(t, stdout, "A00000001")
+	// Label-bound (F-08): each value under its own label.
+	assert.Regexp(t, `(?m)^Commitment Number:\s+CMT-00000001$`, stdout) // not the absent "commitmentKey"
+	assert.Regexp(t, `(?m)^ID:\s+8aca-commit-id$`, stdout)
+	assert.Regexp(t, `(?m)^Name:\s+Test Commitment$`, stdout)
+	assert.Regexp(t, `(?m)^Account Number:\s+A00000001$`, stdout)
 }
 
 func TestCommitmentGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

@@ -4,12 +4,20 @@ package list
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
+
+// accountIDPattern bounds --account-id to the characters real Zuora object IDs
+// use (hex-ish alphanumerics, with - and _ allowed defensively). Anything else —
+// quotes, spaces, ZOQL syntax — is rejected before it can reach the ZOQL string
+// literal. This is the PRIMARY injection defense: it does not depend on ZOQL's
+// (unclear) quote-escaping semantics the way string-escaping alone would.
+var accountIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 // NewCmdList creates the contact list command.
 func NewCmdList(f *factory.Factory) *cobra.Command {
@@ -24,6 +32,7 @@ Requires --account-id (the Zuora account ID, not account number).
 Use "zr account get <number> --jq .basicInfo.id" to find the account ID.`,
 		Example: `  zr contact list --account-id 8aca822f12345
   zr contact list --account-id 8aca822f12345 --json`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(cmd, f, accountID)
 		},
@@ -49,12 +58,20 @@ type queryResponse struct {
 }
 
 func runList(cmd *cobra.Command, f *factory.Factory, accountID string) error {
+	// Reject anything that isn't a plain Zuora object ID before it can reach the
+	// ZOQL query — this is the real injection guard (see accountIDPattern).
+	if !accountIDPattern.MatchString(accountID) {
+		return fmt.Errorf("invalid --account-id %q: must be a Zuora object ID (letters, digits, - or _)", accountID)
+	}
+
 	client, err := f.HttpClient()
 	if err != nil {
 		return err
 	}
 
-	// Sanitize accountID to prevent ZOQL injection
+	// Belt-and-suspenders: escape quotes even though the pattern above already
+	// forbids them, so a future loosening of the pattern can't silently re-open
+	// ZOQL injection.
 	sanitized := strings.ReplaceAll(accountID, "'", "\\'")
 	zoql := fmt.Sprintf(
 		`SELECT Id, FirstName, LastName, WorkEmail FROM Contact WHERE AccountId = '%s'`,

@@ -26,8 +26,9 @@ func TestDebitMemoGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "debitmemo", newCmd, handler, "debitmemo", "get", "dm-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "DM00001")
-	assert.Contains(t, stdout, "Posted")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^Number:\s+DM00001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
 }
 
 func TestDebitMemoGet_JSON(t *testing.T) {
@@ -45,6 +46,7 @@ func TestDebitMemoGet_JSON(t *testing.T) {
 func TestDebitMemoGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "debitmemo", newCmd, nil, "debitmemo", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestDebitMemoGet_SuccessFalse(t *testing.T) {

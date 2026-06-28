@@ -23,13 +23,15 @@ func TestBillRunGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "billrun", newCmd, handler, "billrun", "get", "br-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "BR-00000001")
-	assert.Contains(t, stdout, "Completed")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^Bill Run Number:\s+BR-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Completed$`, stdout)
 }
 
 func TestBillRunGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestBillRunGet_SuccessFalse(t *testing.T) {

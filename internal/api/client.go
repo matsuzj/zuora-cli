@@ -166,7 +166,9 @@ func (c *Client) vlogBody(dir, contentType string, body []byte) {
 		fmt.Fprintf(c.verboseWriter, "%s [multipart body omitted]\n\n", dir)
 		return
 	}
-	b := body
+	// Redact known-sensitive field values BEFORE truncation so a secret can never
+	// survive in a cut-off tail (#325).
+	b := maskSecrets(body)
 	truncated := false
 	if len(b) > maxBodyLog {
 		b = b[:maxBodyLog]
@@ -186,6 +188,26 @@ func (c *Client) vlogBody(dir, contentType string, body []byte) {
 func (c *Client) vlogf(format string, args ...any) {
 	if c.verbose && c.verboseWriter != nil {
 		fmt.Fprintf(c.verboseWriter, "* "+format+"\n", args...)
+	}
+}
+
+// redactHeaderValue masks the value of credential- or session-bearing headers
+// for verbose logging. Applied symmetrically to BOTH the request and response
+// header dumps so a plain -v never echoes a secret: request Authorization /
+// Cookie and response Set-Cookie (a session token equivalent to a bearer) are
+// the concern. For Authorization-class headers the auth scheme (e.g. "Bearer")
+// is preserved and only the credential is masked, keeping the dump diagnostic.
+func redactHeaderValue(key, value string) string {
+	switch http.CanonicalHeaderKey(key) {
+	case "Authorization", "Proxy-Authorization":
+		if scheme, _, found := strings.Cut(value, " "); found && scheme != "" {
+			return scheme + " ***"
+		}
+		return "***"
+	case "Cookie", "Set-Cookie":
+		return "***"
+	default:
+		return value
 	}
 }
 
@@ -297,11 +319,7 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 		fmt.Fprintf(c.verboseWriter, "> %s %s\n", method, fullURL)
 		for k, vs := range req.Header {
 			for _, v := range vs {
-				if k == "Authorization" {
-					fmt.Fprintf(c.verboseWriter, "> %s: Bearer ***\n", k)
-				} else {
-					fmt.Fprintf(c.verboseWriter, "> %s: %s\n", k, v)
-				}
+				fmt.Fprintf(c.verboseWriter, "> %s: %s\n", k, redactHeaderValue(k, v))
 			}
 		}
 		fmt.Fprintln(c.verboseWriter)
@@ -352,7 +370,7 @@ func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, erro
 			fmt.Fprintf(c.verboseWriter, "< HTTP %d\n", resp.StatusCode)
 			for k, vs := range resp.Header {
 				for _, v := range vs {
-					fmt.Fprintf(c.verboseWriter, "< %s: %s\n", k, v)
+					fmt.Fprintf(c.verboseWriter, "< %s: %s\n", k, redactHeaderValue(k, v))
 				}
 			}
 			fmt.Fprintln(c.verboseWriter)

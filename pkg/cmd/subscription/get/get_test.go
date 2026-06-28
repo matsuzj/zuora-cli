@@ -21,9 +21,10 @@ func TestSubscriptionGet_Detail(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "get", "A-S001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "Gold Plan")
-	assert.Contains(t, stdout, "A-S001")
-	assert.Contains(t, stdout, "Active")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^Name:\s+Gold Plan$`, stdout)
+	assert.Regexp(t, `(?m)^Subscription Number:\s+A-S001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Active$`, stdout)
 }
 
 func TestSubscriptionGet_SuccessFalse(t *testing.T) {

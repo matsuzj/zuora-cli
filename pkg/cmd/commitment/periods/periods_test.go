@@ -80,3 +80,11 @@ func TestCommitmentPeriods_AccountRequiresDates(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "start-date")
 }
+
+func TestCommitmentPeriods_AccountAliasRemoved(t *testing.T) {
+	// --account/--key were removed in v0.7.0 (#291); the deprecated alias must be
+	// rejected, not silently revived via a resurrected DeprecatedName.
+	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "periods", "--account", "A00000001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --account")
+}

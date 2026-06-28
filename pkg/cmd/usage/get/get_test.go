@@ -19,16 +19,19 @@ func TestUsageGet_Success(t *testing.T) {
 		"Quantity":      10,
 		"StartDateTime": "2026-01-01",
 		"UOM":           "Each",
-		"Status":        "Processed",
+		"RbeStatus":     "Processed", // the Usage CRUD object's status field is "RbeStatus"; "Status" never existed
 	})
 
 	stdout, _, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "get", "2c92a0f96bd")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "2c92a0f96bd")
-	assert.Contains(t, stdout, "Each")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^ID:\s+2c92a0f96bd$`, stdout)
+	assert.Regexp(t, `(?m)^UOM:\s+Each$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Processed$`, stdout) // sourced from the real "RbeStatus" key
 }
 
 func TestUsageGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

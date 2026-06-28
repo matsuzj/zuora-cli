@@ -32,16 +32,21 @@ func runGet(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
 		Method: "GET",
 		Path:   fmt.Sprintf("/v1/invoices/%s", url.PathEscape(invoiceID)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// GET /v1/invoices/{id} returns a FLAT object (no "invoice" wrapper —
+			// verified against a live invoice). id/invoiceNumber/dates/status/
+			// accountId are STRINGS → GetString; only amount/balance are numeric →
+			// GetMoney. (Previously these string fields used GetDecimal, which only
+			// happened to pass strings through via %v — the wrong helper, #340/F-17.)
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-				{Key: "Invoice Number", Value: cmdutil.GetDecimal(raw, "invoiceNumber")},
-				{Key: "Invoice Date", Value: cmdutil.GetDecimal(raw, "invoiceDate")},
-				{Key: "Due Date", Value: cmdutil.GetDecimal(raw, "dueDate")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Invoice Number", Value: cmdutil.GetString(raw, "invoiceNumber")},
+				{Key: "Invoice Date", Value: cmdutil.GetString(raw, "invoiceDate")},
+				{Key: "Due Date", Value: cmdutil.GetString(raw, "dueDate")},
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Balance", Value: cmdutil.GetMoney(raw, "balance")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
-				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+				{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
 			}
 		},
 	})

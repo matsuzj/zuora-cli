@@ -22,10 +22,12 @@ func TestOmnichannelGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "get", "S-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "S-001")
+	// Label-bound (F-08): value under its own label.
+	assert.Regexp(t, `(?m)^Subscription Key:\s+S-001$`, stdout)
 }
 
 func TestOmnichannelGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, nil, "omnichannel", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

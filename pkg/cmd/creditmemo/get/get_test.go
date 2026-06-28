@@ -26,8 +26,9 @@ func TestCreditMemoGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "creditmemo", newCmd, handler, "creditmemo", "get", "cm-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "CM00001")
-	assert.Contains(t, stdout, "Posted")
+	// Label-bound (F-08): values under their own labels.
+	assert.Regexp(t, `(?m)^Number:\s+CM00001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
 }
 
 func TestCreditMemoGet_JSON(t *testing.T) {
@@ -45,6 +46,7 @@ func TestCreditMemoGet_JSON(t *testing.T) {
 func TestCreditMemoGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "creditmemo", newCmd, nil, "creditmemo", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestCreditMemoGet_SuccessFalse(t *testing.T) {

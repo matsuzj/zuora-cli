@@ -53,11 +53,34 @@ func TestResolveBody_Empty(t *testing.T) {
 }
 
 func TestResolveBody_MidStringAtIsLiteral(t *testing.T) {
-	// Only a leading '@' means a file; "user@example.com" is literal text.
-	r, err := ResolveBody("user@example.com", nil)
+	// Only a LEADING '@' means a file; an '@' inside the (valid JSON) body is
+	// literal text, not a file reference.
+	r, err := ResolveBody(`{"email":"user@example.com"}`, nil)
 	require.NoError(t, err)
 	b, _ := io.ReadAll(r)
-	assert.Equal(t, "user@example.com", string(b))
+	assert.Equal(t, `{"email":"user@example.com"}`, string(b))
+}
+
+func TestResolveBody_InvalidJSONRejected(t *testing.T) {
+	// Malformed JSON is caught locally (F-22) — from a literal, a file, and
+	// stdin — instead of being sent to Zuora for a confusing server-side 4xx.
+	t.Run("literal", func(t *testing.T) {
+		_, err := ResolveBody(`{"a":`, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not valid JSON")
+	})
+	t.Run("stdin", func(t *testing.T) {
+		_, err := ResolveBody("-", strings.NewReader("not json at all"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not valid JSON")
+	})
+	t.Run("file", func(t *testing.T) {
+		p := filepath.Join(t.TempDir(), "bad.json")
+		require.NoError(t, os.WriteFile(p, []byte("{oops}"), 0600))
+		_, err := ResolveBody("@"+p, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not valid JSON")
+	})
 }
 
 func TestRequireConfirm(t *testing.T) {

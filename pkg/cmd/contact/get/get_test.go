@@ -24,17 +24,20 @@ func TestContactGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "get", "c-123")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "John")
-	assert.Contains(t, stdout, "Doe")
-	assert.Contains(t, stdout, "j@example.com")
-	assert.Contains(t, stdout, "US")
-	assert.Contains(t, stdout, "Postal Code")
-	assert.Contains(t, stdout, "1000000")
+	// Label-bound: each value must render under its OWN label, not merely appear
+	// somewhere in the output (a value under the wrong label would pass a bare
+	// substring check) — F-08.
+	assert.Regexp(t, `(?m)^First Name:\s+John$`, stdout)
+	assert.Regexp(t, `(?m)^Last Name:\s+Doe$`, stdout)
+	assert.Regexp(t, `(?m)^Email:\s+j@example\.com$`, stdout)
+	assert.Regexp(t, `(?m)^Country:\s+US$`, stdout)
+	assert.Regexp(t, `(?m)^Postal Code:\s+1000000$`, stdout)
 }
 
 func TestContactGet_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestContactGet_SuccessFalse(t *testing.T) {

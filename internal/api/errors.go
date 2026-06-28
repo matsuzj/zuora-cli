@@ -92,40 +92,37 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 		Raw:        string(body),
 	}
 
-	// Try Zuora v1 format: {"success": false, "reasons": [{"code": ..., "message": ...}]}
+	// Zuora reports a logical failure as a list of reasons in one of two shapes:
+	// v1 REST uses lowercase {"reasons":[{"code","message"}]}, Object CRUD uses
+	// uppercase {"Errors":[{"Code","Message"}]}. Both collapse onto applyReasons.
 	var v1 struct {
-		Success bool `json:"success"`
 		Reasons []struct {
 			Code    json.RawMessage `json:"code"`
 			Message string          `json:"message"`
 		} `json:"reasons"`
 	}
 	if err := json.Unmarshal(body, &v1); err == nil && len(v1.Reasons) > 0 {
-		// decodeCode unquotes a reason code, which may be a JSON string like
-		// "INVALID" or a number like 53100020.
-		decodeCode := func(raw json.RawMessage) string {
-			var s string
-			if err := json.Unmarshal(raw, &s); err == nil {
-				return s
-			}
-			return string(raw)
-		}
-		if len(v1.Reasons) == 1 {
-			apiErr.Code = decodeCode(v1.Reasons[0].Code)
-			apiErr.Message = v1.Reasons[0].Message
-			return apiErr
-		}
-		// Zuora frequently returns several validation failures at once. Showing
-		// only the first hides the rest, so list every reason.
-		parts := make([]string, len(v1.Reasons))
+		reasons := make([]failureReason, len(v1.Reasons))
 		for i, r := range v1.Reasons {
-			if code := decodeCode(r.Code); code != "" {
-				parts[i] = fmt.Sprintf("[%s] %s", code, r.Message)
-			} else {
-				parts[i] = r.Message
-			}
+			reasons[i] = failureReason{code: decodeCode(r.Code), message: r.Message}
 		}
-		apiErr.Message = fmt.Sprintf("%d errors:\n  - %s", len(parts), strings.Join(parts, "\n  - "))
+		apiErr.applyReasons(reasons)
+		return apiErr
+	}
+
+	// Object-CRUD failure: {"Success":false,"Errors":[{"Code","Message"}]}.
+	var objCRUD struct {
+		Errors []struct {
+			Code    json.RawMessage `json:"Code"`
+			Message string          `json:"Message"`
+		} `json:"Errors"`
+	}
+	if err := json.Unmarshal(body, &objCRUD); err == nil && len(objCRUD.Errors) > 0 {
+		reasons := make([]failureReason, len(objCRUD.Errors))
+		for i, e := range objCRUD.Errors {
+			reasons[i] = failureReason{code: decodeCode(e.Code), message: e.Message}
+		}
+		apiErr.applyReasons(reasons)
 		return apiErr
 	}
 
@@ -157,6 +154,44 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 	}
 	apiErr.Message = msg
 	return apiErr
+}
+
+// failureReason is one entry of a Zuora logical-failure list — the lowercase v1
+// "reasons" array or the uppercase Object-CRUD "Errors" array.
+type failureReason struct {
+	code    string
+	message string
+}
+
+// decodeCode unquotes a Zuora reason/error code, which may be a JSON string like
+// "INVALID_VALUE" or a number like 53100020.
+func decodeCode(raw json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	return string(raw)
+}
+
+// applyReasons fills Code/Message from the parsed failure reasons: a single
+// reason becomes Code+Message; multiple are listed (Zuora frequently returns
+// several validation failures at once, and surfacing only the first hides the
+// rest).
+func (e *APIError) applyReasons(reasons []failureReason) {
+	if len(reasons) == 1 {
+		e.Code = reasons[0].code
+		e.Message = reasons[0].message
+		return
+	}
+	parts := make([]string, len(reasons))
+	for i, r := range reasons {
+		if r.code != "" {
+			parts[i] = fmt.Sprintf("[%s] %s", r.code, r.message)
+		} else {
+			parts[i] = r.message
+		}
+	}
+	e.Message = fmt.Sprintf("%d errors:\n  - %s", len(parts), strings.Join(parts, "\n  - "))
 }
 
 // ReadOnlyError is returned when a write operation is blocked in read-only mode.

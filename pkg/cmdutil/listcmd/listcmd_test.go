@@ -104,6 +104,27 @@ func TestList_TableCellsAndMoneyZeroValue(t *testing.T) {
 	assert.NotContains(t, stdout, "<nil>")
 }
 
+func TestList_MoneyCellNonFloatPassthrough(t *testing.T) {
+	// JSON numbers unmarshal to float64, so Money cells normally hit the %.2f
+	// path. But a money value delivered as a STRING is passed through verbatim —
+	// NOT coerced to two decimals (a known divergence from a strict money
+	// contract; see #352/F-29). Pin it so any change to the Money-cell rule is a
+	// visible, reviewed edit rather than a silent display change.
+	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+		"memos": []map[string]interface{}{
+			{"id": "s-1", "amount": "100.5", "status": "Posted"}, // string money
+			{"id": "f-1", "amount": 1000.0, "status": "Posted"},  // float64 money
+		},
+	})
+
+	stdout, _, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
+	require.NoError(t, err)
+
+	assert.Contains(t, stdout, "100.5")     // string passes through verbatim...
+	assert.NotContains(t, stdout, "100.50") // ...NOT re-formatted to two decimals
+	assert.Contains(t, stdout, "1000.00")   // float64 still gets %.2f
+}
+
 func TestList_ConditionalQueryAssembly(t *testing.T) {
 	var gotQuery url.Values
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -455,4 +476,39 @@ func TestList_OmitZeroIntFlagSkippedWhenUnset(t *testing.T) {
 	_, _, err = cmdtest.Run(t, "demo", newCmd(spec), handler, "demo", "list", "--page-size", "5")
 	require.NoError(t, err)
 	assert.Equal(t, "5", got.Get("pageSize"))
+}
+
+func TestList_NonStringNextPageEmitsNoHintAndNoPanic(t *testing.T) {
+	// The pagination hint reads nextPage via a `.(string)` assertion. A nextPage
+	// delivered as a non-string (number / object / bool) must fail that assertion
+	// to "" → no hint is emitted, and the command must not panic on the shape.
+	for _, np := range []interface{}{12345, map[string]interface{}{"url": "x"}, true} {
+		handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+			"memos":    []map[string]interface{}{{"id": "m-1"}},
+			"nextPage": np,
+		})
+
+		stdout, stderr, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
+		require.NoError(t, err, "non-string nextPage (%T) must not error", np)
+		assert.Contains(t, stdout, "m-1")
+		assert.NotContains(t, stderr, "More results available", "non-string nextPage (%T) must not emit a hint", np)
+	}
+}
+
+func TestList_CSVSanitizesMaliciousCells(t *testing.T) {
+	// End-to-end wiring guard (F-04): attacker-controlled cell data rendered via
+	// --csv must route through PrintCSV's sanitizer — a spreadsheet-formula
+	// trigger gets a leading quote, and ANSI escape / BiDi-override characters
+	// are stripped. Proves the sanitizer isn't bypassed on the real render path.
+	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{
+		"memos": []map[string]interface{}{
+			{"id": "=cmd()", "amount": 1.0, "status": "Active\x1b[31m\u202eevil"},
+		},
+	})
+
+	stdout, _, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list", "--csv")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, `'=cmd()`, "formula trigger must be neutralized with a leading quote")
+	assert.NotContains(t, stdout, "\x1b[", "ANSI escape must be stripped")
+	assert.NotContains(t, stdout, "\u202e", "BiDi override must be stripped")
 }

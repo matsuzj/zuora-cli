@@ -38,6 +38,7 @@ func TestFulfillmentItemDelete_RequiresConfirm(t *testing.T) {
 func TestFulfillmentItemDelete_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "delete", "--confirm")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestFulfillmentItemDelete_JSON(t *testing.T) {

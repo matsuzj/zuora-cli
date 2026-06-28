@@ -30,15 +30,17 @@ func TestFulfillmentItemGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "get", "item-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "item-001")    // id
-	assert.Contains(t, stdout, "8aca-ful-id") // fulfillmentId (was the absent flat "fulfillmentKey")
-	assert.Contains(t, stdout, "EXT-12345")   // itemIdentifier (previously not rendered)
-	assert.Contains(t, stdout, "Test Item")   // nested description
+	// Label-bound (F-08): each value under its own label.
+	assert.Regexp(t, `(?m)^ID:\s+item-001$`, stdout)
+	assert.Regexp(t, `(?m)^Fulfillment ID:\s+8aca-ful-id$`, stdout) // not the absent flat "fulfillmentKey"
+	assert.Regexp(t, `(?m)^Item Identifier:\s+EXT-12345$`, stdout)  // previously not rendered
+	assert.Regexp(t, `(?m)^Description:\s+Test Item$`, stdout)      // nested description
 }
 
 func TestFulfillmentItemGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestFulfillmentItemGet_SuccessFalse(t *testing.T) {

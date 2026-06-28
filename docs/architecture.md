@@ -6,18 +6,19 @@
 ## レイアウト
 
 ```
-cmd/zr/            main: エイリアス展開 → root.Execute → exit code 変換
+cmd/zr/            main: エイリアス展開(resolveAliasArgs)→ root.NewCmdRoot + ExecuteContext → exit code 変換
 pkg/cmd/<group>/<action>/   1コマンド=1パッケージ(gh CLI 流儀)
 pkg/cmd/root/      ルートコマンド組み立て
 pkg/cmd/factory/   DI コンテナ(IOStreams / Config / HttpClient / AuthToken、遅延初期化)
 pkg/cmd/globalflags/  グローバルフラグの定義(Register)と適用(Apply)の単一ソース
+pkg/cmd/alias/     alias の永続化(aliases.yml を所有・読み書き)
 pkg/cmdutil/       共有ランナーとヘルパー(下記)
 pkg/cmdutil/listcmd/  テーブル list コマンドの宣言的ランナー(Spec)
 pkg/output/        出力パイプライン(JSON/jq/template/CSV/table、サニタイズ)
-pkg/cmdtest/       コマンドテストハーネス(Run/OK/Reasons/Status)
+pkg/cmdtest/       コマンドテストハーネス(Run / ハンドラ OK・Reasons・Status・ObjectCRUDFailure・Route / リクエスト契約マッチャ Expect)
 internal/api/      HTTP クライアント(リトライ・読み取り専用ゲート・verbose)
 internal/auth/     OAuth TokenSource(キャッシュ・単一飛行ロック・資格情報ストア)
-internal/config/   config.yml / environments.yml / tokens.yml / aliases.yml
+internal/config/   config.yml / environments.yml / tokens.yml
 ```
 
 ## コマンドの書き方(正準)

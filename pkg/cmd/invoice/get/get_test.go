@@ -28,10 +28,19 @@ func TestInvoiceGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "get", "inv-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "INV00001")
-	assert.Contains(t, stdout, "Posted")
-	assert.Contains(t, stdout, "100.50", "amount renders as money")
-	assert.Contains(t, stdout, "50.25", "balance renders as money")
+	// Label-bound (F-08): each value under its own label.
+	assert.Regexp(t, `(?m)^Invoice Number:\s+INV00001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
+	assert.Regexp(t, `(?m)^Amount:\s+100\.50$`, stdout) // money
+	assert.Regexp(t, `(?m)^Balance:\s+50\.25$`, stdout) // money
+	// String fields are read flat with GetString (the real invoice GET is a flat
+	// object with these as strings — #340/F-17). Pin each so a wrong key renders
+	// empty and fails here.
+	assert.Regexp(t, `(?m)^ID:\s+inv-001$`, stdout)
+	assert.Regexp(t, `(?m)^Invoice Date:\s+2026-01-15$`, stdout)
+	assert.Regexp(t, `(?m)^Due Date:\s+2026-02-15$`, stdout)
+	assert.Regexp(t, `(?m)^Account ID:\s+acc-001$`, stdout)
+	assert.Regexp(t, `(?m)^Created Date:\s+2026-01-10T10:00:00Z$`, stdout)
 }
 
 func TestInvoiceGet_JSON(t *testing.T) {
@@ -49,6 +58,7 @@ func TestInvoiceGet_JSON(t *testing.T) {
 func TestInvoiceGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestInvoiceGet_SuccessFalse(t *testing.T) {

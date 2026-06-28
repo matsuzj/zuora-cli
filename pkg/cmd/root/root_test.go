@@ -3,14 +3,24 @@ package root
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/api"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// walkCommands visits every command in the tree below root (depth-first).
+func walkCommands(root *cobra.Command, fn func(*cobra.Command)) {
+	for _, c := range root.Commands() {
+		fn(c)
+		walkCommands(c, fn)
+	}
+}
 
 func TestRootHasSubcommands(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
@@ -144,4 +154,35 @@ func TestRootReadOnlyFlag_SetsReadOnlyOnClient(t *testing.T) {
 	require.Error(t, writeErr)
 	var roErr *api.ReadOnlyError
 	assert.ErrorAs(t, writeErr, &roErr)
+}
+
+func TestAllCommandsHaveShortHelp(t *testing.T) {
+	// Every command surfaced by `zr help` needs a one-line Short, or the help
+	// index shows a blank row. A leaf added without one should fail here.
+	ios, _, _, _ := iostreams.Test()
+	root := NewCmdRoot(&factory.Factory{IOStreams: ios})
+
+	var missing []string
+	walkCommands(root, func(c *cobra.Command) {
+		if c.Hidden || c.Name() == "help" {
+			return // hidden or cobra's auto-generated help shim
+		}
+		if strings.TrimSpace(c.Short) == "" {
+			missing = append(missing, c.CommandPath())
+		}
+	})
+	assert.Empty(t, missing, "these commands need a non-empty Short for `zr help`")
+}
+
+func TestRootSuggestsOnUnknownCommand(t *testing.T) {
+	// A typo'd subcommand must be rejected with cobra's "did you mean" hint, not
+	// silently treated as a positional arg.
+	ios, _, _, _ := iostreams.Test()
+	root := NewCmdRoot(&factory.Factory{IOStreams: ios})
+	root.SetArgs([]string{"accoutn"}) // transposition of "account"
+
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown command "accoutn"`)
+	assert.Contains(t, err.Error(), "Did you mean", "cobra should suggest the closest command")
 }

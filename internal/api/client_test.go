@@ -279,6 +279,58 @@ func TestClient_Verbose_MasksBearerAcrossMethods(t *testing.T) {
 	}
 }
 
+// TestRedactHeaderValue pins the shared verbose redaction helper: credential-
+// and session-bearing headers are masked (Authorization keeps its scheme),
+// everything else renders verbatim, and the key match is case-insensitive.
+func TestRedactHeaderValue(t *testing.T) {
+	cases := []struct {
+		key, in, want string
+	}{
+		{"Authorization", "Bearer abc.def", "Bearer ***"},
+		{"Authorization", "opaque-no-scheme", "***"},
+		{"Proxy-Authorization", "Basic dXNlcjpwYXNz", "Basic ***"},
+		{"Cookie", "ZSession=secret", "***"},
+		{"Set-Cookie", "ZSession=secret; HttpOnly; Secure", "***"},
+		{"set-cookie", "ZSession=secret", "***"}, // non-canonical key still matches
+		{"Content-Type", "application/json", "application/json"},
+		{"X-Request-Id", "req-1", "req-1"},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, redactHeaderValue(tc.key, tc.in), "%s: %q", tc.key, tc.in)
+	}
+}
+
+// TestClient_Verbose_RedactsResponseHeaders pins that the -v RESPONSE header
+// dump masks a session-bearing Set-Cookie (equivalent to a bearer token)
+// symmetrically with the request-side Authorization masking, while leaving
+// non-secret response headers verbatim. Guards the asymmetry where the request
+// dump masked Authorization but the response dump printed every header raw.
+func TestClient_Verbose_RedactsResponseHeaders(t *testing.T) {
+	const sessionCookie = "ZSession=super-secret-session-value"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Set-Cookie", sessionCookie)
+		w.Header().Set("X-Request-Id", "req-123")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	client := NewClient(
+		WithBaseURL(server.URL),
+		WithTokenSource(func(context.Context) (string, error) { return "secret-token", nil }),
+	)
+	client.SetVerbose(&buf)
+
+	_, err := client.Get("/v1/test")
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.NotContains(t, out, "super-secret-session-value", "Set-Cookie value must not leak in verbose output")
+	assert.Contains(t, out, "Set-Cookie: ***", "Set-Cookie must be redacted in the response dump")
+	assert.Contains(t, out, "X-Request-Id: req-123", "non-secret response headers still render verbatim")
+}
+
 // --- Read-Only Mode Tests ---
 
 func TestClient_ReadOnly_POSTBlocked(t *testing.T) {
@@ -419,6 +471,41 @@ func TestClient_ReadOnly_SubscriptionPreviewChangeRegexAllowed(t *testing.T) {
 	resp, err := client.Post("/v1/subscriptions/SUB-00001234/preview", strings.NewReader(`{}`))
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
+}
+
+// TestIsReadOnlyAllowed_NearMissAndNormalization pins that the read-only POST
+// allowlist fails CLOSED on near-miss / normalization tricks: a path must match
+// an allowlisted read-only endpoint EXACTLY (after lowercasing + query strip) to
+// be permitted. Trailing slashes, dot-segments, and extra path segments must NOT
+// sneak a write past the gate, and PUT/DELETE/PATCH are blocked even on an
+// allowlisted path.
+func TestIsReadOnlyAllowed_NearMissAndNormalization(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		want   bool
+	}{
+		// allowed baselines
+		{"GET always allowed", "GET", "v1/orders/O-1", true},
+		{"allowlisted ZOQL query", "POST", "v1/action/query", true},
+		{"case-insensitive allowlist", "POST", "V1/ACTION/QUERY", true},
+		{"query string stripped before matching", "POST", "v1/orders/preview?async=true", true},
+		{"regexp preview-change match", "POST", "v1/subscriptions/SUB-1/preview", true},
+		// near-misses: must fail closed (blocked)
+		{"trailing slash is not the allowlisted path", "POST", "v1/action/query/", false},
+		{"dot-segments do not resolve into an allowlisted path", "POST", "v1/action/query/../../v1/orders", false},
+		{"extra segment after preview is not allowlisted", "POST", "v1/subscriptions/SUB-1/preview/extra", false},
+		{"non-allowlisted write POST is blocked", "POST", "v1/orders", false},
+		{"PUT to an allowlisted path is still blocked", "PUT", "v1/action/query", false},
+		{"DELETE is always blocked", "DELETE", "v1/orders/O-1", false},
+		{"PATCH is always blocked", "PATCH", "v1/orders/O-1", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isReadOnlyAllowed(tc.method, tc.path), "%s %s", tc.method, tc.path)
+		})
+	}
 }
 
 func TestClient_ReadOnly_MeterSummaryRegexAllowed(t *testing.T) {

@@ -28,9 +28,10 @@ func TestPaymentGet_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "pay-001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "P-00000001")
-	assert.Contains(t, stdout, "100.00", "amount must render with cents")
-	assert.Contains(t, stdout, "Processed")
+	// Label-bound (F-08): each value under its own label, not just present.
+	assert.Regexp(t, `(?m)^Payment Number:\s+P-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Amount:\s+100\.00$`, stdout) // money: two decimals
+	assert.Regexp(t, `(?m)^Status:\s+Processed$`, stdout)
 }
 
 func TestPaymentGet_LargeAmountNotScientific(t *testing.T) {
@@ -42,7 +43,7 @@ func TestPaymentGet_LargeAmountNotScientific(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "get", "pay-002")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "1234567.89", "large amount must render as a plain decimal")
+	assert.Regexp(t, `(?m)^Amount:\s+1234567\.89$`, stdout) // plain decimal under its label
 	assert.NotContains(t, stdout, "e+", "amount must not use scientific notation")
 }
 
@@ -61,6 +62,7 @@ func TestPaymentGet_JSON(t *testing.T) {
 func TestPaymentGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "get")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestPaymentGet_SuccessFalse(t *testing.T) {

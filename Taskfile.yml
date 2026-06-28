@@ -32,7 +32,7 @@ tasks:
 
 
   lint:
-    desc: Run linters (go vet + staticcheck pinned via go.mod's tool directive)
+    desc: Run linters (go vet + staticcheck + deadcode, plus Examples-in-Long and README destructive-list checks; staticcheck pinned via go.mod's tool directive)
     cmds:
       - make lint
 
@@ -67,7 +67,7 @@ tasks:
       - make modverify
 
   cover:
-    desc: Run tests and enforce the 73% coverage floor (matches CI)
+    desc: Run tests and enforce the coverage floors (78% total + 60% per-package, matches CI)
     cmds:
       - make cover
 

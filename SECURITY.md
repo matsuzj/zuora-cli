@@ -36,7 +36,11 @@ release supply chain:
   command line is discouraged because it lands in shell history (the CLI warns
   about this).
 - **Verbose output** (`-v` / `-vv`) is designed never to echo the client secret
-  or issued tokens; a regression test pins this.
+  or issued tokens. Credential- and session-bearing HTTP headers are masked
+  symmetrically in both the request and response header dumps — request
+  `Authorization` / `Cookie` and response `Set-Cookie` (a session token
+  equivalent) — keeping the auth scheme but hiding the value; regression tests
+  pin this.
 - **Release artifacts** carry a signed [build-provenance attestation][prov].
   Verify a download with:
 

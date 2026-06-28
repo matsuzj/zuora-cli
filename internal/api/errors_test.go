@@ -111,6 +111,71 @@ func TestParseAPIError_MultipleReasons(t *testing.T) {
 	assert.Contains(t, got, "53100020", "numeric reason codes should appear as digits, not quoted")
 }
 
+// TestParseAPIError_ObjectCRUDSingleError pins that the uppercase Object-CRUD
+// failure envelope ({"Success":false,"Errors":[{"Code","Message"}]}) is parsed
+// into a clean Code/Message — before this branch existed it fell through to the
+// raw-body fallback, leaking the whole JSON blob as the message.
+func TestParseAPIError_ObjectCRUDSingleError(t *testing.T) {
+	e := parseAPIError(http.StatusBadRequest, []byte(`{"Success":false,"Errors":[{"Code":"INVALID_VALUE","Message":"bad quantity"}]}`))
+	assert.Equal(t, "INVALID_VALUE", e.Code)
+	assert.Equal(t, "bad quantity", e.Message)
+}
+
+// TestParseAPIError_ObjectCRUDMultipleErrors pins that every uppercase error is
+// surfaced, mirroring the v1 multi-reason behavior.
+func TestParseAPIError_ObjectCRUDMultipleErrors(t *testing.T) {
+	body := []byte(`{"Success":false,"Errors":[{"Code":"C1","Message":"first"},{"Code":"REQUIRED_VALUE_MISSING","Message":"second"}]}`)
+	got := parseAPIError(http.StatusBadRequest, body).Error()
+	assert.Contains(t, got, "2 errors")
+	assert.Contains(t, got, "first")
+	assert.Contains(t, got, "second")
+	assert.Contains(t, got, "REQUIRED_VALUE_MISSING")
+}
+
+// The error path is not just HTTP 200 + {"success":false}: real failures arrive
+// as 4xx/5xx with assorted bodies. The next tests pin the remaining parse shapes
+// and that the HTTP status is preserved regardless of body.
+
+func TestParseAPIError_V2ErrorObjectShape(t *testing.T) {
+	// Newer REST surfaces a single error object: {"error":{"code","message"}}.
+	e := parseAPIError(http.StatusBadRequest, []byte(`{"error":{"code":"INVALID_TOKEN","message":"token expired"}}`))
+	assert.Equal(t, "INVALID_TOKEN", e.Code)
+	assert.Equal(t, "token expired", e.Message)
+	assert.Equal(t, http.StatusBadRequest, e.StatusCode)
+}
+
+func TestParseAPIError_V3TopLevelMessageShape(t *testing.T) {
+	// Some gateways return a bare {"message":"..."} with no reasons/error object.
+	e := parseAPIError(http.StatusNotFound, []byte(`{"message":"resource not found"}`))
+	assert.Equal(t, "resource not found", e.Message)
+	assert.Equal(t, http.StatusNotFound, e.StatusCode)
+}
+
+func TestParseAPIError_NonJSONBodyFallsBackToRaw(t *testing.T) {
+	// A proxy/CDN 502 often returns HTML or plain text, not JSON; the raw body
+	// becomes the message instead of being silently dropped.
+	e := parseAPIError(http.StatusBadGateway, []byte("<html>502 Bad Gateway</html>"))
+	assert.Contains(t, e.Message, "502 Bad Gateway")
+	assert.Equal(t, http.StatusBadGateway, e.StatusCode)
+}
+
+func TestParseAPIError_EmptyBodyKeepsStatus(t *testing.T) {
+	// A bodyless 5xx must still produce a non-nil error carrying the status.
+	e := parseAPIError(http.StatusServiceUnavailable, nil)
+	require.NotNil(t, e)
+	assert.Equal(t, http.StatusServiceUnavailable, e.StatusCode)
+	assert.Empty(t, e.Message)
+}
+
+func TestParseAPIError_OversizedBodyTruncated(t *testing.T) {
+	// A huge non-JSON body is truncated with an ellipsis so the error stays
+	// readable rather than dumping kilobytes.
+	big := strings.Repeat("x", maxRawErrorBody+500)
+	e := parseAPIError(http.StatusInternalServerError, []byte(big))
+	assert.Equal(t, maxRawErrorBody+len("..."), len(e.Message))
+	assert.True(t, strings.HasSuffix(e.Message, "..."), "oversized body must be truncated with ...")
+}
+
 // TestReadOnlyError_Error_BothForms pins both ReadOnlyError messages: the
 // detailed form when Method+Path are set, and the generic fallback otherwise.
 func TestReadOnlyError_Error_BothForms(t *testing.T) {

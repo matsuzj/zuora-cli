@@ -57,3 +57,32 @@ func TestFulfillmentItemCreate_SuccessFalse(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Invalid fulfillment item data")
 }
+
+func TestFulfillmentItemCreate_EmptyArraySuppressesSuccessMsg(t *testing.T) {
+	// Bulk endpoint returned no items: firstItemID is empty, so the "created."
+	// confirmation must be suppressed (no false success).
+	handler := cmdtest.OK(t, "POST", "/v1/fulfillment-items", map[string]interface{}{
+		"success":          true,
+		"fulfillmentItems": []map[string]interface{}{},
+	})
+
+	_, stderr, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "create", "--body", `{"fulfillmentKey":"F-001"}`)
+	require.NoError(t, err)
+	assert.NotContains(t, stderr, "created.", "empty bulk array → no success confirmation")
+}
+
+func TestFulfillmentItemCreate_MultipleItemsRendersFirst(t *testing.T) {
+	// Bulk array with >1 item: only the FIRST id is rendered (firstItemID).
+	handler := cmdtest.OK(t, "POST", "/v1/fulfillment-items", map[string]interface{}{
+		"success": true,
+		"fulfillmentItems": []map[string]interface{}{
+			{"id": "fi-001"}, {"id": "fi-002"},
+		},
+	})
+
+	stdout, stderr, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "create", "--body", `{"fulfillmentKey":"F-001"}`)
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "fi-001")
+	assert.NotContains(t, stdout, "fi-002", "only the first created item is rendered")
+	assert.Contains(t, stderr, "Fulfillment item fi-001 created.")
+}

@@ -37,7 +37,9 @@ func runBalance(cmd *cobra.Command, f *factory.Factory, commitmentID string) err
 		return err
 	}
 
-	resp, err := client.Get(fmt.Sprintf("/v1/commitments/%s/balance", url.PathEscape(commitmentID)))
+	// Zuora's balance endpoint is "/balancepreview" (previews current & past
+	// periods); a plain "/balance" path does not exist and 404s.
+	resp, err := client.Get(fmt.Sprintf("/v1/commitments/%s/balancepreview", url.PathEscape(commitmentID)))
 	if err != nil {
 		return err
 	}

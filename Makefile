@@ -21,7 +21,7 @@ test:
 # to 0% must fail — keep this list explicit so a package that loses its tests
 # cannot silently slip through.
 COVER_EXEMPT := pkg/cmd/account pkg/cmd/billrun pkg/cmd/charge pkg/cmd/commitment \
-	pkg/cmd/contact pkg/cmd/creditmemo pkg/cmd/debitmemo pkg/cmd/fulfillment \
+	pkg/cmd/contact pkg/cmd/creditmemo pkg/cmd/data-query pkg/cmd/debitmemo pkg/cmd/fulfillment \
 	pkg/cmd/fulfillment-item pkg/cmd/invoice pkg/cmd/meter pkg/cmd/omnichannel \
 	pkg/cmd/order pkg/cmd/order-action pkg/cmd/order-line-item pkg/cmd/payment \
 	pkg/cmd/plan pkg/cmd/prepaid pkg/cmd/product pkg/cmd/ramp pkg/cmd/rateplan \

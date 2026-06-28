@@ -198,13 +198,21 @@ func (e *APIError) applyReasons(reasons []failureReason) {
 type ReadOnlyError struct {
 	Method string
 	Path   string
+	// Hint, when non-empty, appends extra guidance to the message (e.g. the
+	// Data Query opt-in toggle). It is empty for ordinary write blocks, so the
+	// existing message — and the tests asserting it — stay unchanged.
+	Hint string
 }
 
 func (e *ReadOnlyError) Error() string {
+	msg := "blocked: write operation not allowed in read-only mode. Remove --read-only flag or unset ZR_READ_ONLY to enable write operations"
 	if e.Method != "" && e.Path != "" {
-		return fmt.Sprintf("blocked: %s %s not allowed in read-only mode. Remove --read-only flag or unset ZR_READ_ONLY to enable write operations", e.Method, e.Path)
+		msg = fmt.Sprintf("blocked: %s %s not allowed in read-only mode. Remove --read-only flag or unset ZR_READ_ONLY to enable write operations", e.Method, e.Path)
 	}
-	return "blocked: write operation not allowed in read-only mode. Remove --read-only flag or unset ZR_READ_ONLY to enable write operations"
+	if e.Hint != "" {
+		msg += ". " + e.Hint
+	}
+	return msg
 }
 
 // ExitCode returns 5 for read-only violations (1=general, 2=auth, 3=4xx, 4=5xx, 5=read-only).

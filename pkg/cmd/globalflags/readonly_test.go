@@ -53,6 +53,43 @@ func TestEnvReadOnly_Unset(t *testing.T) {
 	assert.False(t, EnvReadOnly())
 }
 
+func TestEnvReadOnlyAllowDataQuery(t *testing.T) {
+	cases := []struct {
+		val  string
+		want bool
+	}{
+		{"", false},
+		{"true", true},
+		{"TRUE", true},
+		{"1", true},
+		{"yes", true},
+		{"y", true},
+		{"on", true},
+		{"t", true},
+		{"false", false},
+		{"0", false},
+		{"no", false},
+		{"off", false},
+		{"n", false},
+		// Fail-safe is the OPPOSITE of EnvReadOnly: this knob RELAXES read-only,
+		// so an unrecognized value must NOT widen (parses false).
+		{"maybe", false},
+		{"  true  ", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.val, func(t *testing.T) {
+			t.Setenv("ZR_READ_ONLY_ALLOW_DATA_QUERY", tc.val)
+			assert.Equal(t, tc.want, EnvReadOnlyAllowDataQuery(), "ZR_READ_ONLY_ALLOW_DATA_QUERY=%q", tc.val)
+		})
+	}
+}
+
+func TestEnvReadOnlyAllowDataQuery_Unset(t *testing.T) {
+	t.Setenv("ZR_READ_ONLY_ALLOW_DATA_QUERY", "")
+	os.Unsetenv("ZR_READ_ONLY_ALLOW_DATA_QUERY")
+	assert.False(t, EnvReadOnlyAllowDataQuery())
+}
+
 func TestVerboseLevels(t *testing.T) {
 	cases := []struct {
 		count         int

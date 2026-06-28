@@ -34,7 +34,12 @@ type Client struct {
 	verboseBody   bool
 	verboseWriter io.Writer
 	readOnly      bool
-	ctx           context.Context
+	// readOnlyAllowDataQuery, when true, lets Data Query's submit (POST
+	// /query/jobs) and cancel (DELETE /query/jobs/{id}) through in read-only
+	// mode. It widens ONLY those two endpoints (isDataQueryWrite); every other
+	// write stays blocked.
+	readOnlyAllowDataQuery bool
+	ctx                    context.Context
 	// sleep waits for d or until the context is cancelled; it is a seam so
 	// tests can run the retry loop without real backoff delays.
 	sleep func(ctx context.Context, d time.Duration) error
@@ -214,6 +219,12 @@ func redactHeaderValue(key, value string) string {
 // SetReadOnly enables or disables read-only mode.
 func (c *Client) SetReadOnly(v bool) { c.readOnly = v }
 
+// SetReadOnlyAllowDataQuery toggles whether Data Query writes (submit/cancel)
+// are permitted in read-only mode. Off by default (fail-closed); only the
+// explicit --read-only-allow-data-query / ZR_READ_ONLY_ALLOW_DATA_QUERY opt-in
+// turns it on.
+func (c *Client) SetReadOnlyAllowDataQuery(v bool) { c.readOnlyAllowDataQuery = v }
+
 // SetContext sets the base context used for all requests.
 func (c *Client) SetContext(ctx context.Context) {
 	if ctx != nil {
@@ -252,7 +263,17 @@ func (c *Client) checkHost(fullURL string) error {
 // Do performs an HTTP request.
 func (c *Client) Do(method, path string, opts ...RequestOption) (*Response, error) {
 	if c.readOnly && !isReadOnlyAllowed(method, path) {
-		return nil, &ReadOnlyError{Method: method, Path: path}
+		// Data Query is read-only in spirit but submits via POST and cancels via
+		// DELETE, so those two endpoints are blocked by default and allowed only
+		// when the explicit --read-only-allow-data-query opt-in is set.
+		dq := isDataQueryWrite(method, path)
+		if !(c.readOnlyAllowDataQuery && dq) {
+			roErr := &ReadOnlyError{Method: method, Path: path}
+			if dq {
+				roErr.Hint = "Data Query is read-only; pass --read-only-allow-data-query (or set ZR_READ_ONLY_ALLOW_DATA_QUERY=1) to allow it"
+			}
+			return nil, roErr
+		}
 	}
 
 	rc := newRequestConfig(opts)
@@ -513,4 +534,25 @@ func isReadOnlyAllowed(method, path string) bool {
 		// PUT, DELETE, PATCH, etc.
 		return false
 	}
+}
+
+// dataQueryJobPattern matches a Data Query job path with a single id segment,
+// e.g. "query/jobs/2c92c0f8...". A trailing slash or extra segment does not
+// match, keeping the opt-in narrow.
+var dataQueryJobPattern = regexp.MustCompile(`^query/jobs/[^/]+$`)
+
+// isDataQueryWrite reports whether method+path is a Data Query write that is
+// read-only in spirit but uses POST/DELETE: submit (POST query/jobs) or cancel
+// (DELETE query/jobs/{id}). isReadOnlyAllowed never returns true for these, so
+// the default stays fail-closed; they are permitted only when the
+// --read-only-allow-data-query opt-in is set (see Client.Do).
+func isDataQueryWrite(method, path string) bool {
+	p := extractPath(path)
+	switch strings.ToUpper(method) {
+	case http.MethodPost:
+		return p == "query/jobs"
+	case http.MethodDelete:
+		return dataQueryJobPattern.MatchString(p)
+	}
+	return false
 }

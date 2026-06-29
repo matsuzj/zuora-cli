@@ -115,7 +115,15 @@ func runRun(cmd *cobra.Command, f *factory.Factory, opts *runOptions, args []str
 	for !dqutil.IsTerminalStatus(status) {
 		fmt.Fprintf(f.IOStreams.ErrOut, "Data Query job %s: %s (polling in %s...)\n", jobID, status, opts.Interval)
 		if err := cmdutil.SleepContext(pollCtx, opts.Interval); err != nil {
-			return waitErr(err, jobID, opts.Timeout, status)
+			// Only frame a deadline as "gave up after <timeout>" when the LOCAL
+			// --timeout set it. With opts.Timeout==0 the deadline came from the
+			// global `zr --timeout`, so waitErr would print "after 0s" and a
+			// "raise --timeout" hint that does not apply — return the raw error,
+			// mirroring the mid-GET branch below. (#428)
+			if opts.Timeout > 0 {
+				return waitErr(err, jobID, opts.Timeout, status)
+			}
+			return err
 		}
 		gresp, err := client.Get(dqutil.JobPath(jobID))
 		if err != nil {
@@ -155,7 +163,10 @@ func runRun(cmd *cobra.Command, f *factory.Factory, opts *runOptions, args []str
 			dctx, dcancel = context.WithTimeout(baseCtx, opts.DownloadTimeout)
 			defer dcancel()
 		}
-		if err := dqutil.DownloadToFile(dctx, dataFile, opts.Output, f.IOStreams.Out, dqutil.DownloadClientForTest); err != nil {
+		// Production passes nil so DownloadStream builds the hardened client; the
+		// test seam (DownloadClientForTest) is consulted inside DownloadStream,
+		// not wired through production code. (#440)
+		if err := dqutil.DownloadToFile(dctx, dataFile, opts.Output, f.IOStreams.Out, nil); err != nil {
 			if errors.Is(dctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("downloading data-query result for job %s timed out (after --download-timeout %s)", jobID, opts.DownloadTimeout)
 			}

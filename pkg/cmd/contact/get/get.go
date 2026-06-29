@@ -42,6 +42,9 @@ func runGet(cmd *cobra.Command, f *factory.Factory, id string) error {
 				{Key: "State", Value: cmdutil.GetString(raw, "state")},
 				{Key: "City", Value: cmdutil.GetString(raw, "city")},
 				{Key: "Address 1", Value: cmdutil.GetString(raw, "address1")},
+				// address2 is a documented top-level field (live-verified); without
+				// this row a multi-line street address silently loses line 2. (#427)
+				{Key: "Address 2", Value: cmdutil.GetString(raw, "address2")},
 				{Key: "Postal Code", Value: cmdutil.GetString(raw, "zipCode")},
 				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
 			}

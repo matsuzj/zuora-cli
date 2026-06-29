@@ -1,8 +1,13 @@
 package query
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -167,4 +172,59 @@ func TestQuery_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "query")
 
 	assert.Error(t, err)
+}
+
+func TestQuery_ExportWritesFileAtomically(t *testing.T) {
+	// --export writes the result to a temp file in the target's directory and
+	// renames it on success. Verify the file lands with the data and that no
+	// .zr-export-* temp file is left behind (the deferred rename/cleanup ran). (#436)
+	handler := cmdtest.OK(t, "POST", "/v1/action/query", map[string]interface{}{
+		"records": []map[string]interface{}{
+			{"Id": "001", "Name": "Acme"},
+			{"Id": "002", "Name": "Beta"},
+		},
+		"size": 2, "done": true,
+	})
+
+	dir := t.TempDir()
+	out := filepath.Join(dir, "res.csv")
+	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--csv", "--export", out)
+	require.NoError(t, err)
+
+	b, rerr := os.ReadFile(out)
+	require.NoError(t, rerr)
+	assert.Contains(t, string(b), "001")
+	assert.Contains(t, string(b), "Acme")
+
+	entries, rerr := os.ReadDir(dir)
+	require.NoError(t, rerr)
+	for _, e := range entries {
+		assert.False(t, strings.HasPrefix(e.Name(), ".zr-export-"), "atomic export leaked a temp file: %s", e.Name())
+	}
+}
+
+func TestQuery_ExportFormatsNestedObjectCells(t *testing.T) {
+	// formatCell JSON-encodes non-scalar (map/slice) ZOQL record values. Drive
+	// that path through --export and assert the cells are the JSON encodings. (#436)
+	handler := cmdtest.OK(t, "POST", "/v1/action/query", map[string]interface{}{
+		"records": []map[string]interface{}{
+			{"Id": "001", "BillTo": map[string]interface{}{"city": "NYC"}, "Tags": []interface{}{"a", "b"}},
+		},
+		"size": 1, "done": true,
+	})
+
+	out := filepath.Join(t.TempDir(), "nested.csv")
+	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, BillTo, Tags FROM Account", "--csv", "--export", out)
+	require.NoError(t, err)
+
+	b, rerr := os.ReadFile(out)
+	require.NoError(t, rerr)
+	rows, perr := csv.NewReader(bytes.NewReader(b)).ReadAll()
+	require.NoError(t, perr)
+	require.GreaterOrEqual(t, len(rows), 2, "header + one data row")
+
+	// Flatten the data row and confirm the nested object/array rendered as JSON.
+	cells := strings.Join(rows[1], "\x00")
+	assert.Contains(t, cells, `{"city":"NYC"}`, "nested object cell must be JSON-encoded")
+	assert.Contains(t, cells, `["a","b"]`, "array cell must be JSON-encoded")
 }

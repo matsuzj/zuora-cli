@@ -30,8 +30,12 @@ func TestPaymentCreate_Success(t *testing.T) {
 	stdout, stderr, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "create", "--body", `{"amount":100,"accountId":"acc-001"}`)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "pay-001")
-	assert.Contains(t, stdout, "P-00000001", "Payment Number must render from the real response key")
+	// Label-bound (F-08): each value under its OWN label — a wrong key rendering
+	// an empty row would pass a bare Contains. (#432)
+	assert.Regexp(t, `(?m)^ID:\s+pay-001$`, stdout)
+	assert.Regexp(t, `(?m)^Payment Number:\s+P-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Amount:\s+100\.00$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Processed$`, stdout)
 	assert.Contains(t, stderr, "Payment pay-001 created.")
 }
 

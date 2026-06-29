@@ -26,7 +26,10 @@ func TestPaymentRefund_Success(t *testing.T) {
 	// Refund Number is sourced from "number" (live-verified; "refundNumber"
 	// never existed). Bites if production reverts to the wrong key. (#420)
 	assert.Regexp(t, `(?m)^Refund Number:\s+R-00001$`, stdout)
-	assert.Contains(t, stdout, "Processed")
+	// Label-bound Amount/Status — a wrong key rendering an empty row would pass
+	// a bare Contains. (#432)
+	assert.Regexp(t, `(?m)^Amount:\s+50\.00$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Processed$`, stdout)
 }
 
 func TestPaymentRefund_RequiresBody(t *testing.T) {

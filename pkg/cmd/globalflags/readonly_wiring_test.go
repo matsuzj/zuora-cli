@@ -81,6 +81,30 @@ func TestApply_ZRReadOnlyEnvBlocksWrites(t *testing.T) {
 	assert.False(t, *hit)
 }
 
+// TestApply_ZRReadOnlyAllowDataQueryEnvOptsInWrites: ZR_READ_ONLY=true blocks
+// writes, but the ZR_READ_ONLY_ALLOW_DATA_QUERY=1 env var must opt data-query
+// submits (POST /query/jobs) back in via Apply — the primary CI deployment
+// mechanism. A regression dropping globalflags.go's env fallback would leave the
+// opt-in silently inert (all data-query writes blocked). Non-data-query writes
+// stay blocked. (#434)
+func TestApply_ZRReadOnlyAllowDataQueryEnvOptsInWrites(t *testing.T) {
+	t.Setenv("ZR_READ_ONLY", "true")
+	t.Setenv("ZR_READ_ONLY_ALLOW_DATA_QUERY", "1")
+	client, hit := applyReadOnlyClient(t) // no flags — env path only
+
+	var roErr *api.ReadOnlyError
+	// A non-data-query write stays blocked.
+	_, err := client.Post("/v1/orders", nil)
+	require.Error(t, err)
+	assert.ErrorAs(t, err, &roErr, "non-data-query writes stay blocked under ZR_READ_ONLY")
+	assert.False(t, *hit, "the blocked write must not reach the server")
+
+	// A data-query submit is opted in by ZR_READ_ONLY_ALLOW_DATA_QUERY=1.
+	_, err = client.Post("/query/jobs", nil)
+	require.NoError(t, err, "ZR_READ_ONLY_ALLOW_DATA_QUERY=1 (env) must allow data-query submits")
+	assert.True(t, *hit, "the data-query submit must reach the server")
+}
+
 // TestApply_ReadOnlyFlagFalseOverridesEnv: an explicit --read-only=false wins
 // over ZR_READ_ONLY=true (flag precedence — the !Changed guard in Apply).
 func TestApply_ReadOnlyFlagFalseOverridesEnv(t *testing.T) {

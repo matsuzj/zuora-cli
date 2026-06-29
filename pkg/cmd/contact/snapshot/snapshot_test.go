@@ -16,16 +16,21 @@ func TestContactSnapshot_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/contact-snapshots/snap-123", map[string]interface{}{
 		"id": "snap-123", "firstName": "John", "lastName": "Doe",
 		"workEmail": "j@example.com", "country": "US", "contactId": "c-456",
+		"zipCode": "1000000",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "snapshot", "snap-123")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "snap-123")
-	assert.Contains(t, stdout, "John")
-	assert.Contains(t, stdout, "Doe")
-	assert.Contains(t, stdout, "j@example.com")
-	assert.Contains(t, stdout, "US")
-	assert.Contains(t, stdout, "c-456")
+	// Label-bound (F-08): each value must render under its OWN label, not merely
+	// appear somewhere — a value under the wrong label would pass a bare
+	// assert.Contains. Mirrors peer contact/get_test.
+	assert.Regexp(t, `(?m)^ID:\s+snap-123$`, stdout)
+	assert.Regexp(t, `(?m)^First Name:\s+John$`, stdout)
+	assert.Regexp(t, `(?m)^Last Name:\s+Doe$`, stdout)
+	assert.Regexp(t, `(?m)^Email:\s+j@example\.com$`, stdout)
+	assert.Regexp(t, `(?m)^Country:\s+US$`, stdout)
+	assert.Regexp(t, `(?m)^Postal Code:\s+1000000$`, stdout)
+	assert.Regexp(t, `(?m)^Contact ID:\s+c-456$`, stdout)
 }
 
 func TestContactSnapshot_RequiresArgs(t *testing.T) {

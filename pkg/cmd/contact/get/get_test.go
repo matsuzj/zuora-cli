@@ -16,6 +16,7 @@ func TestContactGet_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/contacts/c-123", map[string]interface{}{
 		"id": "c-123", "firstName": "John", "lastName": "Doe",
 		"workEmail": "j@example.com", "country": "US",
+		"address1": "1 Main St", "address2": "Suite 5",
 		// Zuora returns the postal code under "zipCode" (not "postalCode").
 		// The distinctive value guards the postalCode->zipCode fix: reverting
 		// the key would leave the "Postal Code" row blank and fail the assertion.
@@ -31,6 +32,9 @@ func TestContactGet_Success(t *testing.T) {
 	assert.Regexp(t, `(?m)^Last Name:\s+Doe$`, stdout)
 	assert.Regexp(t, `(?m)^Email:\s+j@example\.com$`, stdout)
 	assert.Regexp(t, `(?m)^Country:\s+US$`, stdout)
+	assert.Regexp(t, `(?m)^Address 1:\s+1 Main St$`, stdout)
+	// Bites if the Address 2 row (address2) is dropped. (#427)
+	assert.Regexp(t, `(?m)^Address 2:\s+Suite 5$`, stdout)
 	assert.Regexp(t, `(?m)^Postal Code:\s+1000000$`, stdout)
 }
 

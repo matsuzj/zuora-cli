@@ -181,8 +181,10 @@ func FirstNonEmpty(vals ...string) string {
 }
 
 // DownloadClientForTest overrides the hardened download client when non-nil.
-// Test seam only — production code passes nil so DownloadStream builds the
-// hardened client (no auth, redirects refused, compression disabled).
+// Test seam only — production code passes nil and DownloadStream consults this
+// var itself, so production callers never reference *ForTest. When unset (nil),
+// DownloadStream builds the hardened client (no auth, redirects refused,
+// compression disabled).
 var DownloadClientForTest *http.Client
 
 // HardenedDownloadClient builds the HTTP client used to fetch the S3 dataFile.
@@ -212,6 +214,11 @@ func DownloadStream(ctx context.Context, rawURL string, w io.Writer, client *htt
 	}
 	if !strings.EqualFold(u.Scheme, "https") || u.Host == "" || u.User != nil {
 		return fmt.Errorf("refusing to download dataFile from %q: require an https URL with no embedded credentials", rawURL)
+	}
+	if client == nil {
+		// Production callers pass nil; honor the test seam here (not in command
+		// code) so production paths never reference *ForTest. (#440)
+		client = DownloadClientForTest
 	}
 	if client == nil {
 		client = HardenedDownloadClient()

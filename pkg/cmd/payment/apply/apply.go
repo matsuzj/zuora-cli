@@ -50,14 +50,14 @@ func runApply(cmd *cobra.Command, opts *applyOptions, paymentID string) error {
 		Body:   bodyReader,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				// The Payments response field is "number" (matching get/
 				// creditmemo/debitmemo); "paymentNumber" never existed — see
 				// payment/get (verified live).
 				{Key: "Payment Number", Value: cmdutil.GetString(raw, "number")},
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Success", Value: cmdutil.GetBool(raw, "success")},
 			}
 		},
 		SuccessMsg: func(raw map[string]interface{}) string {

@@ -33,9 +33,9 @@ func runGet(cmd *cobra.Command, f *factory.Factory, creditMemoID string) error {
 		Path:   fmt.Sprintf("/v1/creditmemos/%s", url.PathEscape(creditMemoID)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-				{Key: "Number", Value: cmdutil.GetDecimal(raw, "number")},
-				{Key: "Credit Memo Date", Value: cmdutil.GetDecimal(raw, "creditMemoDate")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Number", Value: cmdutil.GetString(raw, "number")},
+				{Key: "Credit Memo Date", Value: cmdutil.GetString(raw, "creditMemoDate")},
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Applied Amount", Value: cmdutil.GetMoney(raw, "appliedAmount")},
 				{Key: "Refund Amount", Value: cmdutil.GetMoney(raw, "refundAmount")},
@@ -43,13 +43,13 @@ func runGet(cmd *cobra.Command, f *factory.Factory, creditMemoID string) error {
 				// (live-verified); there is no top-level "balance" field (that is a
 				// debit-memo field). See #418.
 				{Key: "Balance", Value: cmdutil.GetMoney(raw, "unappliedAmount")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Currency", Value: cmdutil.GetDecimal(raw, "currency")},
-				{Key: "Reason Code", Value: cmdutil.GetDecimal(raw, "reasonCode")},
-				{Key: "Referred Invoice ID", Value: cmdutil.GetDecimal(raw, "referredInvoiceId")},
-				{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
-				{Key: "Account Number", Value: cmdutil.GetDecimal(raw, "accountNumber")},
-				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Currency", Value: cmdutil.GetString(raw, "currency")},
+				{Key: "Reason Code", Value: cmdutil.GetString(raw, "reasonCode")},
+				{Key: "Referred Invoice ID", Value: cmdutil.GetString(raw, "referredInvoiceId")},
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+				{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+				{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
 			}
 		},
 	})

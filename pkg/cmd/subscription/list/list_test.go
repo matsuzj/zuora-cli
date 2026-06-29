@@ -16,7 +16,7 @@ func TestSubscriptionList_Table(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/accounts/A001", map[string]interface{}{
 		"subscriptions": []map[string]interface{}{
 			{
-				"id": "sub-1", "subscriptionNumber": "A-S001", "name": "Gold Plan",
+				"id": "sub-1", "subscriptionNumber": "A-S001",
 				"status": "Active", "termType": "TERMED",
 				"termStartDate": "2025-01-01", "termEndDate": "2026-01-01",
 			},
@@ -25,21 +25,23 @@ func TestSubscriptionList_Table(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account-key", "A001")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "Gold Plan")
 	assert.Contains(t, stdout, "A-S001")
 	assert.Contains(t, stdout, "Active")
+	// The redundant always-blank NAME column was removed (no top-level "name"
+	// in the response, live-verified). Bites if the header is reintroduced. (#438)
+	assert.NotContains(t, stdout, "NAME")
 }
 
 func TestSubscriptionList_JSON(t *testing.T) {
 	handler := cmdtest.OK(t, "", "", map[string]interface{}{
 		"subscriptions": []map[string]interface{}{
-			{"id": "sub-1", "name": "Gold Plan"},
+			{"id": "sub-1", "subscriptionNumber": "A-S001"},
 		},
 	})
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "list", "--account-key", "A001", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, `"name"`)
+	assert.Contains(t, stdout, `"subscriptionNumber"`)
 }
 
 func TestSubscriptionList_SuccessFalse(t *testing.T) {

@@ -14,7 +14,7 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestSubscriptionGet_Detail(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/A-S001", map[string]interface{}{
-		"id": "sub-1", "subscriptionNumber": "A-S001", "name": "Gold Plan",
+		"id": "sub-1", "subscriptionNumber": "A-S001",
 		"status": "Active", "accountId": "acct-1", "termType": "TERMED",
 		"termStartDate": "2025-01-01", "termEndDate": "2026-01-01",
 	})
@@ -22,9 +22,11 @@ func TestSubscriptionGet_Detail(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "get", "A-S001")
 	require.NoError(t, err)
 	// Label-bound (F-08): values under their own labels.
-	assert.Regexp(t, `(?m)^Name:\s+Gold Plan$`, stdout)
 	assert.Regexp(t, `(?m)^Subscription Number:\s+A-S001$`, stdout)
 	assert.Regexp(t, `(?m)^Status:\s+Active$`, stdout)
+	// The subscription response has no top-level "name" (live-verified); the
+	// redundant always-blank Name row was removed. Bites if it is reintroduced. (#438)
+	assert.NotRegexp(t, `(?m)^Name:\s`, stdout)
 }
 
 func TestSubscriptionGet_SuccessFalse(t *testing.T) {
@@ -39,10 +41,10 @@ func TestSubscriptionGet_SuccessFalse(t *testing.T) {
 
 func TestSubscriptionGet_JSON(t *testing.T) {
 	handler := cmdtest.OK(t, "", "", map[string]interface{}{
-		"id": "sub-1", "name": "Gold Plan",
+		"id": "sub-1", "subscriptionNumber": "A-S001",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "get", "A-S001", "--json")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, `"name"`)
+	assert.Contains(t, stdout, `"subscriptionNumber"`)
 }

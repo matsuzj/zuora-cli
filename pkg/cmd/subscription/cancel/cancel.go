@@ -28,12 +28,13 @@ func NewCmdCancel(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cancel <subscription-key>",
 		Short: "Cancel a subscription",
-		Long: `Cancel a Zuora subscription.
+		Long: `Cancel a Zuora subscription. This action is irreversible.
 
-Use --policy and --effective-date flags, or --body for full control.`,
-		Example: `  zr subscription cancel A-S001 --policy EndOfCurrentTerm
-  zr subscription cancel A-S001 --policy SpecificDate --effective-date 2026-04-01
-  zr sub cancel A-S001 --body @cancel.json`,
+Use --policy and --effective-date flags, or --body for full control.
+Requires --confirm to proceed.`,
+		Example: `  zr subscription cancel A-S001 --policy EndOfCurrentTerm --confirm
+  zr subscription cancel A-S001 --policy SpecificDate --effective-date 2026-04-01 --confirm
+  zr sub cancel A-S001 --body @cancel.json --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Cobra's group check passes on EXPLICITLY-EMPTY values

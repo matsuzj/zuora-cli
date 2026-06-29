@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -97,6 +98,27 @@ func lockEnv(envName string) func() {
 }
 
 // refresh fetches a new token from the OAuth endpoint using the given context.
+// insecureCleartextHost reports whether rawURL would transmit OAuth credentials
+// in cleartext: an http:// scheme to a non-loopback host. http:// to localhost /
+// 127.0.0.1 / ::1 is treated as safe (local dev/proxy, not network-exposed); any
+// https:// URL or unparseable input is treated as safe here (ValidateBaseURL has
+// already rejected non-http/https schemes upstream). Returns the host for the
+// error message.
+func insecureCleartextHost(rawURL string) (host string, insecure bool) {
+	u, err := url.Parse(rawURL)
+	if err != nil || !strings.EqualFold(u.Scheme, "http") {
+		return "", false
+	}
+	h := u.Hostname()
+	if strings.EqualFold(h, "localhost") {
+		return h, false
+	}
+	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() {
+		return h, false
+	}
+	return h, true
+}
+
 func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, error) {
 	clientID, clientSecret, err := ts.Creds.Get(envName)
 	if err != nil {
@@ -122,6 +144,16 @@ func (ts *TokenSource) refresh(ctx context.Context, envName string) (string, err
 		return "", &AuthError{
 			Message: fmt.Sprintf("environment %q has an invalid base URL: %v", envName, err),
 			Hint:    "Check your environment configuration.",
+		}
+	}
+	// Refuse to POST the client_secret over plaintext HTTP to a non-loopback
+	// host — it would travel in cleartext on the wire. http:// to a loopback
+	// host (localhost / 127.0.0.1 / ::1) is permitted for local development and
+	// proxies, where there is no network exposure. (#439)
+	if host, insecure := insecureCleartextHost(env.BaseURL); insecure {
+		return "", &AuthError{
+			Message: fmt.Sprintf("refusing to send OAuth credentials to %q over plaintext HTTP (client_secret would be exposed)", host),
+			Hint:    "Use an https:// base URL. Plain http:// is allowed only for loopback hosts (localhost).",
 		}
 	}
 

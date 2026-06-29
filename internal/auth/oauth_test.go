@@ -82,6 +82,28 @@ func TestToken_CachedExpired_Refresh(t *testing.T) {
 	assert.Equal(t, 1, cfg.SaveCallCount)
 }
 
+func TestToken_RefusesCleartextOAuthToRemoteHost(t *testing.T) {
+	// An http:// base URL to a non-loopback host must be refused BEFORE the
+	// client_secret is POSTed, so credentials never travel in cleartext. The
+	// loopback case (http://127.0.0.1) is exercised by the httptest-backed
+	// refresh tests above, which still pass. (#439)
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: "http://proxy.example.com"}
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "old-token",
+		ExpiresAt:   time.Now().Add(-1 * time.Hour),
+	}))
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sandbox", "test-id", "test-secret"))
+
+	ts := &TokenSource{Config: cfg, Creds: creds}
+
+	_, err := ts.Token("sandbox")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "plaintext HTTP")
+	assert.Contains(t, err.Error(), "proxy.example.com")
+}
+
 func TestToken_NoCredentials(t *testing.T) {
 	cfg := config.NewMockConfig()
 	creds := NewMockCredentialStore()

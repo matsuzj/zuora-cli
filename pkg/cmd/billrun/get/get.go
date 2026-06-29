@@ -33,17 +33,17 @@ func runGet(cmd *cobra.Command, f *factory.Factory, billRunID string) error {
 		Path:   fmt.Sprintf("/v1/bill-runs/%s", url.PathEscape(billRunID)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-				{Key: "Bill Run Number", Value: cmdutil.GetDecimal(raw, "billRunNumber")},
-				{Key: "Name", Value: cmdutil.GetDecimal(raw, "name")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Invoice Date", Value: cmdutil.GetDecimal(raw, "invoiceDate")},
-				{Key: "Target Date", Value: cmdutil.GetDecimal(raw, "targetDate")},
-				{Key: "Auto Post", Value: cmdutil.GetDecimal(raw, "autoPost")},
-				{Key: "Auto Email", Value: cmdutil.GetDecimal(raw, "autoEmail")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Bill Run Number", Value: cmdutil.GetString(raw, "billRunNumber")},
+				{Key: "Name", Value: cmdutil.GetString(raw, "name")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Invoice Date", Value: cmdutil.GetString(raw, "invoiceDate")},
+				{Key: "Target Date", Value: cmdutil.GetString(raw, "targetDate")},
+				{Key: "Auto Post", Value: cmdutil.GetBool(raw, "autoPost")},
+				{Key: "Auto Email", Value: cmdutil.GetBool(raw, "autoEmail")},
 				{Key: "Bill Cycle Day", Value: cmdutil.GetDecimal(raw, "billCycleDay")},
-				{Key: "Scheduled Execution Time", Value: cmdutil.GetDecimal(raw, "scheduledExecutionTime")},
-				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+				{Key: "Scheduled Execution Time", Value: cmdutil.GetString(raw, "scheduledExecutionTime")},
+				{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
 			}
 		},
 	})

@@ -57,18 +57,18 @@ func runRefund(cmd *cobra.Command, opts *refundOptions, paymentID string) error 
 		Body:   bodyReader,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				// The Refunds response field is "number" (matching payment
 				// get/apply/create, all live-verified) — there is no
 				// "refundNumber". It is a string ID, so use GetString. See #420.
 				{Key: "Refund Number", Value: cmdutil.GetString(raw, "number")},
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Success", Value: cmdutil.GetDecimal(raw, "success")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Success", Value: cmdutil.GetBool(raw, "success")},
 			}
 		},
 		SuccessMsg: func(raw map[string]interface{}) string {
-			if id := cmdutil.GetDecimal(raw, "id"); id != "" {
+			if id := cmdutil.GetString(raw, "id"); id != "" {
 				return fmt.Sprintf("Refund %s created for payment %s.\n", id, paymentID)
 			}
 			return ""

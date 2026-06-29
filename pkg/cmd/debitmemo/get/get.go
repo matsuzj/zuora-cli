@@ -33,21 +33,21 @@ func runGet(cmd *cobra.Command, f *factory.Factory, debitMemoID string) error {
 		Path:   fmt.Sprintf("/v1/debitmemos/%s", url.PathEscape(debitMemoID)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
 			return []output.DetailField{
-				{Key: "ID", Value: cmdutil.GetDecimal(raw, "id")},
-				{Key: "Number", Value: cmdutil.GetDecimal(raw, "number")},
-				{Key: "Debit Memo Date", Value: cmdutil.GetDecimal(raw, "debitMemoDate")},
-				{Key: "Due Date", Value: cmdutil.GetDecimal(raw, "dueDate")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Number", Value: cmdutil.GetString(raw, "number")},
+				{Key: "Debit Memo Date", Value: cmdutil.GetString(raw, "debitMemoDate")},
+				{Key: "Due Date", Value: cmdutil.GetString(raw, "dueDate")},
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Balance", Value: cmdutil.GetMoney(raw, "balance")},
 				// taxAmount is monetary — use GetMoney for consistent 2-decimal
 				// formatting with the sibling Amount/Balance fields. See #423.
 				{Key: "Tax Amount", Value: cmdutil.GetMoney(raw, "taxAmount")},
-				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
-				{Key: "Currency", Value: cmdutil.GetDecimal(raw, "currency")},
-				{Key: "Reason Code", Value: cmdutil.GetDecimal(raw, "reasonCode")},
-				{Key: "Account ID", Value: cmdutil.GetDecimal(raw, "accountId")},
-				{Key: "Account Number", Value: cmdutil.GetDecimal(raw, "accountNumber")},
-				{Key: "Created Date", Value: cmdutil.GetDecimal(raw, "createdDate")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
+				{Key: "Currency", Value: cmdutil.GetString(raw, "currency")},
+				{Key: "Reason Code", Value: cmdutil.GetString(raw, "reasonCode")},
+				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
+				{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+				{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
 			}
 		},
 	})

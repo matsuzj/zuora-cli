@@ -18,6 +18,8 @@ func TestBillRunGet_Success(t *testing.T) {
 		"billRunNumber": "BR-00000001",
 		"status":        "Completed",
 		"targetDate":    "2026-05-31",
+		"autoPost":      false,
+		"autoEmail":     true,
 		"success":       true,
 	})
 
@@ -26,6 +28,11 @@ func TestBillRunGet_Success(t *testing.T) {
 	// Label-bound (F-08): values under their own labels.
 	assert.Regexp(t, `(?m)^Bill Run Number:\s+BR-00000001$`, stdout)
 	assert.Regexp(t, `(?m)^Status:\s+Completed$`, stdout)
+	// autoPost/autoEmail are real JSON booleans (live-verified) — GetBool renders
+	// them as true/false. Exercises the boolean fields that the prior fixture
+	// never included. (#431)
+	assert.Regexp(t, `(?m)^Auto Post:\s+false$`, stdout)
+	assert.Regexp(t, `(?m)^Auto Email:\s+true$`, stdout)
 }
 
 func TestBillRunGet_RequiresArg(t *testing.T) {

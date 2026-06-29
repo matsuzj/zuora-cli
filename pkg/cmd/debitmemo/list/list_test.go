@@ -16,6 +16,17 @@ import (
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdList(f) }
 
+func TestDebitMemoList_StatusCompletionUsesCanonicalSpelling(t *testing.T) {
+	// Memos use the US spelling "Canceled" (live-verified on credit memos, same
+	// status enum). Offering "Cancelled" (British) matches no records. (#422)
+	cmd := NewCmdList(&factory.Factory{})
+	fn, ok := cmd.GetFlagCompletionFunc("status")
+	require.True(t, ok, "status flag must register a completion func")
+	vals, _ := fn(cmd, nil, "")
+	assert.Contains(t, vals, "Canceled")
+	assert.NotContains(t, vals, "Cancelled")
+}
+
 func TestDebitMemoList_Success(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)

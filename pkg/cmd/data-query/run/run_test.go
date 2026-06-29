@@ -1,16 +1,20 @@
 package run
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/data-query/dqutil"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
+	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,4 +105,36 @@ func TestRun_TimeoutWhileQueued(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "30ms")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting")
+}
+
+func TestRun_GlobalTimeoutNoMisleadingMessage(t *testing.T) {
+	// When the GLOBAL `zr --timeout` deadline (carried on the command context)
+	// fires during the poll sleep with the LOCAL --timeout unset (opts.Timeout
+	// == 0), the error must NOT be the "gave up ... after 0s ... raise --timeout"
+	// message — that duration is meaningless and the hint points at the wrong
+	// knob. Bites if the sleep-path waitErr loses its opts.Timeout>0 guard. (#428)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Submit succeeds; the job never reaches a terminal state.
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"accepted"}}`))
+	}))
+	defer srv.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), srv.URL, "tok")
+
+	cmd := NewCmdRun(f)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	// Simulate the global deadline; --interval (200ms) is far longer so the
+	// deadline lands during the first SleepContext, not a request.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	cmd.SetContext(ctx)
+	cmd.SetArgs([]string{"SELECT 1", "--interval", "200ms"}) // no local --timeout
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "after 0s")
+	assert.NotContains(t, err.Error(), "raise --timeout")
 }

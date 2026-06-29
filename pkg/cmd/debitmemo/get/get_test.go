@@ -19,6 +19,7 @@ func TestDebitMemoGet_Success(t *testing.T) {
 		"debitMemoDate": "2026-01-15",
 		"amount":        110.00,
 		"balance":       110.00,
+		"taxAmount":     10.00,
 		"status":        "Posted",
 		"accountNumber": "A00000001",
 		"success":       true,
@@ -29,6 +30,9 @@ func TestDebitMemoGet_Success(t *testing.T) {
 	// Label-bound (F-08): values under their own labels.
 	assert.Regexp(t, `(?m)^Number:\s+DM00001$`, stdout)
 	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
+	// Tax Amount must format with 2 decimals via GetMoney (10.00, not "10").
+	// Bites if production reverts to GetDecimal, which renders "10". (#423)
+	assert.Regexp(t, `(?m)^Tax Amount:\s+10\.00$`, stdout)
 }
 
 func TestDebitMemoGet_JSON(t *testing.T) {

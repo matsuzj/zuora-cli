@@ -32,7 +32,6 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		Columns: []listcmd.ColumnSpec{
 			{Header: "ID", Key: "id"},
 			{Header: "NUMBER", Key: "subscriptionNumber"},
-			{Header: "NAME", Key: "name"},
 			{Header: "STATUS", Key: "status"},
 			{Header: "TERM_TYPE", Key: "termType"},
 			{Header: "START", Key: "termStartDate"},

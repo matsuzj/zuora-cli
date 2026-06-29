@@ -98,9 +98,10 @@ func ResolveSQL(args []string, file string) (string, error) {
 // BuildSubmitBody assembles the POST /query/jobs request body. output.target is
 // required by Zuora.
 //
-// TODO(live): confirm the exact field names (columnSeparator / sourceData /
-// readDeleted / useIndexJoin) and any required output sub-fields against a live
-// tenant / the API reference before relying on the non-core options.
+// The core body (query / outputFormat / compression / output.target) plus
+// sourceData and useIndexJoin are live-verified against an apac-sandbox tenant
+// (2026-06-29; the response echoes sourceData/useIndexJoin). columnSeparator
+// (DSV) and readDeleted follow the API reference but were not exercised live.
 func BuildSubmitBody(sql string, sf *SubmitFlags) ([]byte, error) {
 	body := map[string]interface{}{
 		"query":        sql,
@@ -142,9 +143,10 @@ func DecodeData(body []byte) (map[string]interface{}, error) {
 }
 
 // DetailFields renders the standard Data Query job fields for a detail view.
-//
-// TODO(live): confirm queryStatus / outputRows / processingTime / dataFile key
-// names against a live tenant.
+// The field names (queryStatus / outputRows / processingTime / dataFile) are
+// live-verified against an apac-sandbox tenant (2026-06-29). outputRows and
+// processingTime come back as JSON numbers, so GetDecimal renders them as plain
+// decimals rather than scientific notation.
 func DetailFields(d map[string]interface{}) []output.DetailField {
 	return []output.DetailField{
 		{Key: "ID", Value: cmdutil.GetString(d, "id")},

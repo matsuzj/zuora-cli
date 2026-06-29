@@ -14,6 +14,7 @@ import (
 type refundOptions struct {
 	Factory *factory.Factory
 	Body    string
+	Confirm bool
 }
 
 // NewCmdRefund creates the payment refund command.
@@ -23,16 +24,22 @@ func NewCmdRefund(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "refund <payment-id>",
 		Short: "Refund a payment",
-		Long:  `Create a refund for a Zuora payment.`,
-		Example: `  zr payment refund 2c92c0f8... --body @refund.json
-  zr payment refund 2c92c0f8... --body '{"amount":50,"type":"External"}'`,
+		Long: `Create a refund for a Zuora payment.
+
+Disbursing a refund cannot be undone once processed. Use --confirm to proceed.`,
+		Example: `  zr payment refund 2c92c0f8... --body @refund.json --confirm
+  zr payment refund 2c92c0f8... --body '{"amount":50,"type":"External"}' --confirm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {
+				return err
+			}
 			return runRefund(cmd, opts, args[0])
 		},
 	}
 
 	cmdutil.AddBodyFlag(cmd, &opts.Body, true)
+	cmdutil.AddConfirmFlag(cmd, &opts.Confirm, "refund")
 
 	return cmd
 }

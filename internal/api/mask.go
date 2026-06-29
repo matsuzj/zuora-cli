@@ -9,9 +9,13 @@ import (
 const redactedValue = "***REDACTED***"
 
 // sensitiveKeys are request/response field names whose VALUES must never reach
-// verbose/debug logs (ZR_DEBUG=api / -vv). Matched case-insensitively. This is a
-// deliberately conservative payment-card + bank + credential set; extend it here
-// as new sensitive fields surface — it is the single source of truth for masking.
+// verbose/debug logs (ZR_DEBUG=api / -vv). Keys are stored in separator-free
+// lowercase form and matched via normalizeMaskKey, so a single entry covers the
+// camelCase, snake_case and kebab-case spellings of the same field — e.g.
+// "accesstoken" matches accessToken, access_token and access-token (Zuora's
+// OAuth endpoint returns the snake_case forms). This is a deliberately
+// conservative payment-card + bank + credential set; extend it here as new
+// sensitive fields surface — it is the single source of truth for masking.
 var sensitiveKeys = map[string]bool{
 	"creditcardnumber":  true,
 	"cardnumber":        true,
@@ -46,11 +50,21 @@ func maskSecrets(body []byte) []byte {
 	return out
 }
 
+// normalizeMaskKey folds a field name to its separator-free lowercase form so a
+// single sensitiveKeys entry matches the camelCase, snake_case and kebab-case
+// spellings of the same field (accessToken / access_token / access-token). (#426)
+func normalizeMaskKey(k string) string {
+	k = strings.ToLower(k)
+	k = strings.ReplaceAll(k, "_", "")
+	k = strings.ReplaceAll(k, "-", "")
+	return k
+}
+
 func maskValue(v interface{}) interface{} {
 	switch t := v.(type) {
 	case map[string]interface{}:
 		for k, val := range t {
-			if sensitiveKeys[strings.ToLower(k)] {
+			if sensitiveKeys[normalizeMaskKey(k)] {
 				t[k] = redactedValue
 			} else {
 				t[k] = maskValue(val)

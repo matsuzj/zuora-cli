@@ -3,6 +3,7 @@ package cancel
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -13,6 +14,18 @@ import (
 )
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCancel(f) }
+
+func TestCancel_ExamplesIncludeConfirm(t *testing.T) {
+	// cancel requires --confirm; every example must include it, or a user
+	// copy-pasting an example hits "Use --confirm to proceed". (#429)
+	cmd := NewCmdCancel(&factory.Factory{})
+	for _, line := range strings.Split(strings.TrimSpace(cmd.Example), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		assert.Contains(t, line, "--confirm", "example missing --confirm: %s", line)
+	}
+}
 
 func TestCancel_WithPolicy(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

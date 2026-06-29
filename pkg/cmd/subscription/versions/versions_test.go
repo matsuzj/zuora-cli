@@ -15,13 +15,16 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdVersions(f) }
 func TestSubscriptionVersions_Detail(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/A-S001/versions/1", map[string]interface{}{
 		"id": "sub-1", "subscriptionNumber": "A-S001", "version": 1,
-		"name": "Gold Plan", "status": "Active", "termType": "TERMED",
+		"status": "Active", "termType": "TERMED",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "versions", "A-S001", "1")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "Gold Plan")
-	assert.Contains(t, stdout, "A-S001")
+	assert.Regexp(t, `(?m)^Subscription Number:\s+A-S001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Active$`, stdout)
+	// No top-level "name" in the response (live-verified); the redundant blank
+	// Name row was removed. Bites if reintroduced. (#438)
+	assert.NotRegexp(t, `(?m)^Name:\s`, stdout)
 }
 
 func TestSubscriptionVersions_RequiresArgs(t *testing.T) {

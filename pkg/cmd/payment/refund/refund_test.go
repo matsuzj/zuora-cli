@@ -21,7 +21,7 @@ func TestPaymentRefund_Success(t *testing.T) {
 		"success": true,
 	})
 
-	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
+	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`, "--confirm")
 	require.NoError(t, err)
 	// Refund Number is sourced from "number" (live-verified; "refundNumber"
 	// never existed). Bites if production reverts to the wrong key. (#420)
@@ -33,4 +33,11 @@ func TestPaymentRefund_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "refund", "pay-001")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
+}
+
+func TestPaymentRefund_RequiresConfirm(t *testing.T) {
+	// Disbursing a refund cannot be undone — it must require --confirm. (#424)
+	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--confirm")
 }

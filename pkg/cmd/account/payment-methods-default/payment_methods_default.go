@@ -35,7 +35,9 @@ func runDefault(cmd *cobra.Command, f *factory.Factory, key string) error {
 			return []output.DetailField{
 				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				{Key: "Type", Value: cmdutil.GetString(raw, "type")},
-				{Key: "Card Number", Value: cmdutil.GetString(raw, "creditCardMaskNumber")},
+				// Masked card number is "cardNumber" on the REST payment-method
+				// object (live-verified), not the ZOQL "creditCardMaskNumber". (#421)
+				{Key: "Card Number", Value: cmdutil.GetString(raw, "cardNumber")},
 				{Key: "Expiration Month", Value: cmdutil.GetString(raw, "expirationMonth")},
 				{Key: "Expiration Year", Value: cmdutil.GetString(raw, "expirationYear")},
 				{Key: "Status", Value: cmdutil.GetString(raw, "status")},

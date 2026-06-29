@@ -49,12 +49,16 @@ func runPaymentMethods(cmd *cobra.Command, f *factory.Factory, key string) error
 	}
 
 	type paymentMethod struct {
-		ID                string `json:"id"`
-		Type              string `json:"type"`
-		CreditCardMaskNum string `json:"creditCardMaskNumber"`
-		AccountNumber     string `json:"accountNumber"`
-		IsDefault         bool   `json:"isDefault"`
-		Status            string `json:"status"`
+		ID   string `json:"id"`
+		Type string `json:"type"`
+		// The masked card number on the /payment-methods list response is
+		// "cardNumber" (live-verified, e.g. "************1111") — NOT
+		// "creditCardMaskNumber" (that is the ZOQL/SOAP field name, absent from
+		// the REST response). See #421.
+		CardNumber    string `json:"cardNumber"`
+		AccountNumber string `json:"accountNumber"`
+		IsDefault     bool   `json:"isDefault"`
+		Status        string `json:"status"`
 	}
 
 	var methods []paymentMethod
@@ -79,7 +83,7 @@ func runPaymentMethods(cmd *cobra.Command, f *factory.Factory, key string) error
 
 	rows := make([][]string, len(methods))
 	for i, pm := range methods {
-		last4 := lastN(pm.CreditCardMaskNum, 4)
+		last4 := lastN(pm.CardNumber, 4)
 		if last4 == "" {
 			last4 = lastN(pm.AccountNumber, 4)
 		}

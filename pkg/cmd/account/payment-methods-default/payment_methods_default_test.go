@@ -14,7 +14,7 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdPaymentMethodsDefa
 
 func TestPaymentMethodsDefault_Detail(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/accounts/A001/payment-methods/default", map[string]interface{}{
-		"id": "pm-1", "type": "CreditCard", "creditCardMaskNumber": "****1234",
+		"id": "pm-1", "type": "CreditCard", "cardNumber": "****1234",
 		"expirationMonth": "12", "expirationYear": "2027", "status": "Active",
 		"success": true,
 	})
@@ -23,6 +23,9 @@ func TestPaymentMethodsDefault_Detail(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "CreditCard")
 	assert.Contains(t, stdout, "Active")
+	// Card Number is sourced from "cardNumber" (live-verified); bites if the
+	// production read reverts to the absent "creditCardMaskNumber". (#421)
+	assert.Regexp(t, `(?m)^Card Number:\s+\*\*\*\*1234$`, stdout)
 }
 
 func TestPaymentMethodsDefault_SuccessFalse(t *testing.T) {

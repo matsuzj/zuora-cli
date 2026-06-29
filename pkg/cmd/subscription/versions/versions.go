@@ -36,7 +36,6 @@ func runVersions(cmd *cobra.Command, f *factory.Factory, key, version string) er
 				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
 				{Key: "Version", Value: cmdutil.GetString(raw, "version")},
-				{Key: "Name", Value: cmdutil.GetString(raw, "name")},
 				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
 				{Key: "Term Type", Value: cmdutil.GetString(raw, "termType")},
 				{Key: "Term Start Date", Value: cmdutil.GetString(raw, "termStartDate")},

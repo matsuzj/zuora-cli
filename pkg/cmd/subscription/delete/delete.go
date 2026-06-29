@@ -2,7 +2,6 @@
 package delete
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -54,18 +53,14 @@ func runDelete(cmd *cobra.Command, f *factory.Factory, key string) error {
 
 	fmtOpts := output.FromCmd(cmd)
 
-	var raw map[string]interface{}
-	if err := json.Unmarshal(resp.Body, &raw); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-
-	fields := []output.DetailField{
-		{Key: "Success", Value: cmdutil.GetString(raw, "success")},
-	}
-	if err := output.RenderDetail(f.IOStreams, resp.Body, fmtOpts, fields); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Subscription %s deleted.\n", key)
-	return nil
+	// Use the shared delete renderer, which guards against an empty/204
+	// response body before unmarshalling (matching the other 8 delete
+	// commands) — a raw json.Unmarshal would crash on an empty 200/204. (#425)
+	return cmdutil.RenderDeleteResult(f.IOStreams, resp, fmtOpts,
+		fmt.Sprintf("Subscription %s deleted.\n", key),
+		func(raw map[string]interface{}) []output.DetailField {
+			return []output.DetailField{
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
+			}
+		})
 }

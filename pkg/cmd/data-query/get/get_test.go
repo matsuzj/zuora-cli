@@ -25,8 +25,11 @@ func TestGet_DescendsIntoData(t *testing.T) {
 	})
 	stdout, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "get", "job-1")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "completed")
-	assert.Contains(t, stdout, "42")
+	// Label-bound (F-08). Data File is the PRIMARY output of dq get/submit — a
+	// wrong/missing key would render it blank yet pass a bare Contains. (#432)
+	assert.Regexp(t, `(?m)^Status:\s+completed$`, stdout)
+	assert.Regexp(t, `(?m)^Output Rows:\s+42$`, stdout)
+	assert.Regexp(t, `(?m)^Data File:\s+https://s3/x$`, stdout)
 }
 
 func TestGet_RequiresArg(t *testing.T) {

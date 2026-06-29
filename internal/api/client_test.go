@@ -393,6 +393,75 @@ func TestClient_ReadOnly_PATCHBlocked(t *testing.T) {
 	require.ErrorAs(t, err, &roErr)
 }
 
+// TestClient_ReadOnly_DataQuery pins the Data Query opt-in: submit (POST
+// query/jobs) and cancel (DELETE query/jobs/{id}) are blocked by default in
+// read-only mode and allowed only when SetReadOnlyAllowDataQuery(true) is set.
+// The opt-in must widen ONLY those two endpoints (near-misses and ordinary
+// writes stay blocked), and a blocked Data Query write must carry the opt-in
+// hint while ordinary blocks must not.
+func TestClient_ReadOnly_DataQuery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data":{"id":"job-1"}}`))
+	}))
+	defer server.Close()
+
+	cases := []struct {
+		name        string
+		method      string
+		path        string
+		allowDQ     bool
+		wantBlocked bool
+		wantDQHint  bool
+	}{
+		// Opt-in OFF (default): Data Query writes are blocked, with the hint.
+		{"submit blocked by default", http.MethodPost, "/query/jobs", false, true, true},
+		{"cancel blocked by default", http.MethodDelete, "/query/jobs/job-123", false, true, true},
+		// Opt-in ON: submit + cancel allowed.
+		{"submit allowed with opt-in", http.MethodPost, "/query/jobs", true, false, false},
+		{"cancel allowed with opt-in", http.MethodDelete, "/query/jobs/job-123", true, false, false},
+		// Opt-in ON still blocks near-misses, and never sets the DQ hint for them.
+		{"id-suffixed POST still blocked", http.MethodPost, "/query/jobs/abc", true, true, false},
+		{"collection DELETE still blocked", http.MethodDelete, "/query/jobs", true, true, false},
+		{"PUT on a job still blocked", http.MethodPut, "/query/jobs/job-123", true, true, false},
+		{"multi-segment DELETE still blocked", http.MethodDelete, "/query/jobs/abc/def", true, true, false},
+		{"trailing-slash DELETE still blocked", http.MethodDelete, "/query/jobs/abc/", true, true, false},
+		// The opt-in must NOT widen ordinary writes.
+		{"normal POST still blocked with opt-in", http.MethodPost, "/v1/accounts", true, true, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := NewClient(WithBaseURL(server.URL))
+			client.SetReadOnly(true)
+			client.SetReadOnlyAllowDataQuery(tc.allowDQ)
+
+			var err error
+			switch tc.method {
+			case http.MethodPost:
+				_, err = client.Post(tc.path, strings.NewReader(`{}`))
+			case http.MethodPut:
+				_, err = client.Put(tc.path, strings.NewReader(`{}`))
+			case http.MethodDelete:
+				_, err = client.Delete(tc.path)
+			}
+
+			if !tc.wantBlocked {
+				require.NoError(t, err)
+				return
+			}
+			var roErr *ReadOnlyError
+			require.ErrorAs(t, err, &roErr)
+			if tc.wantDQHint {
+				assert.NotEmpty(t, roErr.Hint, "blocked Data Query write must carry the opt-in hint")
+				assert.Contains(t, roErr.Error(), "--read-only-allow-data-query")
+			} else {
+				assert.Empty(t, roErr.Hint, "a non-Data-Query block must not carry the DQ hint")
+			}
+		})
+	}
+}
+
 func TestClient_ReadOnly_GETAllowed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)

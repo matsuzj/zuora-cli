@@ -31,6 +31,7 @@ func Register(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("zuora-version", "", "Override Zuora API version header")
 	cmd.PersistentFlags().CountP("verbose", "v", "Verbose output (-vv or ZR_DEBUG=api adds request/response bodies)")
 	cmd.PersistentFlags().Bool("read-only", false, "Block write operations (POST/PUT/DELETE/PATCH)")
+	cmd.PersistentFlags().Bool("read-only-allow-data-query", false, "In read-only mode, also allow Data Query submit/cancel (POST /query/jobs, DELETE /query/jobs/{id})")
 	cmd.PersistentFlags().Duration("timeout", 0, "Abort if the command runs longer than this across all retries (e.g. 30s, 2m; 0 = no limit)")
 }
 
@@ -116,6 +117,13 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 		readOnly = EnvReadOnly()
 	}
 
+	// --read-only-allow-data-query flag takes precedence over its env var. This
+	// opt-in only takes effect under read-only; off otherwise.
+	allowDataQuery, _ := cmd.Flags().GetBool("read-only-allow-data-query")
+	if !cmd.Flags().Changed("read-only-allow-data-query") {
+		allowDataQuery = EnvReadOnlyAllowDataQuery()
+	}
+
 	// Apply all client overrides (context, version, verbose, read-only)
 	// in a single wrapper captured from the original once, so the
 	// overrides are not stacked cumulatively across invocations.
@@ -184,9 +192,10 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 		if verboseBody {
 			client.SetVerboseBody()
 		}
-		if readOnly {
-			client.SetReadOnly(true)
-		}
+		// Set both unconditionally so repeated Apply calls on a reused factory
+		// are idempotent: a stale wrapper must never leave read-only state on.
+		client.SetReadOnly(readOnly)
+		client.SetReadOnlyAllowDataQuery(allowDataQuery)
 		return client, nil
 	}
 
@@ -208,6 +217,25 @@ func EnvReadOnly() bool {
 	default:
 		// "1", "t", "true", "yes", "y", "on", and anything unrecognized.
 		return true
+	}
+}
+
+// EnvReadOnlyAllowDataQuery reports whether ZR_READ_ONLY_ALLOW_DATA_QUERY opts in
+// to allowing Data Query writes (submit/cancel) in read-only mode. Unlike
+// EnvReadOnly, it fails safe toward the RESTRICTIVE side: an unrecognized
+// non-empty value parses as false (do NOT widen), because this knob relaxes the
+// read-only guard and must never be enabled by an unclear value.
+func EnvReadOnlyAllowDataQuery() bool {
+	v := strings.TrimSpace(os.Getenv("ZR_READ_ONLY_ALLOW_DATA_QUERY"))
+	if v == "" {
+		return false
+	}
+	switch strings.ToLower(v) {
+	case "1", "t", "true", "yes", "y", "on":
+		return true
+	default:
+		// "0", "false", ..., and anything unrecognized → do not widen.
+		return false
 	}
 }
 

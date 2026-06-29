@@ -76,7 +76,7 @@ func TestRootGlobalFlags(t *testing.T) {
 
 	cmd := NewCmdRoot(f)
 
-	flags := []string{"env", "json", "jq", "template", "zuora-version", "verbose", "read-only"}
+	flags := []string{"env", "json", "jq", "template", "zuora-version", "verbose", "read-only", "read-only-allow-data-query"}
 	for _, name := range flags {
 		assert.NotNil(t, cmd.PersistentFlags().Lookup(name), "missing flag: %s", name)
 	}
@@ -104,6 +104,80 @@ func TestRootReadOnlyFlag_BlocksWriteCommand(t *testing.T) {
 	require.Error(t, err)
 	var roErr *api.ReadOnlyError
 	assert.ErrorAs(t, err, &roErr, "expected ReadOnlyError, got: %v", err)
+}
+
+// TestRootReadOnlyAllowDataQuery_AllowsDataQueryButNotOtherWrites pins that the
+// opt-in toggle widens ONLY Data Query: with --read-only --read-only-allow-data-query
+// a POST /query/jobs is permitted while an ordinary POST /v1/accounts stays blocked.
+func TestRootReadOnlyAllowDataQuery_AllowsDataQueryButNotOtherWrites(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data":{"id":"job-1"}}`))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := &factory.Factory{
+		IOStreams: ios,
+		HttpClient: func() (*api.Client, error) {
+			return api.NewClient(api.WithBaseURL(server.URL)), nil
+		},
+	}
+
+	cmd := NewCmdRoot(f)
+	cmd.SetArgs([]string{"--read-only", "--read-only-allow-data-query", "version"})
+	require.NoError(t, cmd.Execute())
+
+	client, err := f.HttpClient()
+	require.NoError(t, err)
+
+	// Data Query submit is allowed by the opt-in.
+	_, err = client.Post("/query/jobs", nil)
+	require.NoError(t, err, "POST /query/jobs should be allowed with the opt-in")
+
+	// An ordinary write is still blocked.
+	_, err = client.Post("/v1/accounts", nil)
+	var roErr *api.ReadOnlyError
+	require.ErrorAs(t, err, &roErr, "ordinary writes must stay blocked even with the Data Query opt-in")
+}
+
+// TestRootReadOnlyAllowDataQuery_ResetOnReapply pins that the unconditional
+// client setters make a reused factory idempotent: after a first Apply enables
+// the opt-in, a second Apply WITHOUT it (still read-only) must reset the toggle
+// so POST /query/jobs is blocked again — guarding the sticky-wrapper edge.
+func TestRootReadOnlyAllowDataQuery_ResetOnReapply(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data":{"id":"job-1"}}`))
+	}))
+	defer server.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := &factory.Factory{
+		IOStreams: ios,
+		HttpClient: func() (*api.Client, error) {
+			return api.NewClient(api.WithBaseURL(server.URL)), nil
+		},
+	}
+
+	// First Apply: read-only + opt-in → Data Query submit allowed.
+	cmd1 := NewCmdRoot(f)
+	cmd1.SetArgs([]string{"--read-only", "--read-only-allow-data-query", "version"})
+	require.NoError(t, cmd1.Execute())
+	c1, err := f.HttpClient()
+	require.NoError(t, err)
+	_, err = c1.Post("/query/jobs", nil)
+	require.NoError(t, err)
+
+	// Second Apply on the SAME factory: read-only, NO opt-in → must block again.
+	cmd2 := NewCmdRoot(f)
+	cmd2.SetArgs([]string{"--read-only", "version"})
+	require.NoError(t, cmd2.Execute())
+	c2, err := f.HttpClient()
+	require.NoError(t, err)
+	_, err = c2.Post("/query/jobs", nil)
+	var roErr *api.ReadOnlyError
+	require.ErrorAs(t, err, &roErr, "re-Apply without the opt-in must reset the toggle and block Data Query again")
 }
 
 func TestRootReadOnlyEnvVar_BlocksWriteCommand(t *testing.T) {

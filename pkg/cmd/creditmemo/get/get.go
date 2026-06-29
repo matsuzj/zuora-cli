@@ -39,7 +39,10 @@ func runGet(cmd *cobra.Command, f *factory.Factory, creditMemoID string) error {
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Applied Amount", Value: cmdutil.GetMoney(raw, "appliedAmount")},
 				{Key: "Refund Amount", Value: cmdutil.GetMoney(raw, "refundAmount")},
-				{Key: "Balance", Value: cmdutil.GetMoney(raw, "balance")},
+				// Credit memos expose the outstanding credit as "unappliedAmount"
+				// (live-verified); there is no top-level "balance" field (that is a
+				// debit-memo field). See #418.
+				{Key: "Balance", Value: cmdutil.GetMoney(raw, "unappliedAmount")},
 				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
 				{Key: "Currency", Value: cmdutil.GetDecimal(raw, "currency")},
 				{Key: "Reason Code", Value: cmdutil.GetDecimal(raw, "reasonCode")},

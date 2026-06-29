@@ -39,7 +39,9 @@ func runGet(cmd *cobra.Command, f *factory.Factory, debitMemoID string) error {
 				{Key: "Due Date", Value: cmdutil.GetDecimal(raw, "dueDate")},
 				{Key: "Amount", Value: cmdutil.GetMoney(raw, "amount")},
 				{Key: "Balance", Value: cmdutil.GetMoney(raw, "balance")},
-				{Key: "Tax Amount", Value: cmdutil.GetDecimal(raw, "taxAmount")},
+				// taxAmount is monetary — use GetMoney for consistent 2-decimal
+				// formatting with the sibling Amount/Balance fields. See #423.
+				{Key: "Tax Amount", Value: cmdutil.GetMoney(raw, "taxAmount")},
 				{Key: "Status", Value: cmdutil.GetDecimal(raw, "status")},
 				{Key: "Currency", Value: cmdutil.GetDecimal(raw, "currency")},
 				{Key: "Reason Code", Value: cmdutil.GetDecimal(raw, "reasonCode")},

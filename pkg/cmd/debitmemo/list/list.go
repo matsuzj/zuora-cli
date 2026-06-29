@@ -20,7 +20,7 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 		Flags: []listcmd.Flag{
 			{Name: "account-id", Query: "accountId", Usage: "Filter by Zuora account ID"},
 			{Name: "account-number", Query: "accountNumber", Usage: "Filter by account number"},
-			{Name: "status", Query: "status", Usage: "Filter by status (e.g. Draft, Posted, Cancelled)", Enum: []string{"Draft", "Posted", "Cancelled"}},
+			{Name: "status", Query: "status", Usage: "Filter by status (e.g. Draft, Posted, Canceled)", Enum: []string{"Draft", "Posted", "Canceled", "Error", "PendingForTax", "Generating", "CancelInProgress"}},
 			{Name: "page", Query: "page", Usage: "Page number"},
 			{Name: "page-size", Query: "pageSize", Usage: "Number of results per page", Int: true, OmitZero: true},
 		},

@@ -16,6 +16,18 @@ import (
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdList(f) }
 
+func TestCreditMemoList_StatusCompletionUsesCanonicalSpelling(t *testing.T) {
+	// Zuora returns the US spelling "Canceled" for credit-memo status
+	// (live-verified). Offering "Cancelled" (British) in completion sends a
+	// value that matches no records and returns silently empty. (#422)
+	cmd := NewCmdList(&factory.Factory{})
+	fn, ok := cmd.GetFlagCompletionFunc("status")
+	require.True(t, ok, "status flag must register a completion func")
+	vals, _ := fn(cmd, nil, "")
+	assert.Contains(t, vals, "Canceled")
+	assert.NotContains(t, vals, "Cancelled")
+}
+
 func TestCreditMemoList_Success(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
@@ -26,13 +38,13 @@ func TestCreditMemoList_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"creditmemos": []map[string]interface{}{
 				{
-					"id":             "cm-001",
-					"number":         "CM00001",
-					"creditMemoDate": "2026-01-15",
-					"amount":         100.50,
-					"balance":        25.25,
-					"status":         "Posted",
-					"accountNumber":  "A00000001",
+					"id":              "cm-001",
+					"number":          "CM00001",
+					"creditMemoDate":  "2026-01-15",
+					"amount":          100.50,
+					"unappliedAmount": 25.25,
+					"status":          "Posted",
+					"accountNumber":   "A00000001",
 				},
 			},
 			"success": true,
@@ -66,7 +78,7 @@ func TestCreditMemoList_NoFilter(t *testing.T) {
 func TestCreditMemoList_CSV(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/creditmemos", map[string]interface{}{
 		"creditmemos": []map[string]interface{}{
-			{"id": "cm-001", "number": "CM00001", "amount": 100.5, "balance": 25.25, "status": "Posted", "accountNumber": "A1"},
+			{"id": "cm-001", "number": "CM00001", "amount": 100.5, "unappliedAmount": 25.25, "status": "Posted", "accountNumber": "A1"},
 		},
 		"success": true,
 	})
@@ -105,7 +117,7 @@ func TestCreditMemoList_CSVHeaderAndColumnOrder(t *testing.T) {
 	// reviewed change rather than a silent break.
 	handler := cmdtest.OK(t, "", "", map[string]interface{}{
 		"creditmemos": []map[string]interface{}{
-			{"id": "cm-001", "number": "CM00001", "creditMemoDate": "2026-01-15", "amount": 100.5, "balance": 25.25, "status": "Posted", "accountNumber": "A1"},
+			{"id": "cm-001", "number": "CM00001", "creditMemoDate": "2026-01-15", "amount": 100.5, "unappliedAmount": 25.25, "status": "Posted", "accountNumber": "A1"},
 		},
 		"success": true,
 	})

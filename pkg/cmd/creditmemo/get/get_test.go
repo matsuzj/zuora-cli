@@ -14,14 +14,14 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestCreditMemoGet_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/creditmemos/cm-001", map[string]interface{}{
-		"id":             "cm-001",
-		"number":         "CM00001",
-		"creditMemoDate": "2026-01-15",
-		"amount":         100.50,
-		"balance":        25.25,
-		"status":         "Posted",
-		"accountNumber":  "A00000001",
-		"success":        true,
+		"id":              "cm-001",
+		"number":          "CM00001",
+		"creditMemoDate":  "2026-01-15",
+		"amount":          100.50,
+		"unappliedAmount": 25.25,
+		"status":          "Posted",
+		"accountNumber":   "A00000001",
+		"success":         true,
 	})
 
 	stdout, _, err := cmdtest.Run(t, "creditmemo", newCmd, handler, "creditmemo", "get", "cm-001")
@@ -29,6 +29,9 @@ func TestCreditMemoGet_Success(t *testing.T) {
 	// Label-bound (F-08): values under their own labels.
 	assert.Regexp(t, `(?m)^Number:\s+CM00001$`, stdout)
 	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
+	// Balance is sourced from "unappliedAmount" (credit memos have no "balance"
+	// key). Bites if the production read reverts to "balance" (#418).
+	assert.Regexp(t, `(?m)^Balance:\s+25\.25$`, stdout)
 }
 
 func TestCreditMemoGet_JSON(t *testing.T) {

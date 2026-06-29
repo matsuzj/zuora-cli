@@ -14,16 +14,18 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdRefund(f) }
 
 func TestPaymentRefund_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "POST", "/v1/payments/pay-001/refunds", map[string]interface{}{
-		"id":           "ref-001",
-		"refundNumber": "R-00001",
-		"amount":       50.00,
-		"status":       "Processed",
-		"success":      true,
+		"id":      "ref-001",
+		"number":  "R-00001",
+		"amount":  50.00,
+		"status":  "Processed",
+		"success": true,
 	})
 
 	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "R-00001")
+	// Refund Number is sourced from "number" (live-verified; "refundNumber"
+	// never existed). Bites if production reverts to the wrong key. (#420)
+	assert.Regexp(t, `(?m)^Refund Number:\s+R-00001$`, stdout)
 	assert.Contains(t, stdout, "Processed")
 }
 

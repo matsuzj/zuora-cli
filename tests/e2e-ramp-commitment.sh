@@ -33,7 +33,13 @@ header "Step 1: Ramp Validation"
 echo "  Testing: ramp get without argument"
 expect_fail "ramp get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR ramp get
 
-echo "  Testing: ramp get-by-subscription without argument"
+# ramp list replaces the mis-named get-by-subscription (#454); the old name
+# stays a deprecated alias.
+echo "  Testing: ramp list without --subscription"
+expect_fail "ramp list validation → requires --subscription" \
+  'required flag(s) "subscription" not set' -- $ZR ramp list
+
+echo "  Testing: ramp get-by-subscription (deprecated) without argument"
 expect_fail "ramp get-by-subscription validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR ramp get-by-subscription
 

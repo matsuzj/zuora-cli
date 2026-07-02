@@ -348,43 +348,53 @@ echo "  Testing: order-line-item bulk-update without --body"
 expect_fail "order-line-item bulk-update validation → requires --body" 'required flag(s) "body" not set' -- $ZR order-line-item bulk-update
 
 # ─────────────────────────────────────────
-header "Step 9: order list-by-* (live reads)"
+header "Step 9: order list scope flags (live reads)"
 # ─────────────────────────────────────────
-echo "  Testing: order list-by-subscription validation (no arg)"
+# The list-by-* commands folded into `order list --subscription/--subscription-owner/
+# --invoice-owner` (#454); the old names stay as deprecated aliases (validation
+# tests below confirm they still dispatch).
+echo "  Testing: order list scope flags mutually exclusive"
+expect_fail "order list validation → scope flags mutually exclusive" \
+  "specify at most one of --subscription" -- $ZR order list --subscription A-S1 --invoice-owner A00000002
+
+echo "  Testing: order list-by-subscription (deprecated) validation (no arg)"
 expect_fail "order list-by-subscription validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-by-subscription
 
-echo "  Testing: order list-by-invoice-owner validation (no arg)"
-expect_fail "order list-by-invoice-owner validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-by-invoice-owner
-
-echo "  Testing: order list-by-subscription-owner validation (no arg)"
-expect_fail "order list-by-subscription-owner validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-by-subscription-owner
-
 if [ -n "$SUB_NUM" ]; then
-  echo "  Testing: order list-by-subscription $SUB_NUM"
-  run $ZR order list-by-subscription "$SUB_NUM" --json
+  echo "  Testing: order list --subscription $SUB_NUM"
+  run $ZR order list --subscription "$SUB_NUM" --json
   if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then
-    pass "order list-by-subscription → .orders array"
+    pass "order list --subscription → .orders array"
   else
-    fail "order list-by-subscription (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+    fail "order list --subscription (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
   fi
 else
-  skip "order list-by-subscription → no subscription number"
+  skip "order list --subscription → no subscription number"
 fi
 
-echo "  Testing: order list-by-subscription-owner $ACCT_NUM"
+echo "  Testing: order list --subscription-owner $ACCT_NUM"
+run $ZR order list --subscription-owner "$ACCT_NUM" --json
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then
+  pass "order list --subscription-owner → .orders array"
+else
+  fail "order list --subscription-owner (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+fi
+
+echo "  Testing: order list --invoice-owner $ACCT_NUM"
+run $ZR order list --invoice-owner "$ACCT_NUM" --json
+if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then
+  pass "order list --invoice-owner → .orders array"
+else
+  fail "order list --invoice-owner (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+fi
+
+# The old list-by-* names still dispatch (deprecated). Spot-check one live.
+echo "  Testing: order list-by-subscription-owner (deprecated alias) still works"
 run $ZR order list-by-subscription-owner "$ACCT_NUM" --json
 if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then
-  pass "order list-by-subscription-owner → .orders array"
+  pass "order list-by-subscription-owner (deprecated) → .orders array"
 else
   fail "order list-by-subscription-owner (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
-fi
-
-echo "  Testing: order list-by-invoice-owner $ACCT_NUM"
-run $ZR order list-by-invoice-owner "$ACCT_NUM" --json
-if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then
-  pass "order list-by-invoice-owner → .orders array"
-else
-  fail "order list-by-invoice-owner (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
 fi
 
 # ─────────────────────────────────────────

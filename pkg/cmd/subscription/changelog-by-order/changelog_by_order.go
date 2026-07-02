@@ -13,9 +13,10 @@ import (
 // NewCmdChangelogByOrder creates the subscription changelog-by-order command.
 func NewCmdChangelogByOrder(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "changelog-by-order <order-number>",
-		Short: "Get subscription change logs by order",
-		Long:  `Get subscription change logs filtered by order number.`,
+		Use:        "changelog-by-order <order-number>",
+		Short:      "Get subscription change logs by order",
+		Long:       `Get subscription change logs filtered by order number.`,
+		Deprecated: `use "subscription changelog --order <order-number>" instead`,
 		Example: `  zr subscription changelog-by-order O-00000001
   zr subscription changelog-by-order O-00000001 --json`,
 		Args: cobra.ExactArgs(1),

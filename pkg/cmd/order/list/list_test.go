@@ -68,6 +68,23 @@ func TestOrderList_ScopeFlags(t *testing.T) {
 	}
 }
 
+// TestOrderList_SubscriptionPending folds in the former list-pending command.
+func TestOrderList_SubscriptionPending(t *testing.T) {
+	handler := cmdtest.OK(t, "GET", "/v1/orders/subscription/A-S00000001/pending", map[string]interface{}{
+		"orders": []map[string]interface{}{{"orderNumber": "O-PENDING"}},
+	})
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "list", "--subscription", "A-S00000001", "--pending")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "O-PENDING")
+}
+
+func TestOrderList_PendingRequiresSubscription(t *testing.T) {
+	// --pending without --subscription is rejected before any request.
+	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "list", "--pending")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--pending requires --subscription")
+}
+
 func TestOrderList_ScopesMutuallyExclusive(t *testing.T) {
 	// Two scope flags are rejected before any request (nil handler asserts none).
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "list", "--subscription", "A-S1", "--invoice-owner", "A00000002")

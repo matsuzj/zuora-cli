@@ -64,6 +64,11 @@ type Flag struct {
 	// (P5-3c). Plain Int flags without OmitZero are ALWAYS sent, matching
 	// account list's --page-size default 20.
 	OmitZero bool
+	// Bool registers a boolean flag (default false). It reaches Spec.Path via
+	// the flags map as "true"/"false"; when Query is set it is sent as that
+	// query parameter only when true (path-only when Query is empty, e.g. order
+	// list's --pending which selects a /pending sub-path).
+	Bool bool
 }
 
 // NextPage declares how the canonical pagination hint carries the next-page
@@ -109,6 +114,7 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 	strVals := make(map[string]*string)
 	intVals := make(map[string]*int)
 	arrVals := make(map[string]*[]string)
+	boolVals := make(map[string]*bool)
 
 	args := spec.Args
 	if args == nil {
@@ -123,12 +129,16 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 		Aliases: spec.Aliases,
 		Args:    args,
 		RunE: func(cmd *cobra.Command, posArgs []string) error {
-			return run(cmd, f, spec, posArgs, strVals, intVals, arrVals)
+			return run(cmd, f, spec, posArgs, strVals, intVals, arrVals, boolVals)
 		},
 	}
 
 	for _, fl := range spec.Flags {
 		switch {
+		case fl.Bool:
+			v := new(bool)
+			cmd.Flags().BoolVar(v, fl.Name, false, fl.Usage)
+			boolVals[fl.Name] = v
 		case fl.Int:
 			v := new(int)
 			cmd.Flags().IntVar(v, fl.Name, fl.IntDefault, fl.Usage)
@@ -167,7 +177,7 @@ func New(f *factory.Factory, spec Spec) *cobra.Command {
 	return cmd
 }
 
-func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, strVals map[string]*string, intVals map[string]*int, arrVals map[string]*[]string) error {
+func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, strVals map[string]*string, intVals map[string]*int, arrVals map[string]*[]string, boolVals map[string]*bool) error {
 	// Required flags that carry a deprecated alias are enforced on the value
 	// (cobra's required check would not see the alias as satisfying the
 	// canonical flag). The wording matches cobra's exactly.
@@ -184,12 +194,15 @@ func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, st
 		return err
 	}
 
-	flagVals := make(map[string]string, len(strVals)+len(intVals))
+	flagVals := make(map[string]string, len(strVals)+len(intVals)+len(boolVals))
 	for name, v := range strVals {
 		flagVals[name] = *v
 	}
 	for name, v := range intVals {
 		flagVals[name] = strconv.Itoa(*v)
+	}
+	for name, v := range boolVals {
+		flagVals[name] = strconv.FormatBool(*v)
 	}
 
 	var reqOpts []api.RequestOption
@@ -198,6 +211,11 @@ func run(cmd *cobra.Command, f *factory.Factory, spec Spec, posArgs []string, st
 			continue
 		}
 		switch {
+		case fl.Bool:
+			// Send the query only when true; a false bool is "not set".
+			if *boolVals[fl.Name] {
+				reqOpts = append(reqOpts, api.WithQuery(fl.Query, "true"))
+			}
 		case fl.Int:
 			if fl.OmitZero && *intVals[fl.Name] == 0 {
 				continue

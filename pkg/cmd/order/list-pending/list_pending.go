@@ -12,7 +12,7 @@ import (
 
 // NewCmdListPending creates the order list-pending command.
 func NewCmdListPending(f *factory.Factory) *cobra.Command {
-	return listcmd.New(f, listcmd.Spec{
+	cmd := listcmd.New(f, listcmd.Spec{
 		Use:   "list-pending <subscription-key>",
 		Short: "List pending orders for a subscription",
 		Long:  `List pending Zuora orders for a subscription number or key.`,
@@ -36,4 +36,6 @@ func NewCmdListPending(f *factory.Factory) *cobra.Command {
 		},
 		NextPage: listcmd.NextPage{Flag: "page", FromURL: "page"},
 	})
+	cmd.Deprecated = `use "order list --subscription <subscription-key> --pending" instead`
+	return cmd
 }

@@ -40,6 +40,19 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
   `listcmd.New`+`Spec` (table lists), `output.RenderJSONOnly` (JSON-only).
   Hand-written `runE` only for the documented exceptions — see
   `docs/architecture.md`「コマンドの書き方(正準)」.
+- **Every command honors the global format flags** (`--json`/`--jq`/`--template`/`--csv`),
+  including local, non-API ones (`auth status`, `alias list`, `config list`).
+  Never hand-roll output that ignores them — silently emitting text when
+  `--json` was asked for is a bug (#453). Route through `pkg/output`; for
+  non-API data, synthesize a JSON body and call `output.RenderDetail`/`Render`
+  (see `version.go`).
+- A write command that renders a JSON response body plus a stderr success line
+  uses `output.RenderJSONWithMessage` — do not re-inline the
+  `jq/template → PrintJSON → Fprintf` tail (it was deduped in #453). Bodyless
+  writes use `output.RenderSuccess`.
+- `output.Render` prints `No results found.` to stderr for a zero-row human
+  table (stdout stays empty; `--json`/`--csv` are unaffected). Don't hand-roll
+  empty-state checks in a command.
 - Command options live in an options struct (`opts := &xxxOptions{Factory: f}`).
 - Flag vocabulary: `--account-key` (ID or number, path param) /
   `--account-number` (`accountNumber` query) / `--account-id` (`accountId`
@@ -48,6 +61,15 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
   `RequireConfirm` call, run `scripts/gen-destructive-list.sh` and refresh the
   block between the README's destructive-list markers (`make lint` fails on
   drift).
+
+## Design decisions (settled — do not re-propose)
+
+From the 2026-07 command-design audit. These were evaluated and deliberately kept; don't reopen them without a new reason:
+
+- **Command layout stays `pkg/cmd/<resource>/<action>/`** (gh-CLI style). Do not move commands under a top-level `cmd/` tree — it is pure import churn with no behavior gain.
+- **No Viper.** The custom `cobra`+`pflag`+`internal/config` mechanism already gives a single source of truth and documented `flag > env > config` precedence, and it does what `viper.BindPFlag` cannot: `ZR_READ_ONLY` fails **closed** while `ZR_READ_ONLY_ALLOW_DATA_QUERY` fails **restrictive** (asymmetric env parsing). Adopting Viper would regress that.
+- **Output flags stay boolean** (`--json`/`--jq`/`--template`/`--csv`), not a single `--output` enum: it matches gh, and a global `--output` would collide with `data-query run`'s existing `--output` (result-file path).
+- **Env vars stay `ZR_*`.** There is no `ZUORA_*` legacy to support, so renaming would only break existing users.
 
 ## Testing
 

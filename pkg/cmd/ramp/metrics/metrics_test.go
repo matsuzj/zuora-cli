@@ -30,9 +30,43 @@ func TestRampMetrics_Success(t *testing.T) {
 	assert.Contains(t, stdout, "Total Contract Value")
 }
 
-func TestRampMetrics_RequiresArg(t *testing.T) {
+// TestRampMetrics_ByOrder folds in the old `metrics-by-order` via --order.
+func TestRampMetrics_ByOrder(t *testing.T) {
+	handler := cmdtest.OK(t, "GET", "/v1/orders/O-00000001/ramp-metrics", map[string]interface{}{
+		"success":     true,
+		"rampMetrics": []map[string]interface{}{{"name": "TCV"}},
+	})
+	stdout, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "metrics", "--order", "O-00000001")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "rampMetrics")
+}
+
+// TestRampMetrics_BySubscription folds in the old `metrics-by-subscription`.
+func TestRampMetrics_BySubscription(t *testing.T) {
+	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/A-S00000001/ramp-metrics", map[string]interface{}{
+		"success":     true,
+		"rampMetrics": []map[string]interface{}{{"name": "TCV"}},
+	})
+	stdout, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "metrics", "--subscription", "A-S00000001")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "rampMetrics")
+}
+
+func TestRampMetrics_RequiresSelector(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "ramp", newCmd, nil, "ramp", "metrics")
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "one of <ramp-number>, --order, or --subscription is required")
+}
+
+func TestRampMetrics_SelectorsMutuallyExclusive(t *testing.T) {
+	// More than one selector is rejected before any request (nil handler).
+	_, _, err := cmdtest.Run(t, "ramp", newCmd, nil, "ramp", "metrics", "R-1", "--order", "O-1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "specify only one of")
+
+	_, _, err = cmdtest.Run(t, "ramp", newCmd, nil, "ramp", "metrics", "--order", "O-1", "--subscription", "A-S1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "specify only one of")
 }
 
 func TestRampMetrics_SuccessFalse(t *testing.T) {

@@ -13,9 +13,10 @@ import (
 // NewCmdMetricsBySubscription creates the ramp metrics-by-subscription command.
 func NewCmdMetricsBySubscription(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "metrics-by-subscription <subscription-key>",
-		Short: "Get ramp metrics by subscription",
-		Long:  `Get ramp metrics for a Zuora subscription.`,
+		Use:        "metrics-by-subscription <subscription-key>",
+		Short:      "Get ramp metrics by subscription",
+		Long:       `Get ramp metrics for a Zuora subscription.`,
+		Deprecated: `use "ramp metrics --subscription <subscription-key>" instead`,
 		Example: `  zr ramp metrics-by-subscription A-S00000001
   zr ramp metrics-by-subscription A-S00000001 --json`,
 		Args: cobra.ExactArgs(1),

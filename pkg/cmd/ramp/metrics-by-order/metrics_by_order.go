@@ -13,9 +13,10 @@ import (
 // NewCmdMetricsByOrder creates the ramp metrics-by-order command.
 func NewCmdMetricsByOrder(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "metrics-by-order <order-number>",
-		Short: "Get ramp metrics by order",
-		Long:  `Get ramp metrics for a Zuora order.`,
+		Use:        "metrics-by-order <order-number>",
+		Short:      "Get ramp metrics by order",
+		Long:       `Get ramp metrics for a Zuora order.`,
+		Deprecated: `use "ramp metrics --order <order-number>" instead`,
 		Example: `  zr ramp metrics-by-order O-00000001
   zr ramp metrics-by-order O-00000001 --json`,
 		Args: cobra.ExactArgs(1),

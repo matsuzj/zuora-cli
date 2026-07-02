@@ -37,10 +37,18 @@ echo "  Testing: ramp get-by-subscription without argument"
 expect_fail "ramp get-by-subscription validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR ramp get-by-subscription
 
-echo "  Testing: ramp metrics without argument"
-expect_fail "ramp metrics validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR ramp metrics
+echo "  Testing: ramp metrics without a selector"
+expect_fail "ramp metrics validation → requires ramp-number/--order/--subscription" \
+  "one of <ramp-number>, --order, or --subscription is required" -- $ZR ramp metrics
 
-echo "  Testing: ramp metrics-by-order without argument"
+echo "  Testing: ramp metrics with two selectors (mutually exclusive)"
+expect_fail "ramp metrics validation → selectors mutually exclusive" \
+  "specify only one of" -- $ZR ramp metrics R-1 --order O-1
+
+# metrics-by-order / metrics-by-subscription are now deprecated aliases of
+# `ramp metrics --order` / `--subscription` (#454) but still dispatch and
+# validate their args.
+echo "  Testing: ramp metrics-by-order (deprecated) without argument"
 expect_fail "ramp metrics-by-order validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR ramp metrics-by-order
 

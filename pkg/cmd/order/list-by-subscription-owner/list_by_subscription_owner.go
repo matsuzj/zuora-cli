@@ -12,7 +12,7 @@ import (
 
 // NewCmdListBySubscriptionOwner creates the order list-by-subscription-owner command.
 func NewCmdListBySubscriptionOwner(f *factory.Factory) *cobra.Command {
-	return listcmd.New(f, listcmd.Spec{
+	cmd := listcmd.New(f, listcmd.Spec{
 		Use:   "list-by-subscription-owner <account-number>",
 		Short: "List orders by subscription owner account",
 		Long:  `List Zuora orders for a subscription owner account.`,
@@ -36,4 +36,6 @@ func NewCmdListBySubscriptionOwner(f *factory.Factory) *cobra.Command {
 		},
 		NextPage: listcmd.NextPage{Flag: "page", FromURL: "page"},
 	})
+	cmd.Deprecated = `use "order list --subscription-owner <account-number>" instead`
+	return cmd
 }

@@ -44,11 +44,28 @@ func runSignup(cmd *cobra.Command, f *factory.Factory, body string) error {
 		Path:   "/v1/sign-up",
 		Body:   bodyReader,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// The Sign-Up API returns the immediate follow-on references a
+			// completing onboarding flow needs next (order/invoice/payment/
+			// credit-memo numbers) alongside the account+subscription. These are
+			// flat top-level string ids per Zuora's Sign-Up response; paidAmount
+			// is monetary (GetMoney → fixed two decimals). Absent fields render
+			// blank, so this is additive and safe. NOTE: the response shape could
+			// not be live-verified — this tenant returns HTTP 500 (69000060) on
+			// sign-up — so the field names are sourced from Zuora's API docs.
 			return []output.DetailField{
 				{Key: "Account ID", Value: cmdutil.GetString(raw, "accountId")},
 				{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
 				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
 				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+				{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
+				{Key: "Invoice ID", Value: cmdutil.GetString(raw, "invoiceId")},
+				{Key: "Invoice Number", Value: cmdutil.GetString(raw, "invoiceNumber")},
+				{Key: "Payment ID", Value: cmdutil.GetString(raw, "paymentId")},
+				{Key: "Payment Number", Value: cmdutil.GetString(raw, "paymentNumber")},
+				{Key: "Credit Memo ID", Value: cmdutil.GetString(raw, "creditMemoId")},
+				{Key: "Credit Memo Number", Value: cmdutil.GetString(raw, "creditMemoNumber")},
+				{Key: "Paid Amount", Value: cmdutil.GetMoney(raw, "paidAmount")},
+				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
 				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 			}
 		},

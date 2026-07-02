@@ -13,9 +13,10 @@ import (
 // NewCmdGetBySubscription creates the ramp get-by-subscription command.
 func NewCmdGetBySubscription(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get-by-subscription <subscription-key>",
-		Short: "Get ramps by subscription",
-		Long:  `Get ramps associated with a Zuora subscription.`,
+		Use:        "get-by-subscription <subscription-key>",
+		Short:      "Get ramps by subscription",
+		Long:       `Get ramps associated with a Zuora subscription.`,
+		Deprecated: `use "ramp list --subscription <subscription-key>" instead`,
 		Example: `  zr ramp get-by-subscription A-S00000001
   zr ramp get-by-subscription A-S00000001 --json`,
 		Args: cobra.ExactArgs(1),

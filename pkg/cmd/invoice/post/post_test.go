@@ -22,7 +22,7 @@ func TestInvoicePost_Success(t *testing.T) {
 		"success":       true,
 	})
 
-	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001")
+	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Posted")
 }
@@ -32,10 +32,19 @@ func TestInvoicePost_RequiresArg(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestInvoicePost_RequiresConfirm pins the irreversible-write guard: without
+// --confirm the command must refuse before issuing any request (nil handler
+// asserts no HTTP call is made).
+func TestInvoicePost_RequiresConfirm(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "post", "inv-001")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--confirm")
+}
+
 func TestInvoicePost_SuccessFalse(t *testing.T) {
 	handler := cmdtest.Reasons(t, 58730020, "Invoice is not in draft status")
 
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001")
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001", "--confirm")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not in draft status")
 }
@@ -55,6 +64,6 @@ func TestInvoicePost_SendsEmptyJSONBody(t *testing.T) {
 		inner(w, r)
 	}
 
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001")
+	_, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001", "--confirm")
 	require.NoError(t, err)
 }

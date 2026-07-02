@@ -109,7 +109,15 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	// logs request/response bodies. ZR_DEBUG=api implies level 1 so the
 	// bodies appear in context.
 	verboseCount, _ := cmd.Flags().GetCount("verbose")
-	verbose, verboseBody := VerboseLevels(verboseCount, os.Getenv("ZR_DEBUG"))
+	zrDebug := os.Getenv("ZR_DEBUG")
+	verbose, verboseBody := VerboseLevels(verboseCount, zrDebug)
+	// ZR_DEBUG is matched EXACTLY against "api" (VerboseLevels); any other
+	// non-empty value — "API", "1", "true" — is a silent no-op that reads like
+	// "debug is on" when it isn't. Warn so the user learns the only supported
+	// spelling instead of wondering why bodies never appear. (#456)
+	if dbg := strings.TrimSpace(zrDebug); dbg != "" && dbg != "api" && f.IOStreams != nil {
+		fmt.Fprintf(f.IOStreams.ErrOut, "warning: ZR_DEBUG=%q is not recognized; the only supported value is \"api\" (adds request/response bodies at -vv). Ignoring.\n", dbg)
+	}
 
 	// --read-only flag takes precedence over the ZR_READ_ONLY env var.
 	readOnly, _ := cmd.Flags().GetBool("read-only")
@@ -144,9 +152,10 @@ func Apply(f *factory.Factory, cmd *cobra.Command) error {
 	// outlive it. A deadline surfaces as context.DeadlineExceeded → exit 1,
 	// distinct from Ctrl-C's context.Canceled → exit 130 (see cmd/zr/main.go).
 	// Read the GLOBAL timeout from the ROOT's persistent flags, not cmd.Flags():
-	// `order job-status` defines a LOCAL --timeout (its watch poll deadline) that
-	// shadows the inherited persistent flag in the merged set, so cmd.Flags()
-	// would read the wrong one (Codex review finding). The local flag keeps its
+	// two subcommands define a LOCAL --timeout that shadows the inherited
+	// persistent flag in the merged set — `order job-status` (its --watch poll
+	// deadline) and `data-query run` (its submit+poll deadline) — so cmd.Flags()
+	// would read the wrong one (Codex review finding). Each local flag keeps its
 	// own meaning; the global whole-command deadline is set by
 	// `zr --timeout … <cmd>`, which lands on the root persistent flag.
 	var globalTimeout time.Duration

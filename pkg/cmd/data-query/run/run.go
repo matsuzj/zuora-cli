@@ -51,7 +51,7 @@ stdout effect there).`,
 	dqutil.RegisterSubmitCompletions(cmd)
 	cmd.Flags().StringVar(&opts.Output, "output", "", "Write the result file here (- for stdout)")
 	cmd.Flags().DurationVar(&opts.Interval, "interval", 5*time.Second, "Polling interval")
-	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Give up waiting after this duration (0 = no limit)")
+	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Give up the submit+poll wait after this duration (0 = no limit); local to this command, distinct from the global 'zr --timeout'")
 	cmd.Flags().DurationVar(&opts.DownloadTimeout, "download-timeout", 10*time.Minute, "Maximum time for the result download")
 	return cmd
 }

@@ -46,3 +46,35 @@ func TestApply_ZRDebugAPIEnablesBodyLogging(t *testing.T) {
 	assert.Contains(t, errOut.String(), "BODY-MARKER-9000",
 		"ZR_DEBUG=api must enable verbose body logging (response body to ErrOut)")
 }
+
+// TestApply_ZRDebugUnknownValueWarns pins #456 item 7: a non-empty ZR_DEBUG that
+// is not exactly "api" (here the wrong-case "API") is a silent no-op, so Apply
+// warns to stderr instead of leaving the user to wonder why bodies never appear.
+func TestApply_ZRDebugUnknownValueWarns(t *testing.T) {
+	t.Setenv("ZR_DEBUG", "API")
+
+	ios, _, _, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), "", "tok")
+
+	cmd := &cobra.Command{Use: "x"}
+	globalflags.Register(cmd)
+	require.NoError(t, cmd.ParseFlags([]string{}))
+	require.NoError(t, globalflags.Apply(f, cmd))
+
+	assert.Contains(t, errOut.String(), `ZR_DEBUG="API" is not recognized`)
+}
+
+// TestApply_ZRDebugAPIDoesNotWarn confirms the exact supported value stays quiet.
+func TestApply_ZRDebugAPIDoesNotWarn(t *testing.T) {
+	t.Setenv("ZR_DEBUG", "api")
+
+	ios, _, _, errOut := iostreams.Test()
+	f := factory.NewTestFactory(ios, config.NewMockConfig(), "", "tok")
+
+	cmd := &cobra.Command{Use: "x"}
+	globalflags.Register(cmd)
+	require.NoError(t, cmd.ParseFlags([]string{}))
+	require.NoError(t, globalflags.Apply(f, cmd))
+
+	assert.NotContains(t, errOut.String(), "not recognized")
+}

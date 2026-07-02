@@ -4,10 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddBodyFlag registers the canonical --body / -b flag. required is accepted
-// now so call sites already declare intent; it is wired to MarkFlagRequired in
-// the P5 cobra-required migration (docs/refactoring-plan.md) — until then the
-// RunE guards keep enforcing it.
+// AddBodyFlag registers the canonical --body / -b flag. When required is true
+// the flag is wired to cobra's MarkFlagRequired, so a missing --body fails at
+// parse time (the P5 cobra-required migration is complete; RunE no longer needs
+// to guard presence).
 func AddBodyFlag(cmd *cobra.Command, dest *string, required bool) {
 	cmd.Flags().StringVarP(dest, "body", "b", "", "Request body (JSON string, @file, or - for stdin)")
 	if required {

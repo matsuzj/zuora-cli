@@ -22,21 +22,80 @@ import (
 
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdJobStatus(f) }
 
+// completedCreateOrderJob is the live-verified GET /v1/async-jobs/{jobId}
+// response for a completed AsyncCreateOrder job (probed 2026-07-02). The
+// identifying fields (orderNumber, accountNumber, subscriptionNumber) live
+// NESTED under `result`, and there is deliberately no root jobId/orderNumber/
+// accountNumber — that absence is what the fields fix depends on, so the
+// fixture must not reintroduce them.
+func completedCreateOrderJob() map[string]interface{} {
+	return map[string]interface{}{
+		"status": "Completed",
+		"errors": nil,
+		"result": map[string]interface{}{
+			"orderNumber":   "O-00014288",
+			"accountNumber": "A00023286",
+			"status":        "Completed",
+			"subscriptions": []interface{}{
+				map[string]interface{}{
+					"subscriptionNumber": "A-S00005866",
+					"status":             "有効",
+				},
+			},
+			"jobType": "AsyncCreateOrder",
+		},
+		"success": true,
+	}
+}
+
 func TestOrderJobStatus_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "GET", "/v1/async-jobs/2c92c0f9876", map[string]interface{}{
-		"success":       true,
-		"jobId":         "2c92c0f9876",
-		"status":        "Completed",
-		"result":        "Success",
-		"orderNumber":   "O-00000001",
-		"accountNumber": "A001",
-	})
+	handler := cmdtest.OK(t, "GET", "/v1/async-jobs/2c92c0f9876", completedCreateOrderJob())
 
 	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "2c92c0f9876")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "2c92c0f9876")
+	assert.Contains(t, stdout, "2c92c0f9876", "Job ID row echoes the queried argument")
 	assert.Contains(t, stdout, "Completed")
-	assert.Contains(t, stdout, "O-00000001")
+	// Sourced from result.orderNumber / result.accountNumber (nested), not root.
+	assert.Contains(t, stdout, "O-00014288")
+	assert.Contains(t, stdout, "A00023286")
+	// Sourced from result.subscriptions[0].subscriptionNumber.
+	assert.Contains(t, stdout, "A-S00005866")
+}
+
+// TestOrderJobStatus_ResultObjectNotRenderedRaw pins the object-result fix:
+// `result` is an object, and the old code read it via GetString, dumping a
+// Go-map representation ("map[...]") into the detail view. This asserts no such
+// dump leaks — reverting to GetString(raw,"result") makes it fail.
+func TestOrderJobStatus_ResultObjectNotRenderedRaw(t *testing.T) {
+	handler := cmdtest.OK(t, "GET", "/v1/async-jobs/2c92c0f9876", completedCreateOrderJob())
+
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "2c92c0f9876")
+	require.NoError(t, err)
+	assert.NotContains(t, stdout, "map[", "result object must be descended into, never GetString'd into a Go-map dump")
+}
+
+// TestOrderJobStatus_RendersErrors pins the errors row for a failed job. The
+// failed-job error shape ({code, message}) is Zuora's documented convention but
+// was not live-verified (all probed jobs completed); formatJobErrors is
+// defensive so an unexpected shape yields a blank row, never a Go-map dump.
+func TestOrderJobStatus_RendersErrors(t *testing.T) {
+	// A failed JOB still returns a successful READ (root success:true; the
+	// failure is conveyed by status + errors). Using success:false here would
+	// instead trip the client's success-flag gate before rendering.
+	handler := cmdtest.OK(t, "GET", "/v1/async-jobs/job-fail", map[string]interface{}{
+		"status": "Failed",
+		"errors": []interface{}{
+			map[string]interface{}{"code": "58730020", "message": "Invalid rate plan"},
+		},
+		"result":  nil,
+		"success": true,
+	})
+
+	stdout, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "job-fail")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Failed")
+	assert.Contains(t, stdout, "58730020: Invalid rate plan")
+	assert.NotContains(t, stdout, "map[", "errors array must be formatted, never dumped as a Go map")
 }
 
 func TestOrderJobStatus_RequiresArg(t *testing.T) {

@@ -525,6 +525,16 @@ Some operations support async execution:
 | Delete order async | DELETE | `/v1/async/orders/{orderNumber}` |
 | Check async job status | GET | `/v1/async-jobs/{jobId}` |
 
+**`GET /v1/async-jobs/{jobId}` response shape** (live-verified 2026-07-02, apac-sandbox):
+the root is `{status, errors, result, success}` — there is **no** root `jobId`,
+`orderNumber`, or `accountNumber`. The identifying fields are NESTED under
+`result`, whose shape depends on the job type:
+- **AsyncCreateOrder** (completed): `result` = `{orderNumber, accountNumber, status, subscriptions:[{subscriptionNumber, subscriptionOwnerNumber, status}], jobType}`
+- **preview** (completed): `result` = `{invoices:[…], creditMemos:[…]}` (no order/account number)
+
+`result` is always an object; rendering it via `GetString` prints a Go-map dump.
+`errors` is `null` on success. (Consumed by `pkg/cmd/order/job-status`.)
+
 ### Sync vs Async Limits
 - Synchronous: up to 50 subscriptions, 50 order actions per call
 - Asynchronous: up to 300 subscriptions, 300 order actions per call

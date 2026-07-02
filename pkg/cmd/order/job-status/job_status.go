@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -99,12 +100,32 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 		status := cmdutil.GetString(raw, "status")
 		lastStatus = status
 
+		// The real GET /v1/async-jobs/{jobId} response is
+		// {status, errors, result:{...}, success} — there is NO root jobId,
+		// orderNumber, or accountNumber (live-verified 2026-07-02). The
+		// identifying fields live under `result`, whose shape depends on the
+		// job type: a completed AsyncCreateOrder carries
+		// {orderNumber, accountNumber, subscriptions:[{subscriptionNumber,...}]},
+		// while a preview job carries {invoices, creditMemos}. `result` is an
+		// object, so it must be descended into, not rendered via GetString
+		// (which would print an unreadable Go-map representation). The Job ID
+		// row echoes the argument the user queried, which is always correct.
+		result, _ := raw["result"].(map[string]interface{})
+
+		var subNumber string
+		if subs, ok := result["subscriptions"].([]interface{}); ok && len(subs) > 0 {
+			if sub0, ok := subs[0].(map[string]interface{}); ok {
+				subNumber = cmdutil.GetString(sub0, "subscriptionNumber")
+			}
+		}
+
 		fields := []output.DetailField{
-			{Key: "Job ID", Value: cmdutil.GetString(raw, "jobId")},
+			{Key: "Job ID", Value: jobID},
 			{Key: "Status", Value: status},
-			{Key: "Result", Value: cmdutil.GetString(raw, "result")},
-			{Key: "Order Number", Value: cmdutil.GetString(raw, "orderNumber")},
-			{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
+			{Key: "Order Number", Value: cmdutil.GetString(result, "orderNumber")},
+			{Key: "Account Number", Value: cmdutil.GetString(result, "accountNumber")},
+			{Key: "Subscription", Value: subNumber},
+			{Key: "Errors", Value: formatJobErrors(raw["errors"])},
 			{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 		}
 
@@ -123,6 +144,38 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 			return err
 		}
 	}
+}
+
+// formatJobErrors renders the async-job `errors` field for the detail view.
+// The field is null on success and, on failure, an array of error objects
+// (Zuora's convention is {code, message}); it is joined into a readable
+// "code: message" list. Any other/unknown shape yields "" rather than a raw
+// Go-map dump, so the row is blank instead of garbage. The failed-job shape is
+// not live-verified — only the null (success) case is — so the extraction is
+// defensive by design.
+func formatJobErrors(v interface{}) string {
+	arr, ok := v.([]interface{})
+	if !ok || len(arr) == 0 {
+		return ""
+	}
+	var msgs []string
+	for _, e := range arr {
+		m, ok := e.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		code := cmdutil.GetString(m, "code")
+		msg := cmdutil.GetString(m, "message")
+		switch {
+		case code != "" && msg != "":
+			msgs = append(msgs, code+": "+msg)
+		case msg != "":
+			msgs = append(msgs, msg)
+		case code != "":
+			msgs = append(msgs, code)
+		}
+	}
+	return strings.Join(msgs, "; ")
 }
 
 func isTerminalStatus(status string) bool {

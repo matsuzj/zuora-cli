@@ -139,24 +139,29 @@ else
 fi
 
 # ─────────────────────────────────────────
-header "Step 5: order list-pending"
+header "Step 5: order list --subscription --pending"
 # ─────────────────────────────────────────
-# list-pending takes a <subscription-key> argument.
-echo "  Testing: order list-pending validation (no arg)"
+# list-pending folded into `order list --subscription X --pending` (#454); the
+# old command stays a deprecated alias.
+echo "  Testing: order list --pending without --subscription"
+expect_fail "order list --pending validation → requires --subscription" \
+  "--pending requires --subscription" -- $ZR order list --pending
+
+echo "  Testing: order list-pending (deprecated) validation (no arg)"
 expect_fail "order list-pending validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-pending
 
 if [ -n "$SUB_NUM" ]; then
-  echo "  Testing: order list-pending $SUB_NUM"
-  run $ZR order list-pending "$SUB_NUM" --json
+  echo "  Testing: order list --subscription $SUB_NUM --pending"
+  run $ZR order list --subscription "$SUB_NUM" --pending --json
   if echo "$RUN_OUT" | jq -e '.' >/dev/null 2>&1; then
-    pass "order list-pending → returned JSON"
+    pass "order list --pending → returned JSON"
   elif echo "${RUN_ERR:-$RUN_OUT}" | grep -qF "Zuora API error"; then
-    skip "order list-pending → Zuora API error: $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
+    skip "order list --pending → Zuora API error: $(echo "${RUN_ERR:-$RUN_OUT}" | head -1)"
   else
-    fail "order list-pending (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+    fail "order list --pending (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
   fi
 else
-  skip "order list-pending → no subscription number from order create"
+  skip "order list --pending → no subscription number from order create"
 fi
 
 # ─────────────────────────────────────────

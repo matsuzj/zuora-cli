@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -59,6 +60,26 @@ func TestConfigList(t *testing.T) {
 	assert.Contains(t, stdout, "zuora_version: 2025-08-12")
 	assert.Contains(t, stdout, "sandbox")
 	assert.Contains(t, stdout, "rest.apisandbox.zuora.com")
+}
+
+// TestConfigList_JSON pins the output-consistency fix (#453): `config list
+// --json` must emit structured JSON with a nested environments object, not the
+// plain-text layout. cmdtest.Run registers and applies the global flags.
+func TestConfigList_JSON(t *testing.T) {
+	stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "list", "--json")
+	require.NoError(t, err)
+
+	var got map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &got),
+		"config list --json must emit valid JSON, not plain text")
+	assert.Equal(t, "sandbox", got["active_environment"])
+	assert.Equal(t, "2025-08-12", got["zuora_version"])
+	envs, ok := got["environments"].(map[string]interface{})
+	require.True(t, ok, "environments must be a nested object")
+	sandbox, ok := envs["sandbox"].(map[string]interface{})
+	require.True(t, ok, "sandbox environment must be present")
+	assert.Equal(t, true, sandbox["active"])
+	assert.Contains(t, sandbox["baseUrl"], "rest.apisandbox.zuora.com")
 }
 
 func TestConfigEnv(t *testing.T) {

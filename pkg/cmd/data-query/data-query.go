@@ -23,10 +23,11 @@ func NewCmdDataQuery(f *factory.Factory) *cobra.Command {
 		Long: `Submit, track, and download Zuora Data Query jobs.
 
 Data Query runs read-only SQL asynchronously: submit a job, poll until it
-completes, then download the result file. Although submit (POST) and cancel
-(DELETE) use mutating HTTP methods, Data Query never changes tenant data, so in
-read-only mode they are blocked by default and allowed only with
---read-only-allow-data-query (or ZR_READ_ONLY_ALLOW_DATA_QUERY=1).`,
+completes, then download the result file. It suits large exports and full SQL;
+for small, synchronous lookups use ` + "`zr query`" + ` (ZOQL). Although submit
+(POST) and cancel (DELETE) use mutating HTTP methods, Data Query never changes
+tenant data, so in read-only mode they are blocked by default and allowed only
+with --read-only-allow-data-query (or ZR_READ_ONLY_ALLOW_DATA_QUERY=1).`,
 	}
 
 	cmd.AddCommand(submit.NewCmdSubmit(f))

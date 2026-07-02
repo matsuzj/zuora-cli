@@ -46,7 +46,7 @@ Ctrl-C cancels immediately, including mid-interval.`,
 
 	cmd.Flags().BoolVar(&opts.Watch, "watch", false, "Poll until job completes")
 	cmd.Flags().DurationVar(&opts.Interval, "interval", 5*time.Second, "Polling interval for --watch")
-	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Give up watching after this duration (0 = no limit)")
+	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Give up --watch after this duration (0 = no limit); local to this command, distinct from the global 'zr --timeout'")
 	return cmd
 }
 

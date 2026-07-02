@@ -31,7 +31,9 @@ func NewCmdQuery(f *factory.Factory) *cobra.Command {
 		Short: "Execute a ZOQL query",
 		Long: `Execute a ZOQL query against the Zuora API.
 
-Automatically paginates through all results using queryMore.`,
+Automatically paginates through all results using queryMore. ZOQL runs
+synchronously and returns immediately, best for small, interactive lookups. For
+large exports or full SQL, use ` + "`zr data-query`" + ` (asynchronous Data Query).`,
 		Example: `  zr query "SELECT Id, Name FROM Account"
   zr query "SELECT Id, Name FROM Account" --limit 10
   zr query "SELECT Id, Name FROM Account" --csv

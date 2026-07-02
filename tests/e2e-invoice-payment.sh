@@ -53,6 +53,22 @@ expect_fail "payment apply validation → requires argument" "accepts 1 arg(s), 
 echo "  Testing: payment refund without argument"
 expect_fail "payment refund validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR payment refund
 
+# payment cancel/unapply/transfer (#430): validation gates only — a live
+# cancel/unapply/transfer would mutate real payment records, so like refund
+# these are exercised at the validation layer, not with a live mutation.
+echo "  Testing: payment cancel without argument"
+expect_fail "payment cancel validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR payment cancel
+
+echo "  Testing: payment cancel without --confirm"
+expect_fail "payment cancel validation → requires --confirm" \
+  "this action is irreversible. Use --confirm to proceed" -- $ZR payment cancel pay-FAKE
+
+echo "  Testing: payment unapply without --body"
+expect_fail "payment unapply validation → requires --body" 'required flag(s) "body" not set' -- $ZR payment unapply pay-FAKE
+
+echo "  Testing: payment transfer without --body"
+expect_fail "payment transfer validation → requires --body" 'required flag(s) "body" not set' -- $ZR payment transfer pay-FAKE
+
 echo "  Testing: payment get without argument"
 expect_fail "payment get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR payment get
 

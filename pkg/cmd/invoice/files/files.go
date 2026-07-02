@@ -2,6 +2,7 @@
 package files
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -15,11 +16,10 @@ func NewCmdFiles(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "files <invoice-id>",
 		Short: "List invoice files",
-		Long: `List all files associated with a Zuora invoice.
-
-Output is always JSON due to the complex structure of file URLs.`,
-		Example: `  zr invoice files 2c92c0f8...`,
-		Args:    cobra.ExactArgs(1),
+		Long:  `List all files associated with a Zuora invoice.`,
+		Example: `  zr invoice files 2c92c0f8...
+  zr invoice files 2c92c0f8... --json`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runFiles(cmd, f, args[0])
 		},
@@ -29,9 +29,6 @@ Output is always JSON due to the complex structure of file URLs.`,
 
 func runFiles(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
 	fmtOpts := output.FromCmd(cmd)
-	if err := output.RejectBareCSV(fmtOpts); err != nil {
-		return err
-	}
 
 	client, err := f.HttpClient()
 	if err != nil {
@@ -43,5 +40,30 @@ func runFiles(cmd *cobra.Command, f *factory.Factory, invoiceID string) error {
 		return err
 	}
 
-	return output.RenderJSONOnly(f.IOStreams, resp.Body, fmtOpts)
+	// Live-verified shape (2026-07-02): {"invoiceFiles":[{id, versionNumber,
+	// pdfFileUrl}], "success":true}. versionNumber is a large integer (epoch
+	// millis), so json.Number keeps it out of scientific notation without a
+	// float round-trip.
+	var body struct {
+		InvoiceFiles []struct {
+			ID            string      `json:"id"`
+			VersionNumber json.Number `json:"versionNumber"`
+			PDFFileURL    string      `json:"pdfFileUrl"`
+		} `json:"invoiceFiles"`
+	}
+	if err := json.Unmarshal(resp.Body, &body); err != nil {
+		return fmt.Errorf("parsing response: %w", err)
+	}
+
+	cols := []output.Column{
+		{Header: "ID"},
+		{Header: "VERSION"},
+		{Header: "PDF_URL"},
+	}
+	rows := make([][]string, len(body.InvoiceFiles))
+	for i, file := range body.InvoiceFiles {
+		rows[i] = []string{file.ID, file.VersionNumber.String(), file.PDFFileURL}
+	}
+
+	return output.Render(f.IOStreams, resp.Body, fmtOpts, rows, cols)
 }

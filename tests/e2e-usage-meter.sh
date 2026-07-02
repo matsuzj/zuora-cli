@@ -30,12 +30,17 @@ require_auth
 # ─────────────────────────────────────────
 header "Step 1: Usage Validation"
 # ─────────────────────────────────────────
-echo "  Testing: usage post without --file"
-expect_fail "usage post validation → requires --file" 'required flag(s) "file" not set' -- $ZR usage post
+echo "  Testing: usage upload without --file"
+expect_fail "usage upload validation → requires --file" 'required flag(s) "file" not set' -- $ZR usage upload
 
-echo "  Testing: usage post with nonexistent file (local IO error, not API)"
-expect_fail "usage post validation → file not found (local)" \
-  "no such file or directory" -- $ZR usage post --file /nonexistent/file.csv
+echo "  Testing: usage upload with nonexistent file (local IO error, not API)"
+expect_fail "usage upload validation → file not found (local)" \
+  "no such file or directory" -- $ZR usage upload --file /nonexistent/file.csv
+
+# The old `usage post` name stays as a deprecated alias (#455) — still dispatches
+# to the same command (validation-level check; no live upload).
+echo "  Testing: usage post (deprecated alias) still dispatches"
+expect_fail "usage post alias → still requires --file" 'required flag(s) "file" not set' -- $ZR usage post
 
 echo "  Testing: usage get without argument"
 expect_fail "usage get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR usage get

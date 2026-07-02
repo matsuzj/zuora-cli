@@ -1,5 +1,5 @@
-// Package post implements the "zr usage post" command.
-package post
+// Package upload implements the "zr usage upload" command.
+package upload
 
 import (
 	"bytes"
@@ -16,25 +16,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type postOptions struct {
+type uploadOptions struct {
 	Factory *factory.Factory
 	File    string
 }
 
-// NewCmdPost creates the usage post command.
-func NewCmdPost(f *factory.Factory) *cobra.Command {
-	opts := &postOptions{Factory: f}
+// NewCmdUpload creates the usage upload command. It was renamed from
+// `usage post` — "post" collided with the document-lifecycle verb used by
+// `invoice post` / `billrun post` (transition to Posted), which is unrelated to
+// uploading a usage file. The old `post` name stays as a deprecated alias.
+func NewCmdUpload(f *factory.Factory) *cobra.Command {
+	opts := &uploadOptions{Factory: f}
 
 	cmd := &cobra.Command{
-		Use:   "post",
-		Short: "Upload a usage CSV file",
+		Use:     "upload",
+		Aliases: []string{"post"},
+		Short:   "Upload a usage CSV file",
 		Long: `Upload a usage data CSV file to Zuora (async).
 
 The file is uploaded via multipart/form-data to POST /v1/usage.`,
-		Example: `  zr usage post --file usage.csv`,
+		Example: `  zr usage upload --file usage.csv`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPost(cmd, opts)
+			// Deprecation nudge only when invoked by the old name; `upload`
+			// itself stays quiet. (cobra's Deprecated field would warn for both.)
+			if cmd.CalledAs() == "post" {
+				fmt.Fprintln(f.IOStreams.ErrOut, "warning: 'usage post' is deprecated; use 'usage upload'.")
+			}
+			return runUpload(cmd, opts)
 		},
 	}
 
@@ -44,7 +53,7 @@ The file is uploaded via multipart/form-data to POST /v1/usage.`,
 	return cmd
 }
 
-func runPost(cmd *cobra.Command, opts *postOptions) error {
+func runUpload(cmd *cobra.Command, opts *uploadOptions) error {
 	f := opts.Factory
 	file, err := os.Open(opts.File)
 	if err != nil {

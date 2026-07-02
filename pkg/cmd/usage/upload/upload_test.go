@@ -1,4 +1,4 @@
-package post
+package upload
 
 import (
 	"encoding/json"
@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newCmd(f *factory.Factory) *cobra.Command { return NewCmdPost(f) }
+func newCmd(f *factory.Factory) *cobra.Command { return NewCmdUpload(f) }
 
-func TestUsagePost_Success(t *testing.T) {
+func TestUsageUpload_Success(t *testing.T) {
 	// Create a temp CSV file
 	tmpDir := t.TempDir()
 	csvFile := filepath.Join(tmpDir, "usage.csv")
@@ -47,23 +47,43 @@ func TestUsagePost_Success(t *testing.T) {
 		})
 	})
 
-	stdout, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "post", "--file", csvFile)
+	stdout, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "upload", "--file", csvFile)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Check Import Status")
 	assert.Contains(t, stderr, "Usage file uploaded.")
+	assert.NotContains(t, stderr, "deprecated", "the canonical 'upload' name must not warn")
 }
 
-func TestUsagePost_RequiresFile(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "post")
+func TestUsageUpload_RequiresFile(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "upload")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), `required flag(s) "file" not set`)
 }
 
-func TestUsagePost_FileNotFound(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "post", "--file", "/nonexistent/file.csv")
+func TestUsageUpload_FileNotFound(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "upload", "--file", "/nonexistent/file.csv")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "reading file")
+}
+
+// TestUsagePostAlias_Deprecated pins the rename (#455): the old `post` name
+// still works (backward compatible) but emits a deprecation warning to stderr.
+func TestUsagePostAlias_Deprecated(t *testing.T) {
+	tmpDir := t.TempDir()
+	csvFile := filepath.Join(tmpDir, "usage.csv")
+	require.NoError(t, os.WriteFile(csvFile, []byte("ACCOUNT_ID,UOM,QTY,STARTDATE\nA001,Each,10,01/01/2026\n"), 0644))
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/usage", r.URL.Path)
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	})
+
+	stdout, stderr, err := cmdtest.Run(t, "usage", newCmd, handler, "usage", "post", "--file", csvFile)
+	require.NoError(t, err, "the deprecated 'post' alias must still work")
+	assert.Contains(t, stderr, "'usage post' is deprecated; use 'usage upload'")
+	assert.Contains(t, stdout, "Success")
 }

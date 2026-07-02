@@ -6,8 +6,8 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/usage/create"
 	deletecmd "github.com/matsuzj/zuora-cli/pkg/cmd/usage/delete"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/usage/get"
-	"github.com/matsuzj/zuora-cli/pkg/cmd/usage/post"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/usage/update"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/usage/upload"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,7 @@ func NewCmdUsage(f *factory.Factory) *cobra.Command {
 		Long:  "Post, create, view, update, and delete Zuora usage records.",
 	}
 
-	cmd.AddCommand(post.NewCmdPost(f))
+	cmd.AddCommand(upload.NewCmdUpload(f))
 	cmd.AddCommand(create.NewCmdCreate(f))
 	cmd.AddCommand(get.NewCmdGet(f))
 	cmd.AddCommand(update.NewCmdUpdate(f))

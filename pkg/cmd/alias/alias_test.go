@@ -1,12 +1,14 @@
 package alias
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -104,6 +106,33 @@ func TestListCommand_WithAliases(t *testing.T) {
 	cmd.SetArgs([]string{"list"})
 	err := cmd.Execute()
 	require.NoError(t, err)
+}
+
+// TestListCommand_JSON pins the output-consistency fix (#453): `alias list
+// --json` must emit a structured JSON array, not the silently-ignored
+// tab-separated text. Removing the format-flag branch makes json.Unmarshal fail.
+func TestListCommand_JSON(t *testing.T) {
+	dir := t.TempDir()
+	content := "alpha: a-command\nzulu: z-command\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "aliases.yml"), []byte(content), 0600))
+
+	ios, _, out, _ := iostreams.Test()
+	f := &factory.Factory{
+		IOStreams: ios,
+		Config:    func() (config.Config, error) { return config.Load(dir) },
+	}
+
+	root := newTestRootWithAlias(f, ios)
+	globalflags.Register(root)
+	root.SetArgs([]string{"alias", "list", "--json"})
+	require.NoError(t, root.Execute())
+
+	var got []map[string]interface{}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &got),
+		"alias list --json must emit valid JSON, not tab-separated text")
+	require.Len(t, got, 2)
+	assert.Equal(t, "alpha", got[0]["name"])
+	assert.Equal(t, "a-command", got[0]["command"])
 }
 
 func TestSetCommand_ExactArgs(t *testing.T) {

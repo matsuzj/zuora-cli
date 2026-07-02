@@ -137,6 +137,33 @@ func TestAuthStatus_NoToken(t *testing.T) {
 	assert.Contains(t, out.String(), "not authenticated")
 }
 
+// TestAuthStatus_JSON pins the output-consistency fix (#453): `auth status
+// --json` must emit structured JSON, not silently fall back to the plain-text
+// key/value form. Removing the format-flag branch makes json.Unmarshal fail.
+func TestAuthStatus_JSON(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "valid-token",
+		ExpiresAt:   time.Now().Add(30 * time.Minute),
+	}))
+	f := factory.NewTestFactory(ios, cfg, "", "")
+
+	root := newTestRoot(f)
+	globalflags.Register(root)
+	root.SetArgs([]string{"auth", "status", "--json"})
+	require.NoError(t, root.Execute())
+
+	var got map[string]interface{}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &got),
+		"auth status --json must emit valid JSON, not plain text")
+	assert.Equal(t, "sandbox", got["environment"])
+	assert.Equal(t, "keyring", got["credentials"])
+	tok, ok := got["token"].(map[string]interface{})
+	require.True(t, ok, "token must be a nested object")
+	assert.Equal(t, "valid", tok["status"])
+}
+
 func TestAuthToken(t *testing.T) {
 	ios, _, out, _ := iostreams.Test()
 	cfg := config.NewMockConfig()

@@ -204,7 +204,7 @@ if [ -n "$INV_ID" ]; then
   echo "  Testing: invoice post $INV_ID (status=$INV_STATUS)"
   if [ "$INV_STATUS" = "Draft" ]; then
     POST_RC=0
-    POST_OUT=$($ZR invoice post "$INV_ID" 2>&1) || POST_RC=$?
+    POST_OUT=$($ZR invoice post "$INV_ID" --confirm 2>&1) || POST_RC=$?
     if [ "$POST_RC" -eq 0 ] && echo "$POST_OUT" | grep -qF "posted."; then
       pass "invoice post → Draft invoice posted (bodyless PUT carries Content-Type + {})"
     elif echo "$POST_OUT" | grep -q "HTTP 415\|50000045"; then

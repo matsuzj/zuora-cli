@@ -11,9 +11,10 @@ import (
 // NewCmdCreditMemo creates the creditmemo parent command.
 func NewCmdCreditMemo(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "creditmemo <command>",
-		Short: "Manage Zuora credit memos",
-		Long:  "List and view Zuora credit memos.",
+		Use:     "creditmemo <command>",
+		Aliases: []string{"credit-memo"},
+		Short:   "Manage Zuora credit memos",
+		Long:    "List and view Zuora credit memos.",
 	}
 
 	cmd.AddCommand(list.NewCmdList(f))

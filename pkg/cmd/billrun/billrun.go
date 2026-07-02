@@ -14,9 +14,13 @@ import (
 // NewCmdBillRun creates the billrun parent command.
 func NewCmdBillRun(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "billrun <command>",
-		Short: "Manage Zuora bill runs",
-		Long:  "Create, view, post, cancel, and delete Zuora bill runs.",
+		Use: "billrun <command>",
+		// Accept the kebab-case spelling too; multi-word resources are otherwise
+		// unguessable (some are concatenated, some hyphenated). Additive only —
+		// `billrun` stays the canonical name.
+		Aliases: []string{"bill-run"},
+		Short:   "Manage Zuora bill runs",
+		Long:    "Create, view, post, cancel, and delete Zuora bill runs.",
 	}
 
 	cmd.AddCommand(get.NewCmdGet(f))

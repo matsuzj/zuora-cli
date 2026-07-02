@@ -11,9 +11,10 @@ import (
 // NewCmdDebitMemo creates the debitmemo parent command.
 func NewCmdDebitMemo(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "debitmemo <command>",
-		Short: "Manage Zuora debit memos",
-		Long:  "List and view Zuora debit memos.",
+		Use:     "debitmemo <command>",
+		Aliases: []string{"debit-memo"},
+		Short:   "Manage Zuora debit memos",
+		Long:    "List and view Zuora debit memos.",
 	}
 
 	cmd.AddCommand(list.NewCmdList(f))

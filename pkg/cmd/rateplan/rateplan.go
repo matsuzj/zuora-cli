@@ -10,9 +10,10 @@ import (
 // NewCmdRatePlan creates the rateplan parent command.
 func NewCmdRatePlan(f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "rateplan <command>",
-		Short: "Manage Zuora rate plans",
-		Long:  "View Zuora rate plans (v1 API).",
+		Use:     "rateplan <command>",
+		Aliases: []string{"rate-plan"},
+		Short:   "Manage Zuora rate plans",
+		Long:    "View Zuora rate plans (v1 API).",
 	}
 
 	cmd.AddCommand(get.NewCmdGet(f))

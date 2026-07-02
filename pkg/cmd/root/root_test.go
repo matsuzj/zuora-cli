@@ -39,6 +39,26 @@ func TestRootHasSubcommands(t *testing.T) {
 	assert.Contains(t, names, "subscription")
 }
 
+// TestRootKebabCaseAliases pins #455: the concatenated multi-word resource
+// groups also answer to their kebab-case spelling (additive — the canonical
+// name still works). cobra's Find resolves an alias to its command.
+func TestRootKebabCaseAliases(t *testing.T) {
+	ios, _, _, _ := iostreams.Test()
+	f := &factory.Factory{IOStreams: ios}
+	cmd := NewCmdRoot(f)
+
+	for alias, canonical := range map[string]string{
+		"bill-run":    "billrun",
+		"credit-memo": "creditmemo",
+		"debit-memo":  "debitmemo",
+		"rate-plan":   "rateplan",
+	} {
+		found, _, err := cmd.Find([]string{alias})
+		require.NoError(t, err, "alias %q must resolve", alias)
+		assert.Equal(t, canonical, found.Name(), "alias %q must route to the %q group", alias, canonical)
+	}
+}
+
 func TestRootJsonTemplateExclusion(t *testing.T) {
 	ios, _, _, _ := iostreams.Test()
 	f := &factory.Factory{IOStreams: ios}

@@ -332,12 +332,15 @@ func TestList_ItemsKeyNotArrayErrors(t *testing.T) {
 }
 
 func TestList_AbsentItemsKeyRendersZeroRows(t *testing.T) {
-	// An absent items key matches the typed-struct zero slice: empty table.
+	// An absent items key matches the typed-struct zero slice: zero rows. Since
+	// #453 ④ this renders the empty-state notice on stderr with an empty stdout
+	// (no bare header box), and still emits no "More results available" hint.
 	handler := cmdtest.OK(t, "GET", "/v1/memos", map[string]interface{}{})
 
 	stdout, stderr, err := cmdtest.Run(t, "demo", newCmd(memoSpec()), handler, "demo", "list")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "ID")
+	assert.Empty(t, stdout, "an empty list renders no table on stdout")
+	assert.Contains(t, stderr, "No results found.")
 	assert.NotContains(t, stderr, "More results available")
 }
 

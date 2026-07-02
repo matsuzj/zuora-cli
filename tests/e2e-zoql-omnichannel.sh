@@ -200,10 +200,18 @@ fi
 # ─────────────────────────────────────────
 header "Step 3: Subscription Changelog Validation"
 # ─────────────────────────────────────────
-echo "  Testing: subscription changelog without argument"
-expect_fail "changelog validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR subscription changelog
+echo "  Testing: subscription changelog without a subscription-number or --order"
+expect_fail "changelog validation → requires subscription-number or --order" \
+  "a <subscription-number> argument or --order is required" -- $ZR subscription changelog
 
-echo "  Testing: subscription changelog-by-order without argument"
+echo "  Testing: subscription changelog --order + arg (mutually exclusive)"
+expect_fail "changelog validation → --order + arg rejected" \
+  "--order cannot be combined" -- $ZR subscription changelog S-1 --order O-1
+
+# changelog-by-order / changelog-version are now deprecated aliases of
+# `changelog --order` / `changelog --version` (#454) but still dispatch and
+# validate their args.
+echo "  Testing: subscription changelog-by-order (deprecated) without argument"
 expect_fail "changelog-by-order validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR subscription changelog-by-order
 

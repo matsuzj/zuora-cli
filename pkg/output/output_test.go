@@ -107,6 +107,56 @@ func TestRender_Table(t *testing.T) {
 	assert.Contains(t, out.String(), "Test")
 }
 
+// TestRender_EmptyRows pins the empty-state fix (#453 ④): a zero-row human
+// table must print "No results found." to stderr and leave stdout empty, not a
+// bare header box.
+func TestRender_EmptyRows(t *testing.T) {
+	ios, _, out, errOut := iostreams.Test()
+	cols := []Column{{Header: "ID"}, {Header: "NAME"}}
+	err := Render(ios, []byte(`{}`), FormatOptions{}, [][]string{}, cols)
+	require.NoError(t, err)
+	assert.Equal(t, "", out.String(), "stdout must be empty for a zero-row human table")
+	assert.Contains(t, errOut.String(), "No results found.")
+}
+
+// TestRender_EmptyRows_CSVKeepsHeader confirms the empty-state notice does NOT
+// hijack the CSV path: an empty CSV is still a valid header-only table.
+func TestRender_EmptyRows_CSVKeepsHeader(t *testing.T) {
+	ios, _, out, errOut := iostreams.Test()
+	cols := []Column{{Header: "ID"}, {Header: "NAME"}}
+	err := Render(ios, []byte(`{}`), FormatOptions{CSV: true}, [][]string{}, cols)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "ID,NAME")
+	assert.NotContains(t, errOut.String(), "No results found.")
+}
+
+// TestRenderJSONWithMessage covers the shared commerce write tail (#453 ③): the
+// default path prints JSON to stdout and the message to stderr; --jq/--template
+// shape stdout and suppress the message.
+func TestRenderJSONWithMessage(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		ios, _, out, errOut := iostreams.Test()
+		err := RenderJSONWithMessage(ios, []byte(`{"id":"p1"}`), FormatOptions{}, "Plan created.\n")
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), `"id": "p1"`)
+		assert.Equal(t, "Plan created.\n", errOut.String())
+	})
+	t.Run("jq suppresses message", func(t *testing.T) {
+		ios, _, out, errOut := iostreams.Test()
+		err := RenderJSONWithMessage(ios, []byte(`{"id":"p1"}`), FormatOptions{JQ: ".id"}, "Plan created.\n")
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), "p1")
+		assert.Empty(t, errOut.String(), "the human message must be suppressed for --jq")
+	})
+	t.Run("template suppresses message", func(t *testing.T) {
+		ios, _, out, errOut := iostreams.Test()
+		err := RenderJSONWithMessage(ios, []byte(`{"id":"p1"}`), FormatOptions{Template: "{{.id}}"}, "Plan created.\n")
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), "p1")
+		assert.Empty(t, errOut.String(), "the human message must be suppressed for --template")
+	})
+}
+
 func TestRenderDetail_JSON(t *testing.T) {
 	ios, _, out, _ := iostreams.Test()
 	data := []byte(`{"name":"test"}`)

@@ -107,13 +107,41 @@ func RenderSuccess(ios *iostreams.IOStreams, opts FormatOptions, humanMsg string
 	return nil
 }
 
+// RenderJSONWithMessage renders a write command's JSON response body and then
+// prints humanMsg (a complete sentence with trailing newline) to stderr on the
+// default or --json path, keeping stdout clean. --jq/--template shape stdout and
+// suppress the message so machine consumers get exactly what they asked for.
+// The caller MUST reject a bare --csv before the mutation (RejectBareCSV), since
+// this renders after the write. It replaces the identical hand-rolled tail the
+// commerce create/update commands each carried (#453 ③).
+func RenderJSONWithMessage(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, humanMsg string) error {
+	if opts.JQ != "" || opts.Template != "" {
+		_, err := RenderJSON(ios, rawJSON, opts)
+		return err
+	}
+	if err := PrintJSON(ios, rawJSON, ""); err != nil {
+		return err
+	}
+	fmt.Fprint(ios.ErrOut, humanMsg)
+	return nil
+}
+
 // Render outputs data in the appropriate format for table commands.
 func Render(ios *iostreams.IOStreams, rawJSON []byte, opts FormatOptions, rows [][]string, cols []Column) error {
 	if handled, err := RenderJSON(ios, rawJSON, opts); handled || err != nil {
 		return err
 	}
 	if opts.CSV {
+		// CSV keeps the header-only form for an empty result — a valid,
+		// machine-parseable table with zero data rows.
 		return PrintCSV(ios.Out, rows, cols)
+	}
+	// Human table path: a bare header box for an empty result reads as
+	// "broken", so emit an explicit empty-state notice on stderr (stdout stays
+	// empty, so a `| wc -l` pipe still sees zero rows) instead of the header.
+	if len(rows) == 0 {
+		fmt.Fprintln(ios.ErrOut, "No results found.")
+		return nil
 	}
 	w := io.Writer(ios.Out)
 	if pager, err := StartPager(ios); err != nil {

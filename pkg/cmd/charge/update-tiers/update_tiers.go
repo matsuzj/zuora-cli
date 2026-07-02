@@ -2,8 +2,6 @@
 package updatetiers
 
 import (
-	"fmt"
-
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil"
 	"github.com/matsuzj/zuora-cli/pkg/output"
@@ -58,15 +56,5 @@ func runUpdateTiers(cmd *cobra.Command, opts *updateTiersOptions) error {
 		return err
 	}
 
-	if fmtOpts.JQ != "" || fmtOpts.Template != "" {
-		_, err := output.RenderJSON(f.IOStreams, resp.Body, fmtOpts)
-		return err
-	}
-
-	if err := output.PrintJSON(f.IOStreams, resp.Body, ""); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(f.IOStreams.ErrOut, "Tiers updated.\n")
-	return nil
+	return output.RenderJSONWithMessage(f.IOStreams, resp.Body, fmtOpts, "Tiers updated.\n")
 }

@@ -240,10 +240,12 @@ header "Step 7: output flag contract (v0.4.0 behavior changes, offline)"
 # in the isolated, unauthenticated config dir.
 
 # Bare --csv on a JSON-only command is an explicit error since #197 (it was
-# silently ignored before). charge get rejects it pre-request.
+# silently ignored before). plan get rejects it pre-request. (charge get
+# gained a real table/detail rendering in #453 and now SUPPORTS --csv, so
+# this contract check moved to a command that stays JSON-only.)
 echo "  Testing: --csv on a JSON-only command"
 expect_fail "--csv on JSON-only command → explicit error" \
-  "--csv is not supported for JSON-only output" -- zr charge get FAKE --csv
+  "--csv is not supported for JSON-only output" -- zr plan get FAKE --csv
 
 # List commands reject stray positional arguments (cobra.NoArgs) since the
 # P3-2 listcmd migration; previously extra args were silently ignored.

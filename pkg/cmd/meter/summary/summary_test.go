@@ -72,4 +72,5 @@ func TestMeterSummary_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "meter", newCmd, nil, "meter", "summary", "--run-type", "FULL")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

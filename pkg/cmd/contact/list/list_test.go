@@ -130,6 +130,7 @@ func TestContactList_SuccessFalse_IsError(t *testing.T) {
 func TestContactList_RequiresAccountID(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "list")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "account-id" not set`)
 }
 
 // TestEscapeZOQLString pins the belt-and-suspenders escaping that backs up

@@ -36,6 +36,7 @@ func TestSubscriptionVersions_Detail(t *testing.T) {
 func TestSubscriptionVersions_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "versions", "A-S001")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 1")
 }
 
 func TestSubscriptionVersions_SuccessFalse(t *testing.T) {

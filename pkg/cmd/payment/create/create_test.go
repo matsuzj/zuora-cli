@@ -59,4 +59,5 @@ func TestPaymentCreate_RejectsArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "create", "extra-arg", "--body", `{}`)
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown command "extra-arg"`)
 }

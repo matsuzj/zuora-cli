@@ -28,4 +28,5 @@ func TestSubscriptionPreview_Success(t *testing.T) {
 func TestSubscriptionPreview_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "preview")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

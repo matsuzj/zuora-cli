@@ -43,6 +43,7 @@ func TestInvoiceReverse_RequiresConfirm(t *testing.T) {
 func TestInvoiceReverse_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "reverse")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // TestInvoiceReverse_SendsEmptyJSONBody pins the 415 fix: Zuora's endpoint binds a Map body parameter

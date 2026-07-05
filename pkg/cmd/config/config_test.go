@@ -100,4 +100,5 @@ func TestConfigEnv_Invalid(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "env", "nonexistent")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown environment: nonexistent")
 }

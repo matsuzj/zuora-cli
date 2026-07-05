@@ -154,6 +154,20 @@ func TestAddAndRemoveEnvironment(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestLoadDefault_ConfigDirAgreesWithDir pins the wiring alias expansion
+// depends on: LoadDefault's ConfigDir() and the pure-path config.Dir() must
+// resolve the SAME directory (main.go resolves aliases via Dir() without
+// loading the config, so a divergence would split where files are read).
+func TestLoadDefault_ConfigDirAgreesWithDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	cfg, err := LoadDefault()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tmp, "zr"), cfg.ConfigDir())
+	assert.Equal(t, cfg.ConfigDir(), Dir(), "Dir() and the loaded config must agree on the config directory")
+}
+
 func TestXDGConfigHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/custom/config")
 	assert.Equal(t, "/custom/config/zr", configDir())

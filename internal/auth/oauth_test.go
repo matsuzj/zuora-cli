@@ -714,3 +714,28 @@ func TestForceRefreshContext_SerializesConcurrentRefreshes(t *testing.T) {
 	assert.Equal(t, int32(2), atomic.LoadInt32(&posts), "forced refreshes are not deduplicated")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&maxInFlight), "but they must never hit the OAuth endpoint concurrently")
 }
+
+// TestInsecureCleartextHost pins the pure classification table (#439):
+// http:// to a loopback host is safe (local dev/proxy), http:// to any other
+// host is the insecure case that blocks the OAuth POST, and https:// or
+// unparseable input is treated as safe here (validated upstream).
+func TestInsecureCleartextHost(t *testing.T) {
+	cases := []struct {
+		name, rawURL, wantHost string
+		wantInsecure           bool
+	}{
+		{"http localhost with port", "http://localhost:8080", "localhost", false},
+		{"http IPv4 loopback", "http://127.0.0.1", "127.0.0.1", false},
+		{"http IPv6 loopback with port", "http://[::1]:9", "::1", false},
+		{"http non-loopback", "http://10.0.0.5", "10.0.0.5", true},
+		{"https is never cleartext", "https://anything", "", false},
+		{"unparseable input is safe here", "://garbage", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host, insecure := insecureCleartextHost(tc.rawURL)
+			assert.Equal(t, tc.wantInsecure, insecure)
+			assert.Equal(t, tc.wantHost, host)
+		})
+	}
+}

@@ -30,6 +30,7 @@ func TestInvoicePost_Success(t *testing.T) {
 func TestInvoicePost_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "post")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // TestInvoicePost_RequiresConfirm pins the irreversible-write guard: without

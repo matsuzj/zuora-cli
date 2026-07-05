@@ -32,6 +32,7 @@ func TestResume_WithPolicy(t *testing.T) {
 func TestResume_RequiresPolicyOrBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "resume", "A-S001")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one of the flags in the group [body policy] is required")
 }
 
 func TestResume_SpecificDateRequiresResumeDate(t *testing.T) {

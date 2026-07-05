@@ -61,4 +61,5 @@ func TestSignup_Success(t *testing.T) {
 func TestSignup_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "signup")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

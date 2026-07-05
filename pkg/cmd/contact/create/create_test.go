@@ -27,4 +27,5 @@ func TestContactCreate_Success(t *testing.T) {
 func TestContactCreate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "create")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

@@ -217,6 +217,7 @@ func TestAuthLogin_HungOAuthEndpointCancelsPromptly(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context canceled")
 	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt a hung OAuth request promptly")
 }
 
@@ -252,5 +253,6 @@ func TestAuthToken_HungOAuthEndpointCancelsPromptly(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context canceled")
 	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt a hung OAuth request promptly")
 }

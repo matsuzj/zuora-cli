@@ -28,4 +28,5 @@ func TestInvoiceUsageRateDetail_Success(t *testing.T) {
 func TestInvoiceUsageRateDetail_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "usage-rate-detail")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

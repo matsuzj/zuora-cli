@@ -28,9 +28,11 @@ func TestMeterDebug_Success(t *testing.T) {
 func TestMeterDebug_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "meter", newCmd, nil, "meter", "debug", "meter123")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 1")
 }
 
 func TestMeterDebug_NoArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "meter", newCmd, nil, "meter", "debug")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 0")
 }

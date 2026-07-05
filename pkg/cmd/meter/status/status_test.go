@@ -31,9 +31,11 @@ func TestMeterStatus_Success(t *testing.T) {
 func TestMeterStatus_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "meter", newCmd, nil, "meter", "status", "meter123")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 1")
 }
 
 func TestMeterStatus_NoArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "meter", newCmd, nil, "meter", "status")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 0")
 }

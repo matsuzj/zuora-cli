@@ -57,4 +57,5 @@ func TestUsageUpdate_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "update")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

@@ -153,6 +153,7 @@ func TestDownloadToFile_LeavesExistingFileOnFailure(t *testing.T) {
 
 	err := DownloadToFile(context.Background(), srv.URL, dst, nil, hardenedClientTrusting(srv))
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "downloading dataFile: HTTP 500")
 	b, rerr := os.ReadFile(dst)
 	require.NoError(t, rerr)
 	assert.Equal(t, "PRE-EXISTING", string(b), "a failed download must leave the existing file intact")
@@ -211,6 +212,7 @@ func TestDecodeData(t *testing.T) {
 	assert.Equal(t, "z", d["id"])
 	_, err = DecodeData([]byte(`not json`))
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing response")
 }
 
 func TestDetailFields(t *testing.T) {

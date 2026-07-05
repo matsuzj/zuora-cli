@@ -58,6 +58,7 @@ func TestAccountDelete_AsyncRejection(t *testing.T) {
 
 	_, _, err := cmdtest.Run(t, "account", newCmd, handler, "account", "delete", "A001", "--confirm")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account has active subscriptions")
 }
 
 func TestAccountDelete_UnparseableBody(t *testing.T) {

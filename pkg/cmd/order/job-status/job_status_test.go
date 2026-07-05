@@ -101,6 +101,7 @@ func TestOrderJobStatus_RendersErrors(t *testing.T) {
 func TestOrderJobStatus_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "job-status")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // Always-InProgress server for watch tests.

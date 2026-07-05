@@ -36,4 +36,5 @@ func TestSubscriptionRenew_WithoutBody(t *testing.T) {
 func TestSubscriptionRenew_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "renew")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

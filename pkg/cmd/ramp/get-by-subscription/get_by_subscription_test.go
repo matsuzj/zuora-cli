@@ -33,6 +33,7 @@ func TestRampGetBySubscription_Success(t *testing.T) {
 func TestRampGetBySubscription_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "ramp", newCmd, nil, "ramp", "get-by-subscription")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestRampGetBySubscription_SuccessFalse(t *testing.T) {

@@ -50,6 +50,7 @@ func TestPaymentCancel_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "cancel")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // TestPaymentCancel_SendsEmptyJSONBody pins the 415 contract: the bodyless

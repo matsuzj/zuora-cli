@@ -60,4 +60,5 @@ func TestInvoiceFiles_JSON(t *testing.T) {
 func TestInvoiceFiles_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "files")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

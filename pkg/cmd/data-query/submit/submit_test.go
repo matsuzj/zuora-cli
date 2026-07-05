@@ -47,4 +47,5 @@ func TestSubmit_FileAndArgConflict(t *testing.T) {
 func TestSubmit_RequiresSQL(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "data-query", newCmd, nil, "data-query", "submit")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "provide the SQL as an argument or via --file")
 }

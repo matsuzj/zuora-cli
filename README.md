@@ -51,7 +51,7 @@ zr invoice list --account-key A00000001
 
 # Execute a ZOQL query
 zr query "SELECT Id, Name, Status FROM Account WHERE Status = 'Active'"
-zr query "SELECT Id FROM Invoice" --csv --export invoices.csv
+zr query "SELECT Id FROM Invoice" --csv --output invoices.csv
 
 # Data Query (async SQL): submit, poll to completion, download the result file
 zr data-query run "SELECT accountnumber, balance FROM account WHERE balance > 100" --output balances.jsonl

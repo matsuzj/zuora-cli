@@ -164,7 +164,7 @@ func TestQuery_ExportWritesFileAtomically(t *testing.T) {
 
 	dir := t.TempDir()
 	out := filepath.Join(dir, "res.csv")
-	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--csv", "--export", out)
+	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--csv", "--output", out)
 	require.NoError(t, err)
 
 	b, rerr := os.ReadFile(out)
@@ -190,7 +190,7 @@ func TestQuery_ExportFormatsNestedObjectCells(t *testing.T) {
 	})
 
 	out := filepath.Join(t.TempDir(), "nested.csv")
-	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, BillTo, Tags FROM Account", "--csv", "--export", out)
+	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, BillTo, Tags FROM Account", "--csv", "--output", out)
 	require.NoError(t, err)
 
 	b, rerr := os.ReadFile(out)
@@ -203,4 +203,22 @@ func TestQuery_ExportFormatsNestedObjectCells(t *testing.T) {
 	cells := strings.Join(rows[1], "\x00")
 	assert.Contains(t, cells, `{"city":"NYC"}`, "nested object cell must be JSON-encoded")
 	assert.Contains(t, cells, `["a","b"]`, "array cell must be JSON-encoded")
+}
+
+// TestQuery_DeprecatedExportAlias pins the #456 rename back-compat: the old
+// --export flag still writes the result file (it is a hidden deprecated alias
+// of --output bound to the same variable).
+func TestQuery_DeprecatedExportAlias(t *testing.T) {
+	handler := cmdtest.OK(t, "POST", "/v1/action/query", map[string]interface{}{
+		"records": []map[string]interface{}{{"Id": "001", "Name": "Acme"}},
+		"size":    1, "done": true,
+	})
+
+	out := filepath.Join(t.TempDir(), "res.csv")
+	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--csv", "--export", out)
+	require.NoError(t, err)
+
+	b, rerr := os.ReadFile(out)
+	require.NoError(t, rerr)
+	assert.Contains(t, string(b), "Acme")
 }

@@ -178,7 +178,7 @@ func TestOrderJobStatus_WatchTimeoutGivesUp(t *testing.T) {
 	// before the deadline even on a loaded runner, so the "last status" in the
 	// give-up message is deterministically InProgress (80ms left only ~2 polls
 	// of headroom and flaked if the first poll ran slow).
-	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "400ms")
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--wait-timeout", "400ms")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting for job J1")
@@ -217,7 +217,7 @@ func TestOrderJobStatus_TimeoutAbortsInFlightRequest(t *testing.T) {
 	defer close(unblock)
 
 	start := time.Now()
-	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "80ms")
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--wait-timeout", "80ms")
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
@@ -260,4 +260,20 @@ func TestOrderJobStatus_WatchPollLineSanitized(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stderr, "polling in")
 	assert.NotContains(t, stderr, "\x1b", "response-derived status must be sanitized on the poll line")
+}
+
+// TestOrderJobStatus_DeprecatedTimeoutAlias pins the #456 rename back-compat:
+// the old local --timeout (hidden deprecated alias of --wait-timeout) still
+// bounds the watch and produces the friendly give-up message.
+func TestOrderJobStatus_DeprecatedTimeoutAlias(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true, "jobId": "J1", "status": "InProgress",
+		})
+	})
+
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "400ms")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gave up waiting for job J1")
 }

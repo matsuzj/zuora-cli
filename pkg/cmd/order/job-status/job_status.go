@@ -32,11 +32,15 @@ func NewCmdJobStatus(f *factory.Factory) *cobra.Command {
 		Long: `Get the status of an asynchronous order job.
 
 Use --watch to poll until the job completes; --interval controls the
-polling cadence and --timeout gives up after a duration (0 = no limit).
-Ctrl-C cancels immediately, including mid-interval.`,
+polling cadence and --wait-timeout gives up after a duration (0 = no limit).
+Ctrl-C cancels immediately, including mid-interval.
+
+Note: the global 'zr --timeout' (see 'zr --help') bounds the WHOLE command
+run; --wait-timeout bounds only the --watch wait. (While the deprecated
+--timeout alias exists, the global flag is hidden from this help.)`,
 		Example: `  zr order job-status 2c92c0f9876...
   zr order job-status 2c92c0f9876... --watch
-  zr order job-status 2c92c0f9876... --watch --interval 10s --timeout 5m
+  zr order job-status 2c92c0f9876... --watch --interval 10s --wait-timeout 5m
   zr order job-status 2c92c0f9876... --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +50,13 @@ Ctrl-C cancels immediately, including mid-interval.`,
 
 	cmd.Flags().BoolVar(&opts.Watch, "watch", false, "Poll until job completes")
 	cmd.Flags().DurationVar(&opts.Interval, "interval", 5*time.Second, "Polling interval for --watch")
-	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Give up --watch after this duration (0 = no limit); local to this command, distinct from the global 'zr --timeout'")
+	// --wait-timeout is the primary name (#456): the old local --timeout
+	// shadowed the global persistent `zr --timeout` in help output. The old
+	// name stays registered (hidden, deprecated) for back-compat; both bind
+	// the same variable.
+	cmd.Flags().DurationVar(&opts.Timeout, "wait-timeout", 0, "Give up --watch after this duration (0 = no limit); distinct from the global 'zr --timeout'")
+	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Deprecated alias of --wait-timeout")
+	_ = cmd.Flags().MarkDeprecated("timeout", "use --wait-timeout instead")
 	return cmd
 }
 

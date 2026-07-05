@@ -35,17 +35,7 @@ func TestPrepaidReverseRollover_Success(t *testing.T) {
 }
 
 func TestPrepaidReverseRollover_RequiresConfirm(t *testing.T) {
-	called := false
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.WriteHeader(200)
-	})
-
-	_, _, err := cmdtest.Run(t, "prepaid", newCmd, handler, "prepaid", "reverse-rollover", "--body", `{"subscriptionNumber":"A-S001"}`)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
-	assert.False(t, called, "no HTTP call should be made without --confirm")
+	cmdtest.RequiresConfirm(t, "prepaid", newCmd, "prepaid", "reverse-rollover", "--body", `{"subscriptionNumber":"A-S001"}`)
 }
 
 func TestPrepaidReverseRollover_RequiresBody(t *testing.T) {

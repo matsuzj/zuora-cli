@@ -36,9 +36,7 @@ func TestBillRunCancel_Success(t *testing.T) {
 }
 
 func TestBillRunCancel_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "cancel", "br-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "billrun", newCmd, "billrun", "cancel", "br-001")
 }
 
 func TestBillRunCancel_RequiresArg(t *testing.T) {

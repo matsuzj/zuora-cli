@@ -151,6 +151,71 @@ func TestLoadFixture(t *testing.T) {
 	assert.Contains(t, string(b), "ACCT-9000001")
 }
 
+func TestSequence_DispatchesInOrderAndRepeatsLast(t *testing.T) {
+	h := Sequence(
+		OK(t, "", "", map[string]interface{}{"n": 1}),
+		OK(t, "", "", map[string]interface{}{"n": 2}),
+	)
+	// Three requests over two handlers: 1, 2, then the last repeats.
+	for _, want := range []string{`"n":1`, `"n":2`, `"n":2`} {
+		rec := httptest.NewRecorder()
+		h(rec, httptest.NewRequest("GET", "/poll", nil))
+		body := strings.ReplaceAll(rec.Body.String(), " ", "")
+		assert.Contains(t, body, want)
+	}
+}
+
+func TestZOQLPages_ServesQueryThenQueryMore(t *testing.T) {
+	h := ZOQLPages(t,
+		[]map[string]interface{}{{"Id": "001"}},
+		[]map[string]interface{}{{"Id": "002"}},
+	)
+
+	rec := httptest.NewRecorder()
+	h(rec, httptest.NewRequest("POST", "/v1/action/query", strings.NewReader(`{"queryString":"SELECT Id FROM Account"}`)))
+	var page1 map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &page1))
+	assert.Equal(t, false, page1["done"], "page 1 must be done:false")
+	locator, _ := page1["queryLocator"].(string)
+	require.NotEmpty(t, locator, "page 1 must carry a queryLocator")
+
+	rec = httptest.NewRecorder()
+	h(rec, httptest.NewRequest("POST", "/v1/action/queryMore",
+		strings.NewReader(fmt.Sprintf(`{"queryLocator":%q}`, locator))))
+	var page2 map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &page2))
+	assert.Equal(t, true, page2["done"], "page 2 must be done:true")
+	assert.Contains(t, rec.Body.String(), "002")
+	// The exactly-two-calls cleanup passes because both pages were fetched.
+}
+
+// newConfirmProbeCmd guards a (never-reached) write behind the canonical
+// cmdutil.RequireConfirm gate — the shape RequiresConfirm is built to pin.
+func newConfirmProbeCmd(f *factory.Factory) *cobra.Command {
+	var confirm bool
+	cmd := &cobra.Command{
+		Use:  "cprobe",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireConfirm(confirm); err != nil {
+				return err
+			}
+			client, err := f.HttpClient()
+			if err != nil {
+				return err
+			}
+			_, err = client.Post("/v1/probe", nil)
+			return err
+		},
+	}
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "confirm")
+	return cmd
+}
+
+func TestRequiresConfirm_PinsTheGuard(t *testing.T) {
+	RequiresConfirm(t, "", newConfirmProbeCmd, "cprobe")
+}
+
 // newWriteProbeCmd POSTs — for asserting the harness applies real global-flag
 // behavior (--read-only must block it before any HTTP call).
 func newWriteProbeCmd(f *factory.Factory) *cobra.Command {

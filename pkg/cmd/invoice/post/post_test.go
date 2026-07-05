@@ -37,9 +37,7 @@ func TestInvoicePost_RequiresArg(t *testing.T) {
 // --confirm the command must refuse before issuing any request (nil handler
 // asserts no HTTP call is made).
 func TestInvoicePost_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "post", "inv-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "invoice", newCmd, "invoice", "post", "inv-001")
 }
 
 func TestInvoicePost_SuccessFalse(t *testing.T) {

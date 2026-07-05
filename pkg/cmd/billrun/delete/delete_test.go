@@ -21,9 +21,7 @@ func TestBillRunDelete_Success(t *testing.T) {
 }
 
 func TestBillRunDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "delete", "br-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "billrun", newCmd, "billrun", "delete", "br-001")
 }
 
 func TestBillRunDelete_SuccessFalse(t *testing.T) {

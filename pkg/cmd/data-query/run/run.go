@@ -38,7 +38,12 @@ the result file.
 Provide the SQL as an argument or via --file (exactly one). Progress and the
 summary go to stderr; with "--output -" the raw result bytes stream to stdout
 (job metadata is never written to stdout in that mode, so --json/--csv have no
-stdout effect there).`,
+stdout effect there).
+
+Note: the global 'zr --timeout' (see 'zr --help') bounds the WHOLE command
+run; --wait-timeout bounds only the submit+poll wait and --download-timeout
+the download. (While the deprecated --timeout alias exists, the global flag
+is hidden from this help.)`,
 		Example: `  zr data-query run "SELECT accountnumber FROM account" --output result.json
   zr data-query run --file q.sql --output - > result.jsonl
   zr data-query run "SELECT 1" --interval 3s --wait-timeout 5m`,

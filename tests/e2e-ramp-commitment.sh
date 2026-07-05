@@ -39,6 +39,7 @@ echo "  Testing: ramp list without --subscription"
 expect_fail "ramp list validation → requires --subscription" \
   'required flag(s) "subscription" not set' -- $ZR ramp list
 
+# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
 echo "  Testing: ramp get-by-subscription (deprecated) without argument"
 expect_fail "ramp get-by-subscription validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR ramp get-by-subscription
@@ -54,6 +55,7 @@ expect_fail "ramp metrics validation → selectors mutually exclusive" \
 # metrics-by-order / metrics-by-subscription are now deprecated aliases of
 # `ramp metrics --order` / `--subscription` (#454) but still dispatch and
 # validate their args.
+# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
 echo "  Testing: ramp metrics-by-order (deprecated) without argument"
 expect_fail "ramp metrics-by-order validation → requires argument" \
   "accepts 1 arg(s), received 0" -- $ZR ramp metrics-by-order

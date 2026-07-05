@@ -131,3 +131,20 @@ func TestContactList_RequiresAccountID(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "list")
 	assert.Error(t, err)
 }
+
+// TestEscapeZOQLString pins the belt-and-suspenders escaping that backs up
+// accountIDPattern: backslashes must be escaped before quotes, or an input
+// ending in `\` would neutralize the escaped quote / the literal's closing
+// quote if the pattern is ever loosened.
+func TestEscapeZOQLString(t *testing.T) {
+	for _, tt := range []struct{ in, want string }{
+		{`plain-id_123`, `plain-id_123`},
+		{`a'b`, `a\'b`},
+		{`a\b`, `a\\b`},
+		{`a\`, `a\\`},
+		{`\'`, `\\\'`},
+		{`x\' OR Id != null`, `x\\\' OR Id != null`},
+	} {
+		assert.Equal(t, tt.want, escapeZOQLString(tt.in), "escapeZOQLString(%q)", tt.in)
+	}
+}

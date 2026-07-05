@@ -78,3 +78,16 @@ func TestStartPager_NonTerminal_WrapsOut(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ab", out.String())
 }
+
+// TestPrintJSON_NonJSON_StderrSanitized pins that the invalid-JSON fallback
+// (e.g. a gateway HTML page) is sanitized before being echoed to stderr — the
+// same terminal-injection defense as the table/detail/error paths.
+func TestPrintJSON_NonJSON_StderrSanitized(t *testing.T) {
+	ios, _, out, errOut := iostreams.Test()
+	err := PrintJSON(ios, []byte("<html>\x1b[2Jspoofed\x1b[H</html>"), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not valid JSON")
+	assert.Empty(t, out.String(), "invalid JSON must not reach stdout")
+	assert.NotContains(t, errOut.String(), "\x1b", "stderr echo must not carry escape codes")
+	assert.Contains(t, errOut.String(), "[2Jspoofed[H", "body text must still be visible for diagnosis")
+}

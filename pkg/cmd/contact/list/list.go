@@ -19,6 +19,15 @@ import (
 // (unclear) quote-escaping semantics the way string-escaping alone would.
 var accountIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+// escapeZOQLString escapes a value for embedding in a single-quoted ZOQL
+// string literal. Backslashes are escaped BEFORE quotes: escaping only the
+// quote would let an input ending in `\` neutralize the escape (or the
+// closing quote of the literal), e.g. `x\` -> `'x\'`.
+func escapeZOQLString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	return strings.ReplaceAll(s, "'", `\'`)
+}
+
 // NewCmdList creates the contact list command.
 func NewCmdList(f *factory.Factory) *cobra.Command {
 	var accountID string
@@ -69,10 +78,10 @@ func runList(cmd *cobra.Command, f *factory.Factory, accountID string) error {
 		return err
 	}
 
-	// Belt-and-suspenders: escape quotes even though the pattern above already
-	// forbids them, so a future loosening of the pattern can't silently re-open
-	// ZOQL injection.
-	sanitized := strings.ReplaceAll(accountID, "'", "\\'")
+	// Belt-and-suspenders: escape the value even though the pattern above
+	// already forbids quotes and backslashes, so a future loosening of the
+	// pattern can't silently re-open ZOQL injection.
+	sanitized := escapeZOQLString(accountID)
 	zoql := fmt.Sprintf(
 		`SELECT Id, FirstName, LastName, WorkEmail FROM Contact WHERE AccountId = '%s'`,
 		sanitized,

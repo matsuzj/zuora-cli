@@ -34,11 +34,7 @@ func TestBillRunPost_RequiresArg(t *testing.T) {
 }
 
 func TestBillRunPost_RequiresConfirm(t *testing.T) {
-	// Posting finalizes every invoice/credit memo the bill run generated and is
-	// irreversible — it must require --confirm. (#424)
-	_, _, err := cmdtest.Run(t, "billrun", newCmd, nil, "billrun", "post", "br-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "billrun", newCmd, "billrun", "post", "br-001")
 }
 
 // TestBillRunPost_SendsEmptyJSONBody pins the 415 fix: Zuora's endpoint binds a Map body parameter

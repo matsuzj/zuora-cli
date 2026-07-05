@@ -42,8 +42,5 @@ func TestOrderDeleteAsync_RequiresArg(t *testing.T) {
 }
 
 func TestOrderDeleteAsync_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "delete-async", "O-00000001")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "order", newCmd, "order", "delete-async", "O-00000001")
 }

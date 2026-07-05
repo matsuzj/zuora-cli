@@ -100,6 +100,16 @@ lint:
 		echo "refresh the block between the markers with: scripts/gen-destructive-list.sh"; \
 		exit 1; \
 	fi
+	@bad=""; \
+	for f in $$(grep -rl 'cmdutil\.RequireConfirm' pkg/cmd --include='*.go' | grep -v _test); do \
+		ex="$$(awk '/^[[:space:]]*Example: `/{f=1} f{print; if (/`,[[:space:]]*$$/) exit}' "$$f")"; \
+		case "$$ex" in (*--confirm*) ;; (*) bad="$$bad $$f";; esac; \
+	done; \
+	if [ -n "$$bad" ]; then \
+		echo "destructive commands (cmdutil.RequireConfirm) whose cobra Example block lacks --confirm —"; \
+		echo "a user copy-pasting the example would hit the guard error (#429):"; \
+		for f in $$bad; do echo "  $$f"; done; exit 1; \
+	fi
 	@bad="$$(grep -rln 'WithoutCheckSuccess' pkg/cmd --include='*.go' | grep -v '^pkg/cmd/api/' || true)"; \
 	if [ -n "$$bad" ]; then \
 		echo "WithoutCheckSuccess is for the raw 'zr api' GET/HEAD passthrough only — typed"; \

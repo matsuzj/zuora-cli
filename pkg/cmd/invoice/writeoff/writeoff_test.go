@@ -56,9 +56,7 @@ func TestInvoiceWriteoff_NoBody(t *testing.T) {
 }
 
 func TestInvoiceWriteoff_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "writeoff", "inv-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "invoice", newCmd, "invoice", "writeoff", "inv-001")
 }
 
 func TestInvoiceWriteoff_SuccessFalse(t *testing.T) {

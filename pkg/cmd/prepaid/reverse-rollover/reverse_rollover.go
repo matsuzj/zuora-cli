@@ -22,8 +22,8 @@ func NewCmdReverseRollover(f *factory.Factory) *cobra.Command {
 		Use:   "reverse-rollover",
 		Short: "Reverse a prepaid rollover",
 		Long:  `Reverse a prepaid balance rollover in Zuora.`,
-		Example: `  zr prepaid reverse-rollover --body @reverse.json
-  zr prepaid reverse-rollover --body '{"subscriptionNumber":"A-S001"}'`,
+		Example: `  zr prepaid reverse-rollover --body @reverse.json --confirm
+  zr prepaid reverse-rollover --body '{"subscriptionNumber":"A-S001"}' --confirm`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireConfirm(opts.Confirm); err != nil {

@@ -1,8 +1,6 @@
 package list
 
 import (
-	"encoding/json"
-	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -55,59 +53,24 @@ func TestContactList_RejectsZOQLInjection(t *testing.T) {
 }
 
 func TestContactList_Pagination(t *testing.T) {
-	callCount := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.WriteHeader(200)
-		if callCount == 1 {
-			assert.Equal(t, "/v1/action/query", r.URL.Path)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"records": []map[string]interface{}{
-					{"Id": "c-1", "FirstName": "Page1", "LastName": "User", "WorkEmail": "p1@example.com"},
-				},
-				"size":         1,
-				"done":         false,
-				"queryLocator": "loc-abc",
-			})
-		} else {
-			assert.Equal(t, "/v1/action/queryMore", r.URL.Path)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"records": []map[string]interface{}{
-					{"Id": "c-2", "FirstName": "Page2", "LastName": "User", "WorkEmail": "p2@example.com"},
-				},
-				"size": 1,
-				"done": true,
-			})
-		}
-	})
+	// ZOQLPages asserts the query -> queryMore path/locator contract and that
+	// exactly two pages are fetched.
+	handler := cmdtest.ZOQLPages(t,
+		[]map[string]interface{}{{"Id": "c-1", "FirstName": "Page1", "LastName": "User", "WorkEmail": "p1@example.com"}},
+		[]map[string]interface{}{{"Id": "c-2", "FirstName": "Page2", "LastName": "User", "WorkEmail": "p2@example.com"}},
+	)
 
 	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "list", "--account-id", "acct-123")
 	require.NoError(t, err)
-	assert.Equal(t, 2, callCount)
 	assert.Contains(t, stdout, "Page1")
 	assert.Contains(t, stdout, "Page2")
 }
 
 func TestContactList_Pagination_JSON(t *testing.T) {
-	callCount := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.WriteHeader(200)
-		if callCount == 1 {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"records":      []map[string]interface{}{{"Id": "c-1", "FirstName": "A", "LastName": "B", "WorkEmail": "a@b.com"}},
-				"size":         1,
-				"done":         false,
-				"queryLocator": "loc-xyz",
-			})
-		} else {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"records": []map[string]interface{}{{"Id": "c-2", "FirstName": "C", "LastName": "D", "WorkEmail": "c@d.com"}},
-				"size":    1,
-				"done":    true,
-			})
-		}
-	})
+	handler := cmdtest.ZOQLPages(t,
+		[]map[string]interface{}{{"Id": "c-1", "FirstName": "A", "LastName": "B", "WorkEmail": "a@b.com"}},
+		[]map[string]interface{}{{"Id": "c-2", "FirstName": "C", "LastName": "D", "WorkEmail": "c@d.com"}},
+	)
 
 	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "list", "--account-id", "acct-123", "--json")
 	require.NoError(t, err)

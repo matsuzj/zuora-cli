@@ -2,7 +2,6 @@ package run
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,24 +37,18 @@ func TestRun_PollsThenDownloads(t *testing.T) {
 	dqutil.DownloadClientForTest = hardenedClientTrusting(resultSrv)
 	defer func() { dqutil.DownloadClientForTest = nil }()
 
-	polls := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == "POST" && r.URL.Path == "/query/jobs":
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted"}})
-		case r.Method == "GET" && r.URL.Path == "/query/jobs/job-1":
-			polls++
-			d := map[string]interface{}{"id": "job-1", "queryStatus": "in_progress", "outputRows": "1"}
-			if polls >= 2 {
-				d["queryStatus"] = "completed"
-				d["dataFile"] = resultSrv.URL + "/result"
-			}
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": d})
-		default:
-			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-		}
+	handler := cmdtest.Route(t, map[string]http.HandlerFunc{
+		"/query/jobs": cmdtest.OK(t, "POST", "", map[string]interface{}{
+			"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted"},
+		}),
+		"/query/jobs/job-1": cmdtest.Sequence(
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "in_progress", "outputRows": "1"},
+			}),
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "completed", "outputRows": "1", "dataFile": resultSrv.URL + "/result"},
+			}),
+		),
 	})
 
 	out := filepath.Join(t.TempDir(), "res.csv")
@@ -167,23 +160,18 @@ func TestRun_GlobalTimeoutNoMisleadingMessage(t *testing.T) {
 // response-derived job id/status: hostile values must not write escape codes
 // to the terminal via stderr.
 func TestRun_PollLineSanitized(t *testing.T) {
-	polls := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == "POST" && r.URL.Path == "/query/jobs":
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted\x1b[2J\x1b[H"}})
-		case r.Method == "GET" && r.URL.Path == "/query/jobs/job-1":
-			polls++
-			status := "in_progress\x1b[31m"
-			if polls >= 2 {
-				status = "completed"
-			}
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"id": "job-1", "queryStatus": status, "outputRows": "3"}})
-		default:
-			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-		}
+	handler := cmdtest.Route(t, map[string]http.HandlerFunc{
+		"/query/jobs": cmdtest.OK(t, "POST", "", map[string]interface{}{
+			"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted\x1b[2J\x1b[H"},
+		}),
+		"/query/jobs/job-1": cmdtest.Sequence(
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "in_progress\x1b[31m", "outputRows": "3"},
+			}),
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "completed", "outputRows": "3"},
+			}),
+		),
 	})
 
 	_, stderr, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms")

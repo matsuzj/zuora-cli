@@ -1,9 +1,6 @@
 package api
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -18,18 +15,15 @@ func newCmdAPI(f *factory.Factory) *cobra.Command { return NewCmdAPI(f) }
 // TestAPI_Paginate covers the --paginate branch: multiple pages are fetched and
 // their `data` arrays flattened into a single aggregated JSON array.
 func TestAPI_Paginate(t *testing.T) {
-	page := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		page++
-		resp := map[string]interface{}{
-			"data": []map[string]string{{"id": fmt.Sprintf("acct-%d", page)}},
-		}
-		if page < 2 {
-			resp["nextPage"] = fmt.Sprintf("/v1/accounts?page=%d", page+1)
-		}
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(resp)
-	})
+	handler := cmdtest.Sequence(
+		cmdtest.OK(t, "", "", map[string]interface{}{
+			"data":     []map[string]string{{"id": "acct-1"}},
+			"nextPage": "/v1/accounts?page=2",
+		}),
+		cmdtest.OK(t, "", "", map[string]interface{}{
+			"data": []map[string]string{{"id": "acct-2"}},
+		}),
+	)
 
 	stdout, _, err := cmdtest.Run(t, "", newCmdAPI, handler, "api", "/v1/accounts", "--paginate")
 	require.NoError(t, err)

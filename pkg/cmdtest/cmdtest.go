@@ -17,6 +17,8 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Run builds a minimal cobra root, wires newCmd under an optional parent
@@ -61,6 +63,21 @@ func Run(t *testing.T, parent string, newCmd func(*factory.Factory) *cobra.Comma
 	root.SetArgs(args)
 	err = root.Execute()
 	return out.String(), errOut.String(), err
+}
+
+// RequiresConfirm pins the cmdutil.RequireConfirm guard for a destructive
+// command: executing args (as typed, WITHOUT --confirm) must fail with the
+// canonical guard error before any HTTP request. The handler is nil, so a
+// command that reaches the network fails with a connection error instead of
+// the guard message — asserting the message therefore proves the guard fired,
+// not merely that something errored. parent/newCmd/args mirror Run. Guard
+// tests that assert anything beyond this shared shape keep their own bodies.
+func RequiresConfirm(t *testing.T, parent string, newCmd func(*factory.Factory) *cobra.Command, args ...string) {
+	t.Helper()
+	_, _, err := Run(t, parent, newCmd, nil, args...)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--confirm")
+	assert.Contains(t, err.Error(), "this action is irreversible")
 }
 
 // buildRoot constructs a stub root that carries the REAL global-flag

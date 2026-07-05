@@ -23,10 +23,7 @@ func TestOmnichannelDelete_Success204(t *testing.T) {
 }
 
 func TestOmnichannelDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "omnichannel", newCmd, nil, "omnichannel", "delete", "S-001")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "omnichannel", newCmd, "omnichannel", "delete", "S-001")
 }
 
 func TestOmnichannelDelete_RequiresArg(t *testing.T) {

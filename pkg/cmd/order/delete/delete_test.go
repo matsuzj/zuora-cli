@@ -22,9 +22,7 @@ func TestOrderDelete_Success(t *testing.T) {
 }
 
 func TestOrderDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "delete", "O-00000001")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "order", newCmd, "order", "delete", "O-00000001")
 }
 
 func TestOrderDelete_RequiresArg(t *testing.T) {

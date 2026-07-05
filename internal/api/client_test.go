@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -106,6 +107,45 @@ func TestClient_QuerySlice(t *testing.T) {
 	client := NewClient(WithBaseURL(server.URL))
 	_, err := client.Get("/v1/test", WithQuerySlice("filter[]", []string{"status.EQ:Active", "balance.GT:0"}))
 	require.NoError(t, err)
+}
+
+// TestClient_QueryMerge_PathValueWinsNoDuplicate pins the buildURL skip
+// branch: when the request PATH already carries a query key that WithQuery
+// also sets, the path's value must win and the key must not be duplicated
+// (the pagination-nextPage contract).
+func TestClient_QueryMerge_PathValueWinsNoDuplicate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		assert.Equal(t, []string{"2"}, q["page"], "the path's page=2 must win, exactly once")
+		assert.Equal(t, []string{"10"}, q["pageSize"], "the non-conflicting opt must still be merged")
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(WithBaseURL(server.URL))
+	_, err := client.Get("/v1/x?page=2", WithQuery("page", "1"), WithQuery("pageSize", "10"))
+	require.NoError(t, err)
+}
+
+// TestBuildURL_UnparseablePathFallsBackToConcat pins the url.Parse-failure
+// fallback in buildURL: a path the parser rejects (control byte) returns the
+// raw baseURL+path concatenation — query opts dropped, no panic.
+func TestBuildURL_UnparseablePathFallsBackToConcat(t *testing.T) {
+	c := NewClient(WithBaseURL("http://example.com"))
+	got := c.buildURL("/v1/bad\x00seg", url.Values{"page": {"1"}})
+	assert.Equal(t, "http://example.com/v1/bad\x00seg", got,
+		"an unparseable path must fall back to raw concatenation without merging query opts")
+}
+
+// TestClient_UnparseablePath_ErrorsGracefully pins the end-to-end behavior of
+// the same fallback: checkHost re-parses the concatenated URL, fails, and Do
+// returns a clean error instead of panicking or sending a mangled request.
+func TestClient_UnparseablePath_ErrorsGracefully(t *testing.T) {
+	c := NewClient(WithBaseURL("http://example.com"))
+	_, err := c.Get("/v1/bad\x00seg", WithQuery("page", "1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid request URL")
 }
 
 func TestClient_APIError_V1Format(t *testing.T) {

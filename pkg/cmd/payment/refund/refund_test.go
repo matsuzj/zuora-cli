@@ -46,8 +46,5 @@ func TestPaymentRefund_RequiresBody(t *testing.T) {
 }
 
 func TestPaymentRefund_RequiresConfirm(t *testing.T) {
-	// Disbursing a refund cannot be undone — it must require --confirm. (#424)
-	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "payment", newCmd, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
 }

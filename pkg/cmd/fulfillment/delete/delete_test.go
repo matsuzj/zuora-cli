@@ -23,10 +23,7 @@ func TestFulfillmentDelete_Success204(t *testing.T) {
 }
 
 func TestFulfillmentDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "fulfillment", newCmd, nil, "fulfillment", "delete", "F-00000001")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "fulfillment", newCmd, "fulfillment", "delete", "F-00000001")
 }
 
 func TestFulfillmentDelete_RequiresArg(t *testing.T) {

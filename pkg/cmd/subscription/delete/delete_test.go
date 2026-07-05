@@ -36,7 +36,5 @@ func TestDelete_Success(t *testing.T) {
 }
 
 func TestDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "delete", "A-S001")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "subscription", newCmd, "subscription", "delete", "A-S001")
 }

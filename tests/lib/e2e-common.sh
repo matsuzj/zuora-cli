@@ -247,3 +247,12 @@ print_summary() {
   fi
   echo "  RESULT: PASS"
 }
+
+# ── Deprecated-alias tripwires (#454/#455) ──────────────────────────────────
+# Several suites deliberately exercise DEPRECATED alias commands (usage post,
+# ramp get-by-subscription / metrics-by-*, order list-pending / list-by-*,
+# subscription changelog-by-order) so an accidental removal breaks E2E loudly.
+# When v0.6.0 removes the aliases for real, update every site in ONE sweep:
+#     grep -rn 'ALIAS-TRIPWIRE' tests/
+# Each site carries that marker on the line above its check. The past rename
+# waves broke E2E precisely because these checks were scattered and unmarked.

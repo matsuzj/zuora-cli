@@ -147,6 +147,7 @@ echo "  Testing: order list --pending without --subscription"
 expect_fail "order list --pending validation → requires --subscription" \
   "--pending requires --subscription" -- $ZR order list --pending
 
+# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
 echo "  Testing: order list-pending (deprecated) validation (no arg)"
 expect_fail "order list-pending validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-pending
 
@@ -362,6 +363,7 @@ echo "  Testing: order list scope flags mutually exclusive"
 expect_fail "order list validation → scope flags mutually exclusive" \
   "specify at most one of --subscription" -- $ZR order list --subscription A-S1 --invoice-owner A00000002
 
+# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
 echo "  Testing: order list-by-subscription (deprecated) validation (no arg)"
 expect_fail "order list-by-subscription validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-by-subscription
 
@@ -394,6 +396,7 @@ else
 fi
 
 # The old list-by-* names still dispatch (deprecated). Spot-check one live.
+# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
 echo "  Testing: order list-by-subscription-owner (deprecated alias) still works"
 run $ZR order list-by-subscription-owner "$ACCT_NUM" --json
 if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then

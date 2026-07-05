@@ -32,9 +32,5 @@ func TestOrderCancel_Success(t *testing.T) {
 }
 
 func TestOrderCancel_RequiresConfirm(t *testing.T) {
-	// handler is nil — no HTTP request should be made when --confirm is omitted
-	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "cancel", "O-00000001")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "irreversible")
+	cmdtest.RequiresConfirm(t, "order", newCmd, "order", "cancel", "O-00000001")
 }

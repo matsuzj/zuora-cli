@@ -47,41 +47,16 @@ func TestQuery_Success(t *testing.T) {
 }
 
 func TestQuery_Pagination(t *testing.T) {
-	callCount := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		callCount++
-
-		if callCount == 1 {
-			assert.Equal(t, "/v1/action/query", r.URL.Path)
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"records":      []map[string]interface{}{{"Id": "001"}},
-				"size":         1,
-				"done":         false,
-				"queryLocator": "loc-123",
-			})
-			return
-		}
-
-		// Second call: queryMore
-		assert.Equal(t, "/v1/action/queryMore", r.URL.Path)
-		var body map[string]string
-		json.NewDecoder(r.Body).Decode(&body)
-		assert.Equal(t, "loc-123", body["queryLocator"])
-
-		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"records": []map[string]interface{}{{"Id": "002"}},
-			"size":    1,
-			"done":    true,
-		})
-	})
+	// ZOQLPages asserts the POST query -> queryMore path/locator contract and
+	// that exactly two pages are fetched.
+	handler := cmdtest.ZOQLPages(t,
+		[]map[string]interface{}{{"Id": "001"}},
+		[]map[string]interface{}{{"Id": "002"}},
+	)
 
 	stdout, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id FROM Account", "--json")
 
 	require.NoError(t, err)
-	assert.Equal(t, 2, callCount)
 	assert.Contains(t, stdout, "001")
 	assert.Contains(t, stdout, "002")
 }

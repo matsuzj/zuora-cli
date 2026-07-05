@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,6 +84,48 @@ func TestKeyringStore_GetMissing(t *testing.T) {
 	_, _, err := s.Get("never-set")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no credentials found")
+}
+
+// TestKeyringStore_SetError_WrapsStoringClientID pins the Set failure wrap:
+// a keyring backend error surfaces with the "storing client ID" context and
+// stays reachable via errors.Is.
+func TestKeyringStore_SetError_WrapsStoringClientID(t *testing.T) {
+	sentinel := errors.New("keyring backend down")
+	keyring.MockInitWithError(sentinel)
+	t.Cleanup(keyring.MockInit) // don't leak the failing provider into later tests
+
+	err := (&keyringStore{}).Set("sandbox", "id", "secret")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "storing client ID in keyring")
+	assert.ErrorIs(t, err, sentinel)
+}
+
+// TestKeyringStore_DeleteError_Surfaced pins that a non-NotFound delete
+// failure is returned, not swallowed like ErrNotFound is.
+func TestKeyringStore_DeleteError_Surfaced(t *testing.T) {
+	sentinel := errors.New("keyring backend down")
+	keyring.MockInitWithError(sentinel)
+	t.Cleanup(keyring.MockInit)
+
+	err := (&keyringStore{}).Delete("sandbox")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sentinel, "a real keyring failure must surface from Delete")
+}
+
+// TestKeyringStore_Delete_AttemptsSecondAfterFirstNotFound pins the other half
+// of the Delete contract: the client_id delete returning ErrNotFound is
+// tolerated AND the client_secret delete still runs (observed by the secret
+// actually disappearing from the store).
+func TestKeyringStore_Delete_AttemptsSecondAfterFirstNotFound(t *testing.T) {
+	keyring.MockInit()
+	// Only the client_secret entry exists; the client_id delete hits ErrNotFound.
+	require.NoError(t, keyring.Set(serviceName, "sandbox/client_secret", "s3cr3t"))
+
+	require.NoError(t, (&keyringStore{}).Delete("sandbox"), "ErrNotFound on the first key is not an error")
+
+	_, err := keyring.Get(serviceName, "sandbox/client_secret")
+	assert.ErrorIs(t, err, keyring.ErrNotFound,
+		"the second delete must still run after the first returned ErrNotFound")
 }
 
 func TestNewCredentialStore_EnvVarsWinOverKeyring(t *testing.T) {

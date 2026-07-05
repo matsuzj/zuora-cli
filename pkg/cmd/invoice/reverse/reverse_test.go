@@ -35,9 +35,7 @@ func TestInvoiceReverse_Success(t *testing.T) {
 }
 
 func TestInvoiceReverse_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "reverse", "inv-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "invoice", newCmd, "invoice", "reverse", "inv-001")
 }
 
 func TestInvoiceReverse_RequiresArg(t *testing.T) {

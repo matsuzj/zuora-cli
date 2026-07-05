@@ -67,7 +67,7 @@ tasks:
       - make modverify
 
   cover:
-    desc: Run tests and enforce the coverage floors (78% total + 60% per-package, matches CI)
+    desc: Run tests and enforce the coverage floors (83% total + 60% per-package, matches CI)
     cmds:
       - make cover
 

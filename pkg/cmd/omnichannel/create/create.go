@@ -24,7 +24,7 @@ func NewCmdCreate(f *factory.Factory) *cobra.Command {
 		Short: "Create an omni-channel subscription",
 		Long:  `Create a new Zuora omni-channel subscription.`,
 		Example: `  zr omnichannel create --body @omnichannel.json
-  zr omnichannel create --body '{"subscriptionKey":"S-001",...}'`,
+  zr omnichannel create --body '{"externalSubscriptionId":"ext-sub-1","externalSourceSystem":"AppleAppStore"}'`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, opts)
@@ -48,14 +48,20 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 		Path:   "/v1/omni-channel-subscriptions",
 		Body:   bodyReader,
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// Real POST response per the official API reference (doc-verified
+			// 2026-07-05, #414): {subscriptionId, subscriptionNumber, accountId,
+			// accountNumber, success, …} — there is no subscriptionKey key, so
+			// the success message never fired and the detail row was blank.
 			return []output.DetailField{
-				{Key: "Subscription Key", Value: cmdutil.GetString(raw, "subscriptionKey")},
+				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
+				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+				{Key: "Account Number", Value: cmdutil.GetString(raw, "accountNumber")},
 				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 			}
 		},
 		SuccessMsg: func(raw map[string]interface{}) string {
-			if key := cmdutil.GetString(raw, "subscriptionKey"); key != "" {
-				return fmt.Sprintf("Omni-channel subscription %s created.\n", key)
+			if num := cmdutil.GetString(raw, "subscriptionNumber"); num != "" {
+				return fmt.Sprintf("Omni-channel subscription %s created.\n", num)
 			}
 			return ""
 		},

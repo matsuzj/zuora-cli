@@ -30,8 +30,8 @@ func NewCmdSummary(f *factory.Factory) *cobra.Command {
 
 The --run-type flag is required and specifies the type of run to summarize.
 An optional --body flag can provide additional filter criteria.`,
-		Example: `  zr meter summary 402880e44c... --run-type FULL
-  zr meter summary 402880e44c... --run-type FULL --body '{"startDate":"2026-01-01"}'`,
+		Example: `  zr meter summary 402880e44c... --run-type NORMAL
+  zr meter summary 402880e44c... --run-type NORMAL --body '{"startDate":"2026-01-01"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSummary(cmd, opts, args[0])
@@ -77,11 +77,19 @@ func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error 
 		Path:   fmt.Sprintf("/meters/%s/summary", url.PathEscape(meterID)),
 		Body:   bytes.NewReader(bodyBytes),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
-			// The response could be a single object or contain nested data.
-			// Render as detail output with common summary fields.
+			// Real shape per the official API reference (doc-verified 2026-07-05,
+			// #486; this sandbox cannot probe mediation endpoints): the envelope is
+			// {success, data:{requestId, requestTime, query:{runType,…}, output:[…]}}.
+			// The previous flat meterId/runType keys do not exist; runType lives
+			// nested under data.query. Full output groups are available via --json.
+			data, _ := raw["data"].(map[string]interface{})
+			query, _ := data["query"].(map[string]interface{})
+			groups, _ := data["output"].([]interface{})
 			return []output.DetailField{
-				{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
-				{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
+				{Key: "Request ID", Value: cmdutil.GetString(data, "requestId")},
+				{Key: "Request Time", Value: cmdutil.GetString(data, "requestTime")},
+				{Key: "Run Type", Value: cmdutil.GetString(query, "runType")},
+				{Key: "Output Groups", Value: fmt.Sprintf("%d", len(groups))},
 				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 			}
 		},

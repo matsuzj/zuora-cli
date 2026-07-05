@@ -71,6 +71,40 @@ From the 2026-07 command-design audit. These were evaluated and deliberately kep
 - **Output flags stay boolean** (`--json`/`--jq`/`--template`/`--csv`), not a single `--output` enum: it matches gh, and a global `--output` would collide with `data-query run`'s existing `--output` (result-file path).
 - **Env vars stay `ZR_*`.** There is no `ZUORA_*` legacy to support, so renaming would only break existing users.
 
+## Command naming & renames
+
+Settled by the 2026-07 command-design audit (#457):
+
+- **Action verbs come from the established set** — `get`, `list`, `create`,
+  `update`, `delete`, `cancel`, `preview`, plus domain verbs already in use
+  (`activate`, `revert`, `post`, `reverse`, `writeoff`, `upload`, …). Reuse
+  before inventing.
+- **Query-key variants are scope FLAGS, not `-by-X` commands** (#454):
+  `order list --subscription/--subscription-owner/--invoice-owner`,
+  `ramp metrics --order/--subscription`, `subscription changelog
+  --order/--version`. Validate mutually-exclusive scopes before the API call.
+- **Noun subresources** are allowed only when they map 1:1 to an independent
+  Zuora endpoint (`account summary`, `invoice items`, `commitment balance`).
+  Otherwise model the variation as a flag on the parent action.
+- **Range/date flags follow the endpoint's parameters**, same principle as the
+  account-key vocabulary above: `meter audit --from/--to` (ISO timestamps →
+  `queryFromTime`/`queryToTime`) and `commitment periods
+  --start-date/--end-date` differ because their APIs do. Do not "unify" flag
+  names across commands whose endpoints differ (#456).
+- **Renames keep back-compat**: the old command name stays as a cobra alias
+  with `Deprecated:` set (for listcmd-based commands set `cmd.Deprecated`
+  after `listcmd.New` — Spec has no field). Old flag names stay registered
+  and get `MarkDeprecated`.
+- **Rename companion checklist** — a rename is not done until each is checked:
+  1. `cmd/zr/expand.go` alias expansion (and its tests) still resolves;
+  2. `completions/zr.*` regenerated;
+  3. `scripts/gen-destructive-list.sh` → README marker block refreshed when a
+     destructive command is involved (`make lint` gates drift);
+  4. the Makefile register-only parent invariant is unaffected;
+  5. `tests/e2e-*.sh` updated — deliberate old-name checks carry the
+     `ALIAS-TRIPWIRE` marker (#490), so the eventual alias removal (v0.6.0)
+     is a single `grep -rn ALIAS-TRIPWIRE tests/` sweep.
+
 ## Testing
 
 - `iostreams.Test()` for command output; `httptest.NewServer` for HTTP mocking; `factory.NewTestFactory(ios, cfg, baseURL, token)` to wire a command to a mock server.

@@ -2,6 +2,7 @@ package update
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 
@@ -19,6 +20,11 @@ func TestProductUpdate_Success(t *testing.T) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/commerce/products", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// The --body payload must reach the server intact (#484).
+		body, rerr := io.ReadAll(r.Body)
+		if assert.NoError(t, rerr) {
+			assert.JSONEq(t, `{"id":"prod-001","name":"Updated Product"}`, string(body))
+		}
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":   "prod-001",

@@ -30,6 +30,12 @@ func TestPaymentList_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "P-00001")
 	assert.Contains(t, stdout, "Processed")
+	// Pin every declared column's cell (#483, mirrors order/list in PR #495):
+	// ID/EFFECTIVE_DATE/AMOUNT were fixtured but unasserted — a column-key
+	// typo would render an empty cell while the test stayed green.
+	assert.Contains(t, stdout, "pay-001")    // ID (id)
+	assert.Contains(t, stdout, "2026-01-15") // EFFECTIVE_DATE (effectiveDate)
+	assert.Contains(t, stdout, "200.00")     // AMOUNT (amount, Money)
 }
 
 func TestPaymentList_CSV(t *testing.T) {

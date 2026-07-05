@@ -25,6 +25,13 @@ func TestInvoicePost_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Posted")
+	// Label-bound (F-08, #483): every prod-read detail field pinned under its
+	// own label (mirrors invoice/reverse) so a key typo renders "" and fails.
+	assert.Regexp(t, `(?m)^ID:\s+inv-001$`, stdout)
+	assert.Regexp(t, `(?m)^Invoice Number:\s+INV00001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
+	// "success" is a JSON bool; GetString formats it as "true".
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestInvoicePost_RequiresArg(t *testing.T) {

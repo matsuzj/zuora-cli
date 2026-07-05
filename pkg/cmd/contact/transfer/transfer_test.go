@@ -13,13 +13,21 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdTransfer(f) }
 
 func TestContactTransfer_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "PUT", "/v1/contacts/c-123/transfer", map[string]interface{}{
-		"success": true,
-	})
+	// Expect.JSONBody pins that the --body payload reaches the server intact
+	// (#484): a command that dropped or mangled the body would fail here.
+	handler := cmdtest.Expect{
+		Method:   "PUT",
+		Path:     "/v1/contacts/c-123/transfer",
+		JSONBody: `{"destinationAccountId":"a-2"}`,
+		Respond:  map[string]interface{}{"success": true},
+	}.Handler(t)
 
 	stdout, stderr, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "transfer", "c-123", "--body", `{"destinationAccountId":"a-2"}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): the command's only detail row is Success — a bare
+	// Contains "true" would pass on any stray "true" anywhere in the output.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Contact c-123 transferred.")
 }
 

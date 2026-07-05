@@ -28,6 +28,9 @@ func TestList_SendsStatusAndPageSize(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "list", "--status", "completed", "--page-size", "20")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "j1")
+	// Pin the second declared column's cell too (#483): Status (queryStatus)
+	// was fixtured but unasserted.
+	assert.Contains(t, stdout, "completed")
 }
 
 func TestList_NoFilters(t *testing.T) {

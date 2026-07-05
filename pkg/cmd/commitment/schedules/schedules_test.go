@@ -29,6 +29,12 @@ func TestCommitmentSchedules_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "SCH-00000001")
 	assert.Contains(t, stdout, "schedules")
+	// Every entry value must survive the passthrough — the envelope key alone
+	// matches any rendering that echoes the key the test itself injected. (#483)
+	assert.Contains(t, stdout, `"scheduleNumber": "SCH-00000001"`)
+	assert.Contains(t, stdout, `"startDate": "2026-01-01"`)
+	assert.Contains(t, stdout, `"endDate": "2026-12-31"`)
+	assert.Contains(t, stdout, `"amount": 1000`)
 }
 
 func TestCommitmentSchedules_RequiresArg(t *testing.T) {

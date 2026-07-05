@@ -23,6 +23,11 @@ func TestOrderCancel_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "O-00000001")
+	// Label-bound (F-08, #483): each value under its own label — a response-key
+	// typo would render "" while a bare Contains stayed green.
+	assert.Regexp(t, `(?m)^Order Number:\s+O-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Cancelled$`, stdout)
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Order O-00000001 cancelled.")
 }
 

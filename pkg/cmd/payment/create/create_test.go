@@ -1,6 +1,7 @@
 package create
 
 import (
+	"io"
 	"net/http"
 	"testing"
 
@@ -18,6 +19,12 @@ func TestPaymentCreate_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/payments", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// The --body payload must reach the server intact (#484): the handler
+		// previously ignored r.Body.
+		body, rerr := io.ReadAll(r.Body)
+		if assert.NoError(t, rerr) {
+			assert.JSONEq(t, `{"amount":100,"accountId":"acc-001"}`, string(body))
+		}
 		cmdtest.OK(t, "", "", map[string]interface{}{
 			"id":      "pay-001",
 			"number":  "P-00000001", // real Payments field is "number" (see payment/get); "paymentNumber" never existed

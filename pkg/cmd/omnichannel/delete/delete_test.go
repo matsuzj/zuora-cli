@@ -50,6 +50,9 @@ func TestOmnichannelDelete_BodyResponse(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "omnichannel", newCmd, handler, "omnichannel", "delete", "S-1", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): the delete detail view's only row is Success — a bare
+	// Contains "true" would pass on any stray "true" anywhere in the output.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestOmnichannelDelete_NonJSONBody(t *testing.T) {

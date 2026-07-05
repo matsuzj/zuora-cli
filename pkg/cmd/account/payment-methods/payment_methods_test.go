@@ -29,7 +29,10 @@ func TestPaymentMethods_Table(t *testing.T) {
 	// LAST4 is sourced from "cardNumber"; bites if production reverts to the
 	// (absent) "creditCardMaskNumber" key — the card row's last4 goes blank.
 	assert.Contains(t, stdout, "1234")
-	assert.Contains(t, stdout, "true")
+	// Row-bound (#483): every declared column's cell on its own row — a bare
+	// Contains "true" matches a boolean anywhere in any rendering.
+	assert.Regexp(t, `(?m)^│\s*pm-1\s*│\s*CreditCard\s*│\s*1234\s*│\s*true\s*│\s*Active\s*│`, stdout)
+	assert.Regexp(t, `(?m)^│\s*pm-2\s*│\s*ACH\s*│\s*5678\s*│\s*false\s*│\s*Active\s*│`, stdout)
 }
 
 func TestPaymentMethods_SuccessFalse(t *testing.T) {

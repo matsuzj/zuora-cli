@@ -13,7 +13,13 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdUpdate(f) }
 
 func TestAccountUpdate_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "PUT", "/v1/accounts/A001", map[string]interface{}{"success": true})
+	// JSONBody: the --body payload must reach the server intact. (#484)
+	handler := cmdtest.Expect{
+		Method:   "PUT",
+		Path:     "/v1/accounts/A001",
+		JSONBody: `{"name":"Updated"}`,
+		Respond:  map[string]interface{}{"success": true},
+	}.Handler(t)
 
 	_, stderr, err := cmdtest.Run(t, "account", newCmd, handler, "account", "update", "A001", "--body", `{"name":"Updated"}`)
 	require.NoError(t, err)

@@ -67,6 +67,7 @@ func TestCommitmentPeriods_ByAccount_Success(t *testing.T) {
 func TestCommitmentPeriods_RequiresCommitmentOrAccount(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "periods")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--commitment or --account-number (with --start-date and --end-date) is required")
 }
 
 func TestCommitmentPeriods_MutuallyExclusive(t *testing.T) {

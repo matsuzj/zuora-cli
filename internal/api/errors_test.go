@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -198,6 +199,18 @@ func exitCodeOf(err error) int {
 		return ec.ExitCode()
 	}
 	return 1
+}
+
+// TestAPIError_Unwrap_ContextCanceled pins the Unwrap contract the CLI exit
+// code depends on: an APIError wrapping a cancellation must satisfy
+// errors.Is(err, context.Canceled) so cmd/zr maps Ctrl-C to exit 130 instead
+// of misreporting it as an API failure.
+func TestAPIError_Unwrap_ContextCanceled(t *testing.T) {
+	err := &APIError{StatusCode: 0, Err: context.Canceled}
+	assert.True(t, errors.Is(err, context.Canceled),
+		"APIError.Unwrap must expose the wrapped transport error to errors.Is")
+	assert.NoError(t, (&APIError{StatusCode: 400}).Unwrap(),
+		"a response-derived APIError wraps nothing")
 }
 
 func TestAPIError_TransportFailure_ExitCode(t *testing.T) {

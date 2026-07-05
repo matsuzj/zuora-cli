@@ -1,7 +1,6 @@
 package rollover
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
@@ -14,14 +13,14 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdRollover(f) }
 
 func TestPrepaidRollover_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/v1/ppdd/rollover", r.URL.Path)
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		cmdtest.OK(t, "", "", map[string]interface{}{
-			"success": true,
-		})(w, r)
-	})
+	// JSONBody: the --body payload must reach the server intact. (#484)
+	handler := cmdtest.Expect{
+		Method:   "POST",
+		Path:     "/v1/ppdd/rollover",
+		Headers:  map[string]string{"Content-Type": "application/json"},
+		JSONBody: `{"subscriptionNumber":"A-S001"}`,
+		Respond:  map[string]interface{}{"success": true},
+	}.Handler(t)
 
 	_, stderr, err := cmdtest.Run(t, "prepaid", newCmd, handler, "prepaid", "rollover", "--body", `{"subscriptionNumber":"A-S001"}`)
 	require.NoError(t, err)

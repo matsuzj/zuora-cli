@@ -17,9 +17,11 @@ func TestAccountGet_Detail(t *testing.T) {
 		"basicInfo": map[string]interface{}{
 			"id": "id-1", "name": "Acme Corp", "accountNumber": "A001",
 			"status": "Active",
+			"crmId":  "CRM-0042", "salesRep": "Rep Fixture", "batch": "Batch42",
 		},
 		"billingAndPayment": map[string]interface{}{
 			"autoPay": true, "billCycleDay": 1, "currency": "USD",
+			"paymentTerm": "Net 45",
 		},
 		"metrics": map[string]interface{}{
 			// Numeric so GetMoney's float -> %.2f contract is actually exercised:
@@ -41,6 +43,12 @@ func TestAccountGet_Detail(t *testing.T) {
 	assert.Regexp(t, `(?m)^Auto Pay:\s+true$`, stdout)    // GetBool
 	assert.Regexp(t, `(?m)^Bill Cycle Day:\s+1$`, stdout) // GetInt
 	assert.Regexp(t, `(?m)^Currency:\s+USD$`, stdout)
+	// Fixture-masking backfill (#482): pin every prod-read key under its label,
+	// sourced from the correct nested sub-object.
+	assert.Regexp(t, `(?m)^Payment Term:\s+Net 45$`, stdout)   // billingAndPayment.paymentTerm
+	assert.Regexp(t, `(?m)^CRM ID:\s+CRM-0042$`, stdout)       // basicInfo.crmId
+	assert.Regexp(t, `(?m)^Sales Rep:\s+Rep Fixture$`, stdout) // basicInfo.salesRep
+	assert.Regexp(t, `(?m)^Batch:\s+Batch42$`, stdout)         // basicInfo.batch
 }
 
 func TestAccountGet_CurrencyFallsBackToMetrics(t *testing.T) {

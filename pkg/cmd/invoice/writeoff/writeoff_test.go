@@ -21,6 +21,9 @@ func TestInvoiceWriteoff_Success(t *testing.T) {
 		assert.Equal(t, "/v1/invoices/inv-001/write-off", r.URL.Path)
 		body, _ := io.ReadAll(r.Body)
 		assert.Contains(t, string(body), "bad debt")
+		// Full-body contract (#484): the substring check above would pass a
+		// body that wrapped or duplicated fields; the whole JSON must match.
+		assert.JSONEq(t, `{"comment":"bad debt"}`, string(body))
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			// Use Zuora's real credit-memo field name ("number"), matching the
@@ -56,9 +59,7 @@ func TestInvoiceWriteoff_NoBody(t *testing.T) {
 }
 
 func TestInvoiceWriteoff_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "writeoff", "inv-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "invoice", newCmd, "invoice", "writeoff", "inv-001")
 }
 
 func TestInvoiceWriteoff_SuccessFalse(t *testing.T) {

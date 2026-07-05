@@ -13,18 +13,30 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCreate(f) }
 
 func TestContactCreate_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "POST", "/v1/contacts", map[string]interface{}{
-		"success": true,
-		"id":      "c-new",
-	})
+	// Expect.JSONBody pins that the --body payload reaches the server intact
+	// (#484): a command that dropped or mangled the body would fail here.
+	handler := cmdtest.Expect{
+		Method:   "POST",
+		Path:     "/v1/contacts",
+		JSONBody: `{"accountId":"a-1","firstName":"John","lastName":"Doe","country":"US"}`,
+		Respond: map[string]interface{}{
+			"success": true,
+			"id":      "c-new",
+		},
+	}.Handler(t)
 
 	stdout, stderr, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "create", "--body", `{"accountId":"a-1","firstName":"John","lastName":"Doe","country":"US"}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "c-new")
+	// Label-bound (F-08, #483): the id must render under its own label — a key
+	// typo would render "" while a bare Contains stayed green.
+	assert.Regexp(t, `(?m)^Contact ID:\s+c-new$`, stdout)
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Contact c-new created.")
 }
 
 func TestContactCreate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "create")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

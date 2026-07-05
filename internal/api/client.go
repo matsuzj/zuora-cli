@@ -77,6 +77,18 @@ func WithHTTPClient(hc *http.Client) ClientOption {
 	return func(c *Client) { c.httpClient = hc }
 }
 
+// WithSleep replaces the retry/backoff sleeper. Like WithHTTPClient this is a
+// deliberate test seam: factory.NewTestFactory injects a no-backoff sleeper so
+// a command test whose handler returns a retryable status can never silently
+// spend real seconds in exponential backoff. A nil fn keeps the real sleeper.
+func WithSleep(fn func(context.Context, time.Duration) error) ClientOption {
+	return func(c *Client) {
+		if fn != nil {
+			c.sleep = fn
+		}
+	}
+}
+
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
@@ -491,22 +503,36 @@ var readOnlyPOSTAllowList = []string{
 var readOnlyPOSTPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^v1/subscriptions/[^/]+/preview$`), // preview-change
 	regexp.MustCompile(`^meters/[^/]+/summary$`),           // meter summary (read-only)
+	regexp.MustCompile(`^commerce/products/[^/]+$`),        // product get — documented as POST, a read (#435)
 }
 
 // extractPath normalises a request path for allowlist matching.
 // It handles absolute URLs, strips query parameters, removes leading slashes,
-// and lowercases the result.
+// and lowercases the result. Normalization is IDEMPOTENT and fail-closed —
+// properties the fuzz target FuzzReadOnlyAllowlist machine-checks. Fuzzing
+// found two ways a first pass could leave a string that a second pass would
+// normalize differently (a mixed-case scheme like "Http://" — RFC 3986
+// schemes are case-insensitive — and a malformed absolute URL whose query
+// strip re-exposed a bare scheme), so: a scheme-prefixed input that does not
+// parse, and any output that still looks like an absolute URL, map to "",
+// which can never match an allowlist entry.
 func extractPath(rawPath string) string {
 	p := rawPath
-	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
-		if u, err := url.Parse(p); err == nil {
-			p = u.Path
+	if lower := strings.ToLower(p); strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		u, err := url.Parse(p)
+		if err != nil {
+			return ""
 		}
+		p = u.Path
 	}
 	if idx := strings.Index(p, "?"); idx >= 0 {
 		p = p[:idx]
 	}
-	return strings.ToLower(strings.TrimLeft(p, "/"))
+	p = strings.ToLower(strings.TrimLeft(p, "/"))
+	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
+		return ""
+	}
+	return p
 }
 
 // isReadOnlyAllowed returns true if the given method+path combination is allowed

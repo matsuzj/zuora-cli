@@ -24,9 +24,7 @@ func TestContactDelete_Success(t *testing.T) {
 }
 
 func TestContactDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "contact", newCmd, nil, "contact", "delete", "c-123")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "contact", newCmd, "contact", "delete", "c-123")
 }
 
 func TestContactDelete_EmptyBodyJSON(t *testing.T) {

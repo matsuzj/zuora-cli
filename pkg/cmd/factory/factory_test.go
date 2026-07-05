@@ -1,10 +1,15 @@
 package factory
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
+	"github.com/matsuzj/zuora-cli/pkg/iostreams"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -85,4 +90,37 @@ func TestTokenSource_WriterWiring(t *testing.T) {
 
 	silent := tokenSource(cfg, nil)
 	assert.Nil(t, silent.Logf)
+}
+
+// TestNewTestFactory_NoRealBackoffOnRetry pins the WithSleep seam: a handler
+// returning a retryable 429 (no Retry-After, so the real sleeper would spend
+// 1-1.5s in jittered backoff) must complete near-instantly under the test
+// factory. Bites if NewTestFactory stops injecting the no-backoff sleeper —
+// this test then takes >1s and fails the elapsed bound.
+func TestNewTestFactory_NoRealBackoffOnRetry(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.WriteHeader(429)
+			_, _ = w.Write([]byte(`{"message":"rate limited"}`))
+			return
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	ios, _, _, _ := iostreams.Test()
+	f := NewTestFactory(ios, config.NewMockConfig(), srv.URL, "tok")
+	client, err := f.HttpClient()
+	require.NoError(t, err)
+
+	start := time.Now()
+	resp, err := client.Get("/v1/test")
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, int32(2), atomic.LoadInt32(&calls))
+	assert.Less(t, elapsed, 500*time.Millisecond, "test factory must not spend real time in retry backoff")
 }

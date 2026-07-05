@@ -34,22 +34,29 @@ func TestRampMetrics_Success(t *testing.T) {
 func TestRampMetrics_ByOrder(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/orders/O-00000001/ramp-metrics", map[string]interface{}{
 		"success":     true,
-		"rampMetrics": []map[string]interface{}{{"name": "TCV"}},
+		"rampMetrics": []map[string]interface{}{{"name": "Order Fixture Metric", "tcb": 4321.5}},
 	})
 	stdout, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "metrics", "--order", "O-00000001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "rampMetrics")
+	// The entry's VALUES must survive the passthrough — the envelope key alone
+	// matches any rendering that echoes the key the test itself injected. (#483)
+	assert.Contains(t, stdout, `"name": "Order Fixture Metric"`)
+	assert.Contains(t, stdout, `"tcb": 4321.5`)
 }
 
 // TestRampMetrics_BySubscription folds in the old `metrics-by-subscription`.
 func TestRampMetrics_BySubscription(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/subscriptions/A-S00000001/ramp-metrics", map[string]interface{}{
 		"success":     true,
-		"rampMetrics": []map[string]interface{}{{"name": "TCV"}},
+		"rampMetrics": []map[string]interface{}{{"name": "Subscription Fixture Metric", "tcb": 8765.25}},
 	})
 	stdout, _, err := cmdtest.Run(t, "ramp", newCmd, handler, "ramp", "metrics", "--subscription", "A-S00000001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "rampMetrics")
+	// Entry values, not just the envelope key the test injected. (#483)
+	assert.Contains(t, stdout, `"name": "Subscription Fixture Metric"`)
+	assert.Contains(t, stdout, `"tcb": 8765.25`)
 }
 
 func TestRampMetrics_RequiresSelector(t *testing.T) {

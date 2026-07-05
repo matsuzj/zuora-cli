@@ -5,6 +5,10 @@
     "status": "Completed",
     "orderDate": "2026-01-01",
     "existingAccountNumber": "ACCT-9000001",
-    "createdDate": "2026-01-01T00:00:00Z"
+    "description": "Fixture order description #482",
+    "createdDate": "2026-01-01T00:00:00Z",
+    "createdBy": "usr-created-11111111",
+    "updatedDate": "2026-01-02T03:04:05Z",
+    "updatedBy": "usr-updated-22222222"
   }
 }

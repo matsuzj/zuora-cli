@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,4 +62,41 @@ func TestMaskSecrets(t *testing.T) {
 		in := []byte("not json <html>error</html>")
 		assert.Equal(t, in, maskSecrets(in))
 	})
+}
+
+// TestMaskSecrets_EveryKeyEverySpelling iterates the ACTUAL sensitiveKeys
+// table (same package) and, for each entry, derives spellings that must fold
+// back to it under normalizeMaskKey — fused, UPPER, mid-word camelCase,
+// snake_case and kebab-case — asserting the secret value never survives
+// maskSecrets. Because it enumerates the live table, any key whose matching
+// breaks (e.g. separator folding removed, case folding removed) fails here
+// for every affected entry, not just the hand-picked ones above.
+func TestMaskSecrets_EveryKeyEverySpelling(t *testing.T) {
+	// Floor pin: shrinking the table below its audited size is a masking
+	// regression (the "someone trims the list" class). Adding keys is fine.
+	require.GreaterOrEqual(t, len(sensitiveKeys), 14,
+		"sensitiveKeys shrank below its audited size — a sensitive field would now leak into verbose logs")
+
+	for key := range sensitiveKeys {
+		require.GreaterOrEqual(t, len(key), 2, "sensitiveKeys entry too short to derive spellings: %q", key)
+		mid := len(key) / 2
+		spellings := map[string]string{
+			"fused": key,
+			"upper": strings.ToUpper(key),
+			"camel": key[:mid] + strings.ToUpper(key[mid:mid+1]) + key[mid+1:],
+			"snake": key[:mid] + "_" + key[mid:],
+			"kebab": key[:mid] + "-" + key[mid:],
+		}
+		for style, spelled := range spellings {
+			t.Run(key+"/"+style, func(t *testing.T) {
+				secret := "SENTINEL-" + key + "-VALUE"
+				body, err := json.Marshal(map[string]string{spelled: secret})
+				require.NoError(t, err)
+				out := string(maskSecrets(body))
+				assert.NotContains(t, out, secret,
+					"spelling %q of sensitive key %q must be redacted", spelled, key)
+				assert.Contains(t, out, redactedValue)
+			})
+		}
+	}
 }

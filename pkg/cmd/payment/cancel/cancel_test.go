@@ -40,16 +40,14 @@ func TestPaymentCancel_Success(t *testing.T) {
 // TestPaymentCancel_RequiresConfirm pins the irreversible-write guard: without
 // --confirm the command must refuse before issuing any request.
 func TestPaymentCancel_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "cancel", "pay-001")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "payment", newCmd, "payment", "cancel", "pay-001")
 }
 
 func TestPaymentCancel_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "cancel")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // TestPaymentCancel_SendsEmptyJSONBody pins the 415 contract: the bodyless

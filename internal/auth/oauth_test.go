@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -579,4 +580,162 @@ func TestTokenSource_NilLogfIsSilent(t *testing.T) {
 	ts := &TokenSource{Config: cfg, Creds: NewMockCredentialStore()}
 	_, err := ts.TokenContext(context.Background(), "sandbox")
 	require.NoError(t, err) // reaching here without panic proves the nil guard
+}
+
+// raceSafeStore is a minimal thread-safe ConfigStore for concurrency tests.
+// (config.MockConfig re-points its delegate's maps on every call via sync(),
+// which is a data race under concurrent callers — fine for the serial tests
+// it serves, unusable here.)
+type raceSafeStore struct {
+	mu    sync.Mutex
+	env   *config.Environment
+	tok   *config.TokenEntry
+	saves int
+}
+
+func (s *raceSafeStore) Token(string) (*config.TokenEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.tok, nil
+}
+
+func (s *raceSafeStore) SetToken(_ string, tok *config.TokenEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tok = tok
+	return nil
+}
+
+func (s *raceSafeStore) Environment(string) (*config.Environment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.env, nil
+}
+
+func (s *raceSafeStore) Save() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saves++
+	return nil
+}
+
+// TestTokenContext_ConcurrentSingleFlight pins the design's core guarantee:
+// N concurrent callers with an expired cache produce exactly ONE OAuth POST
+// (the per-env lock serializes; the post-lock cache re-check makes waiters
+// adopt the winner's token instead of refreshing again). Deleting the
+// re-check in TokenContext makes this fail with N POSTs.
+func TestTokenContext_ConcurrentSingleFlight(t *testing.T) {
+	var posts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&posts, 1)
+		time.Sleep(20 * time.Millisecond) // widen the stampede window
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "single-flight-token",
+			"expires_in":   3600,
+		})
+	}))
+	defer srv.Close()
+
+	store := &raceSafeStore{
+		env: &config.Environment{BaseURL: srv.URL},
+		tok: &config.TokenEntry{AccessToken: "stale", ExpiresAt: time.Now().Add(-time.Hour)},
+	}
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("sf-env", "test-id", "test-secret"))
+	ts := &TokenSource{Config: store, Creds: creds}
+
+	const n = 10
+	var wg sync.WaitGroup
+	tokens := make([]string, n)
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			tokens[i], errs[i] = ts.TokenContext(context.Background(), "sf-env")
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < n; i++ {
+		require.NoError(t, errs[i], "caller %d", i)
+		assert.Equal(t, "single-flight-token", tokens[i], "caller %d must observe the winner's token", i)
+	}
+	assert.Equal(t, int32(1), atomic.LoadInt32(&posts),
+		"concurrent callers must be deduplicated into a single OAuth POST")
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	assert.Equal(t, 1, store.saves, "exactly one refresh persists")
+}
+
+// TestForceRefreshContext_SerializesConcurrentRefreshes pins the OTHER side
+// of the contract: forced refreshes are deliberately NOT deduplicated (each
+// caller demanded a fresh token) but must still serialize on the per-env
+// lock so they cannot stampede the OAuth endpoint in parallel.
+func TestForceRefreshContext_SerializesConcurrentRefreshes(t *testing.T) {
+	var posts, inFlight, maxInFlight int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cur := atomic.AddInt32(&inFlight, 1)
+		for {
+			seen := atomic.LoadInt32(&maxInFlight)
+			if cur <= seen || atomic.CompareAndSwapInt32(&maxInFlight, seen, cur) {
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+		atomic.AddInt32(&posts, 1)
+		atomic.AddInt32(&inFlight, -1)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "forced-token",
+			"expires_in":   3600,
+		})
+	}))
+	defer srv.Close()
+
+	store := &raceSafeStore{env: &config.Environment{BaseURL: srv.URL}}
+	creds := NewMockCredentialStore()
+	require.NoError(t, creds.Set("ff-env", "test-id", "test-secret"))
+	ts := &TokenSource{Config: store, Creds: creds}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tok, err := ts.ForceRefreshContext(context.Background(), "ff-env")
+			assert.NoError(t, err)
+			assert.Equal(t, "forced-token", tok)
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(2), atomic.LoadInt32(&posts), "forced refreshes are not deduplicated")
+	assert.Equal(t, int32(1), atomic.LoadInt32(&maxInFlight), "but they must never hit the OAuth endpoint concurrently")
+}
+
+// TestInsecureCleartextHost pins the pure classification table (#439):
+// http:// to a loopback host is safe (local dev/proxy), http:// to any other
+// host is the insecure case that blocks the OAuth POST, and https:// or
+// unparseable input is treated as safe here (validated upstream).
+func TestInsecureCleartextHost(t *testing.T) {
+	cases := []struct {
+		name, rawURL, wantHost string
+		wantInsecure           bool
+	}{
+		{"http localhost with port", "http://localhost:8080", "localhost", false},
+		{"http IPv4 loopback", "http://127.0.0.1", "127.0.0.1", false},
+		{"http IPv6 loopback with port", "http://[::1]:9", "::1", false},
+		{"http non-loopback", "http://10.0.0.5", "10.0.0.5", true},
+		{"https is never cleartext", "https://anything", "", false},
+		{"unparseable input is safe here", "://garbage", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host, insecure := insecureCleartextHost(tc.rawURL)
+			assert.Equal(t, tc.wantInsecure, insecure)
+			assert.Equal(t, tc.wantHost, host)
+		})
+	}
 }

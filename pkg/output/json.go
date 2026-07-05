@@ -82,10 +82,12 @@ func PrintJSON(ios *iostreams.IOStreams, data []byte, jqExpr string) error {
 	}
 	pretty, err := prettyJSON(data)
 	if err != nil {
-		// Not valid JSON: echo the raw body to stderr and fail, so scripts and
+		// Not valid JSON: echo the body to stderr and fail, so scripts and
 		// downstream JSON consumers can detect it via a non-zero exit code
-		// instead of receiving a corrupt stream on stdout.
-		fmt.Fprintln(ios.ErrOut, string(data))
+		// instead of receiving a corrupt stream on stdout. Sanitized like the
+		// error path: this is exactly the hostile-gateway-page scenario, and
+		// the stderr echo is a human diagnostic, not a machine consumer.
+		fmt.Fprintln(ios.ErrOut, SanitizeErrorText(string(data)))
 		return fmt.Errorf("response is not valid JSON")
 	}
 	fmt.Fprintln(ios.Out, pretty)

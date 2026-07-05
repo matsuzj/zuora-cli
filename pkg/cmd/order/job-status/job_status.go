@@ -136,7 +136,9 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 		// Show progress and poll again. SleepContext (not time.Sleep!) so
 		// Ctrl-C and --timeout interrupt mid-interval instead of being held
 		// hostage for up to a full interval.
-		fmt.Fprintf(f.IOStreams.ErrOut, "Job %s: %s (polling in %s...)\n", jobID, status, opts.Interval)
+		// status is response-derived: sanitize so a hostile value cannot write
+		// escape codes to the terminal (jobID echoes the user's own argument).
+		fmt.Fprintf(f.IOStreams.ErrOut, "Job %s: %s (polling in %s...)\n", jobID, output.SanitizeInline(status), opts.Interval)
 		if err := cmdutil.SleepContext(ctx, opts.Interval); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return fmt.Errorf("gave up waiting for job %s after %s (last status: %s)", jobID, opts.Timeout, status)

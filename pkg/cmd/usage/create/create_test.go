@@ -2,6 +2,7 @@ package create
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 
@@ -19,6 +20,11 @@ func TestUsageCreate_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/object/usage", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// The --body payload must reach the server intact. (#484)
+		body, err := io.ReadAll(r.Body)
+		if assert.NoError(t, err) {
+			assert.JSONEq(t, `{"AccountId":"abc","Quantity":10}`, string(body))
+		}
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"Success": true,

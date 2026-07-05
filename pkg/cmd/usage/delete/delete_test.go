@@ -22,10 +22,7 @@ func TestUsageDelete_Success(t *testing.T) {
 }
 
 func TestUsageDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "delete", "2c92a0f96bd")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "usage", newCmd, "usage", "delete", "2c92a0f96bd")
 }
 
 func TestUsageDelete_RequiresArg(t *testing.T) {

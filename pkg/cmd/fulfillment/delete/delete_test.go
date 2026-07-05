@@ -23,10 +23,7 @@ func TestFulfillmentDelete_Success204(t *testing.T) {
 }
 
 func TestFulfillmentDelete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "fulfillment", newCmd, nil, "fulfillment", "delete", "F-00000001")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "fulfillment", newCmd, "fulfillment", "delete", "F-00000001")
 }
 
 func TestFulfillmentDelete_RequiresArg(t *testing.T) {
@@ -50,6 +47,9 @@ func TestFulfillmentDelete_BodyResponse(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "fulfillment", newCmd, handler, "fulfillment", "delete", "F-1", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): the delete detail view's only row is Success — a bare
+	// Contains "true" would pass on any stray "true" anywhere in the output.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestFulfillmentDelete_NonJSONBody(t *testing.T) {

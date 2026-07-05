@@ -19,6 +19,13 @@ func TestFulfillmentCreate_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/fulfillments", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		// Body must reach the server intact (#484): a command that dropped or
+		// mangled the --body payload would fail here.
+		var payload map[string]interface{}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		assert.Equal(t, "OLI-001", payload["orderLineItemId"])
+
 		w.WriteHeader(200)
 		// Real shape: bulk endpoint returns the created object under a
 		// "fulfillments" array (keyed by id/fulfillmentNumber), not a flat "key".
@@ -34,6 +41,10 @@ func TestFulfillmentCreate_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "F-00000001")
+	// Label-bound (F-08, #483): values under their own labels, sourced from the
+	// nested fulfillments[0] — a key/shape drift would render "" here.
+	assert.Regexp(t, `(?m)^Fulfillment Number:\s+F-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^ID:\s+8aca-ful-id$`, stdout)
 	assert.Contains(t, stderr, "Fulfillment F-00000001 created.")
 }
 

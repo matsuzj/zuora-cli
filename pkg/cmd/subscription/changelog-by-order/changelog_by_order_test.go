@@ -23,4 +23,7 @@ func TestChangelogByOrder_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "changelog-by-order", "O-00000001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "changeLogs")
+	// Entry values, not just the envelope key the test injected. (#483)
+	assert.Contains(t, stdout, `"type": "Update"`)
+	assert.Contains(t, stdout, `"orderNumber": "O-00000001"`)
 }

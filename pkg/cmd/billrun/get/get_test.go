@@ -13,14 +13,20 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestBillRunGet_Success(t *testing.T) {
+	// billCycleDay: numeric per current GetDecimal read — shape unverified live, see #486.
 	handler := cmdtest.OK(t, "GET", "/v1/bill-runs/br-001", map[string]interface{}{
-		"id":            "br-001",
-		"billRunNumber": "BR-00000001",
-		"status":        "Completed",
-		"targetDate":    "2026-05-31",
-		"autoPost":      false,
-		"autoEmail":     true,
-		"success":       true,
+		"id":                     "br-001",
+		"billRunNumber":          "BR-00000001",
+		"name":                   "Fixture bill run #482",
+		"status":                 "Completed",
+		"invoiceDate":            "2026-05-15",
+		"targetDate":             "2026-05-31",
+		"autoPost":               false,
+		"autoEmail":              true,
+		"billCycleDay":           17,
+		"scheduledExecutionTime": "2026-05-30T21:30:00Z",
+		"createdDate":            "2026-05-01T08:00:00Z",
+		"success":                true,
 	})
 
 	stdout, _, err := cmdtest.Run(t, "billrun", newCmd, handler, "billrun", "get", "br-001")
@@ -33,6 +39,14 @@ func TestBillRunGet_Success(t *testing.T) {
 	// never included. (#431)
 	assert.Regexp(t, `(?m)^Auto Post:\s+false$`, stdout)
 	assert.Regexp(t, `(?m)^Auto Email:\s+true$`, stdout)
+	// Backfilled keys (#482): name/invoiceDate/billCycleDay/scheduledExecutionTime/
+	// createdDate previously appeared in no fixture — a key typo would render ""
+	// while the test stayed green.
+	assert.Regexp(t, `(?m)^Name:\s+Fixture bill run #482$`, stdout)
+	assert.Regexp(t, `(?m)^Invoice Date:\s+2026-05-15$`, stdout)
+	assert.Regexp(t, `(?m)^Bill Cycle Day:\s+17$`, stdout) // GetDecimal: JSON number -> plain decimal
+	assert.Regexp(t, `(?m)^Scheduled Execution Time:\s+2026-05-30T21:30:00Z$`, stdout)
+	assert.Regexp(t, `(?m)^Created Date:\s+2026-05-01T08:00:00Z$`, stdout)
 }
 
 func TestBillRunGet_RequiresArg(t *testing.T) {

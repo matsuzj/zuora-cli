@@ -72,7 +72,7 @@ func TestRun_NoOutputRendersMetadata(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.WriteHeader(200)
-			w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"completed","outputRows":"7"}}`))
+			w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"completed","outputRows":"7","processingTime":321,"dataFile":"https://dq.example.invalid/files/job-1.json"}}`))
 			return
 		}
 		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
@@ -80,6 +80,30 @@ func TestRun_NoOutputRendersMetadata(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--json")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "completed")
+}
+
+// TestRun_NoOutputDetailFieldsLabelBound pins the no---output detail rendering
+// (dqutil.DetailFields): the fixture carries EVERY key the renderer reads with
+// a distinctive value, and each field is asserted under its own label, so a
+// key typo or nesting mistake renders "" and fails here (fixture-masking,
+// #482). No --output means the dataFile URL is never fetched.
+func TestRun_NoOutputDetailFieldsLabelBound(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.WriteHeader(200)
+			w.Write([]byte(`{"data":{"id":"job-detail-1","queryStatus":"completed","outputRows":4321,"processingTime":987,"dataFile":"https://dq.example.invalid/files/res-42.json"}}`))
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+	})
+	stdout, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms")
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^ID:\s+job-detail-1$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+completed$`, stdout)
+	// JSON numbers render as plain decimals via GetDecimal (4321, not 4.321e+03).
+	assert.Regexp(t, `(?m)^Output Rows:\s+4321$`, stdout)
+	assert.Regexp(t, `(?m)^Processing Time:\s+987$`, stdout)
+	assert.Regexp(t, `(?m)^Data File:\s+https://dq\.example\.invalid/files/res-42\.json$`, stdout)
 }
 
 func TestRun_FailedJob(t *testing.T) {

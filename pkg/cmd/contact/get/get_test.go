@@ -20,7 +20,9 @@ func TestContactGet_Success(t *testing.T) {
 		// Zuora returns the postal code under "zipCode" (not "postalCode").
 		// The distinctive value guards the postalCode->zipCode fix: reverting
 		// the key would leave the "Postal Code" row blank and fail the assertion.
-		"zipCode": "1000000",
+		"zipCode":   "1000000",
+		"workPhone": "+81-3-5555-0142", "state": "FixtureState",
+		"city": "FixtureCity", "accountId": "acct-contact-9",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "get", "c-123")
@@ -36,6 +38,11 @@ func TestContactGet_Success(t *testing.T) {
 	// Bites if the Address 2 row (address2) is dropped. (#427)
 	assert.Regexp(t, `(?m)^Address 2:\s+Suite 5$`, stdout)
 	assert.Regexp(t, `(?m)^Postal Code:\s+1000000$`, stdout)
+	// Fixture-masking backfill (#482): pin every prod-read key under its label.
+	assert.Regexp(t, `(?m)^Phone:\s+\+81-3-5555-0142$`, stdout)
+	assert.Regexp(t, `(?m)^State:\s+FixtureState$`, stdout)
+	assert.Regexp(t, `(?m)^City:\s+FixtureCity$`, stdout)
+	assert.Regexp(t, `(?m)^Account ID:\s+acct-contact-9$`, stdout)
 }
 
 func TestContactGet_RequiresArgs(t *testing.T) {

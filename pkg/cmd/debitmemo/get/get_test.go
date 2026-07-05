@@ -17,11 +17,16 @@ func TestDebitMemoGet_Success(t *testing.T) {
 		"id":            "dm-001",
 		"number":        "DM00001",
 		"debitMemoDate": "2026-01-15",
+		"dueDate":       "2026-02-20",
 		"amount":        110.00,
 		"balance":       110.00,
 		"taxAmount":     10.00,
 		"status":        "Posted",
+		"currency":      "EUR",
+		"reasonCode":    "Charge Dispute",
+		"accountId":     "acc-dm-042",
 		"accountNumber": "A00000001",
+		"createdDate":   "2026-01-11T08:15:00Z",
 		"success":       true,
 	})
 
@@ -33,6 +38,18 @@ func TestDebitMemoGet_Success(t *testing.T) {
 	// Tax Amount must format with 2 decimals via GetMoney (10.00, not "10").
 	// Bites if production reverts to GetDecimal, which renders "10". (#423)
 	assert.Regexp(t, `(?m)^Tax Amount:\s+10\.00$`, stdout)
+	// Every remaining prod-read key is pinned with a distinctive value so a key
+	// typo or nesting mistake renders "" and fails here (fixture-masking, #482).
+	assert.Regexp(t, `(?m)^ID:\s+dm-001$`, stdout)
+	assert.Regexp(t, `(?m)^Debit Memo Date:\s+2026-01-15$`, stdout)
+	assert.Regexp(t, `(?m)^Due Date:\s+2026-02-20$`, stdout)
+	assert.Regexp(t, `(?m)^Amount:\s+110\.00$`, stdout)  // money
+	assert.Regexp(t, `(?m)^Balance:\s+110\.00$`, stdout) // money
+	assert.Regexp(t, `(?m)^Currency:\s+EUR$`, stdout)
+	assert.Regexp(t, `(?m)^Reason Code:\s+Charge Dispute$`, stdout)
+	assert.Regexp(t, `(?m)^Account ID:\s+acc-dm-042$`, stdout)
+	assert.Regexp(t, `(?m)^Account Number:\s+A00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Created Date:\s+2026-01-11T08:15:00Z$`, stdout)
 }
 
 func TestDebitMemoGet_JSON(t *testing.T) {

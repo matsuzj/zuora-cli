@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"strconv"
@@ -246,7 +247,12 @@ func (c *Client) readAPIError(resp *http.Response) error {
 // parseRetryAfter parses a Retry-After header, which may be either a number of
 // seconds ("120") or an HTTP date ("Wed, 21 Oct 2026 07:28:00 GMT"). It returns
 // the wait duration and whether a usable value was found. Negative/past values
-// clamp to zero.
+// clamp to zero. Seconds large enough to overflow time.Duration (e.g.
+// "9223372037") clamp to maxRetryAfter: the multiplication would otherwise
+// wrap NEGATIVE, slip past the caller's `d > maxRetryAfter` cap, and turn the
+// rate-limit wait into zero-delay hot retries — defeating the very
+// hostile-header protection the cap exists for. (The date form is safe:
+// time.Until saturates at the Duration limits instead of wrapping.)
 func parseRetryAfter(v string) (time.Duration, bool) {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -255,6 +261,9 @@ func parseRetryAfter(v string) (time.Duration, bool) {
 	if secs, err := strconv.Atoi(v); err == nil {
 		if secs < 0 {
 			secs = 0
+		}
+		if int64(secs) > int64(math.MaxInt64)/int64(time.Second) {
+			return maxRetryAfter, true
 		}
 		return time.Duration(secs) * time.Second, true
 	}

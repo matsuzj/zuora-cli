@@ -153,3 +153,25 @@ func TestAtomicWriteFile_MissingDirErrors(t *testing.T) {
 	err := AtomicWriteFile(filepath.Join(t.TempDir(), "no", "such", "f.yml"), []byte("x"), 0600)
 	require.Error(t, err)
 }
+
+// TestAtomicWriteFile_RenameOntoDirectoryErrorsAndCleansTemp pins the rename
+// failure branch: when the target path exists as a DIRECTORY, os.Rename fails
+// after the temp file was fully written, and the deferred os.Remove must still
+// clean the .zr-*.tmp up — a leftover temp would accumulate on every retry.
+func TestAtomicWriteFile_RenameOntoDirectoryErrorsAndCleansTemp(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "occupied")
+	require.NoError(t, os.Mkdir(target, 0700))
+
+	err := AtomicWriteFile(target, []byte("data"), 0600)
+	require.Error(t, err, "renaming a file over an existing directory must fail")
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "the deferred cleanup must leave no .zr-*.tmp behind")
+	assert.Equal(t, "occupied", entries[0].Name())
+
+	info, err := os.Stat(target)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir(), "the pre-existing directory must be untouched")
+}

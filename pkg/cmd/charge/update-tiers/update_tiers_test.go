@@ -2,6 +2,7 @@ package updatetiers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 
@@ -19,6 +20,12 @@ func TestChargeUpdateTiers_Success(t *testing.T) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/commerce/tiers", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// The --body payload must reach the server intact (#484): the handler
+		// previously ignored r.Body.
+		body, rerr := io.ReadAll(r.Body)
+		if assert.NoError(t, rerr) {
+			assert.JSONEq(t, `{"charge_id":"chg-001","tiers":[]}`, string(body))
+		}
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
@@ -28,6 +35,9 @@ func TestChargeUpdateTiers_Success(t *testing.T) {
 	stdout, stderr, err := cmdtest.Run(t, "charge", newCmd, handler, "charge", "update-tiers", "--body", `{"charge_id":"chg-001","tiers":[]}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "success")
+	// The response body is emitted verbatim (#483): assert the whole envelope
+	// structurally, not just the substring "success".
+	assert.JSONEq(t, `{"success":true}`, stdout)
 	assert.Contains(t, stderr, "Tiers updated.")
 }
 

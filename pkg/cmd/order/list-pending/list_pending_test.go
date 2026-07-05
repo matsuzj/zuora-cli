@@ -55,6 +55,7 @@ func TestOrderListPending_WithQuery(t *testing.T) {
 func TestOrderListPending_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "order", newCmd, nil, "order", "list-pending")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestOrderListPending_NextPageHint(t *testing.T) {

@@ -13,7 +13,13 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdSetCascading(f) }
 
 func TestSetCascading_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "PUT", "/v1/accounts/A001/payment-methods/cascading", map[string]interface{}{"success": true})
+	// JSONBody: the --body payload must reach the server intact. (#484)
+	handler := cmdtest.Expect{
+		Method:   "PUT",
+		Path:     "/v1/accounts/A001/payment-methods/cascading",
+		JSONBody: `{"paymentMethodId":"pm-1"}`,
+		Respond:  map[string]interface{}{"success": true},
+	}.Handler(t)
 
 	_, stderr, err := cmdtest.Run(t, "account", newCmd, handler, "account", "set-cascading", "A001", "--body", `{"paymentMethodId":"pm-1"}`)
 

@@ -16,25 +16,32 @@ func newCmd(f *factory.Factory) *cobra.Command { return NewCmdReverse(f) }
 
 func TestInvoiceReverse_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "PUT", "/v1/invoices/inv-001/reverse", map[string]interface{}{
-		"id":      "inv-001",
-		"status":  "Reversed",
-		"success": true,
+		"id":            "inv-001",
+		"invoiceNumber": "INV-REV-9001",
+		"status":        "Reversed",
+		"success":       true,
 	})
 
 	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "reverse", "inv-001", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Reversed")
+	// Label-bound (F-08): every prod-read key is pinned with a distinctive
+	// value so a key typo renders "" and fails here (fixture-masking, #482).
+	assert.Regexp(t, `(?m)^ID:\s+inv-001$`, stdout)
+	assert.Regexp(t, `(?m)^Invoice Number:\s+INV-REV-9001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Reversed$`, stdout)
+	// "success" is a JSON bool; GetString formats it as "true".
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestInvoiceReverse_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "reverse", "inv-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "invoice", newCmd, "invoice", "reverse", "inv-001")
 }
 
 func TestInvoiceReverse_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "reverse")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // TestInvoiceReverse_SendsEmptyJSONBody pins the 415 fix: Zuora's endpoint binds a Map body parameter

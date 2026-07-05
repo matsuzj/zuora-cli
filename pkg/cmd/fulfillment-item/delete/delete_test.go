@@ -23,16 +23,7 @@ func TestFulfillmentItemDelete_Success(t *testing.T) {
 }
 
 func TestFulfillmentItemDelete_RequiresConfirm(t *testing.T) {
-	called := false
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.WriteHeader(204)
-	})
-
-	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "delete", "item-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "irreversible")
-	assert.False(t, called, "no HTTP call should be made when --confirm is omitted")
+	cmdtest.RequiresConfirm(t, "fulfillment-item", newCmd, "fulfillment-item", "delete", "item-001")
 }
 
 func TestFulfillmentItemDelete_RequiresArg(t *testing.T) {
@@ -58,6 +49,9 @@ func TestFulfillmentItemDelete_BodyResponse(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, handler, "fulfillment-item", "delete", "item-1", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): the delete detail view's only row is Success — a bare
+	// Contains "true" would pass on any stray "true" anywhere in the output.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestFulfillmentItemDelete_NonJSONBody(t *testing.T) {

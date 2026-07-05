@@ -11,6 +11,7 @@ import (
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/root"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 )
 
 func main() {
@@ -33,9 +34,17 @@ func main() {
 	defer stop()
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Error: %s\n", err)
+		fmt.Fprintln(f.IOStreams.ErrOut, errorLine(err))
 		os.Exit(exitCode(err))
 	}
+}
+
+// errorLine renders err for stderr. API/OAuth error messages embed
+// response-body text (Zuora reason messages, raw gateway pages), so the
+// error path needs the same terminal-escape sanitization the stdout
+// table/detail path already applies; newlines in multi-line errors survive.
+func errorLine(err error) string {
+	return "Error: " + output.SanitizeErrorText(err.Error())
 }
 
 type exitCoder interface {

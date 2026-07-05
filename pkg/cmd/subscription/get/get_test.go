@@ -17,6 +17,10 @@ func TestSubscriptionGet_Detail(t *testing.T) {
 		"id": "sub-1", "subscriptionNumber": "A-S001",
 		"status": "Active", "accountId": "acct-1", "termType": "TERMED",
 		"termStartDate": "2025-01-01", "termEndDate": "2026-01-01",
+		"accountNumber": "A00007731", "accountName": "Fixture Sub Account",
+		"currentTerm": 42, "currentTermPeriodType": "Month",
+		"autoRenew":             true,
+		"contractEffectiveDate": "2031-04-05", "serviceActivationDate": "2031-04-06",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "get", "A-S001")
@@ -24,6 +28,15 @@ func TestSubscriptionGet_Detail(t *testing.T) {
 	// Label-bound (F-08): values under their own labels.
 	assert.Regexp(t, `(?m)^Subscription Number:\s+A-S001$`, stdout)
 	assert.Regexp(t, `(?m)^Status:\s+Active$`, stdout)
+	// Fixture-masking backfill (#482): every prod-read key present with a
+	// distinctive value, pinned under its exact label so a key typo fails here.
+	assert.Regexp(t, `(?m)^Account Number:\s+A00007731$`, stdout)
+	assert.Regexp(t, `(?m)^Account Name:\s+Fixture Sub Account$`, stdout)
+	assert.Regexp(t, `(?m)^Current Term:\s+42$`, stdout)
+	assert.Regexp(t, `(?m)^Current Term Period:\s+Month$`, stdout)
+	assert.Regexp(t, `(?m)^Auto Renew:\s+true$`, stdout)
+	assert.Regexp(t, `(?m)^Contract Effective Date:\s+2031-04-05$`, stdout)
+	assert.Regexp(t, `(?m)^Service Activation Date:\s+2031-04-06$`, stdout)
 	// The subscription response has no top-level "name" (live-verified); the
 	// redundant always-blank Name row was removed. Bites if it is reintroduced. (#438)
 	assert.NotRegexp(t, `(?m)^Name:\s`, stdout)

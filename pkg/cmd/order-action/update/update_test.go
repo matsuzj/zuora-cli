@@ -34,6 +34,10 @@ func TestOrderActionUpdate_Success(t *testing.T) {
 	stdout, stderr, err := cmdtest.Run(t, "order-action", newCmd, handler, "order-action", "update", "OA-123", "--body", `{"status":"Active"}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): the command's only detail row is Success, read from
+	// the response "success" key — a bare Contains "true" would pass on any
+	// stray "true" anywhere in the output.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Order action OA-123 updated.")
 }
 

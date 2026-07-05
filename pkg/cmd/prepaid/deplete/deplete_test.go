@@ -37,10 +37,7 @@ func TestPrepaidDeplete_Success(t *testing.T) {
 }
 
 func TestPrepaidDeplete_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "prepaid", newCmd, nil, "prepaid", "deplete", "--body", `{"amount":100}`)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "prepaid", newCmd, "prepaid", "deplete", "--body", `{"amount":100}`)
 }
 
 func TestPrepaidDeplete_RequiresBody(t *testing.T) {

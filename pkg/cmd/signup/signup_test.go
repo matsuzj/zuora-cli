@@ -22,6 +22,9 @@ func TestSignup_Success(t *testing.T) {
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		body, _ := io.ReadAll(r.Body)
 		assert.Contains(t, string(body), "accountInfo")
+		// Full-body pin (#484): the --body payload must reach the server intact,
+		// not merely contain one key.
+		assert.JSONEq(t, `{"accountInfo":{},"subscriptionInfo":{}}`, string(body))
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":            true,
@@ -61,4 +64,5 @@ func TestSignup_Success(t *testing.T) {
 func TestSignup_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "signup")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }

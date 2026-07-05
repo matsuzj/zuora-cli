@@ -65,6 +65,35 @@ func TestDoPaginated_TwoPages(t *testing.T) {
 	assert.Len(t, data, 2)
 }
 
+// TestDoPaginated_AbsoluteNextPageWithOpts_NoDuplicateParams pins that an
+// ABSOLUTE nextPage URL carrying its own query survives untouched even though
+// the caller's WithQuery opts are re-passed on every page: buildURL returns an
+// absolute URL as-is, so page 2 must see exactly the nextPage query — no
+// duplicated pageSize, no re-encoding.
+func TestDoPaginated_AbsoluteNextPageWithOpts_NoDuplicateParams(t *testing.T) {
+	var page2RawQuery string
+	page := 0
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page++
+		if page == 1 {
+			assert.Equal(t, "pageSize=10", r.URL.RawQuery, "page 1 gets the caller's WithQuery opt")
+			fmt.Fprintf(w, `{"data":[{"id":"p1"}],"nextPage":"%s/v1/test?page=2&pageSize=10"}`, srv.URL)
+			return
+		}
+		page2RawQuery = r.URL.RawQuery
+		w.Write([]byte(`{"data":[{"id":"p2"}]}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	data, err := c.DoPaginated("GET", "/v1/test", WithQuery("pageSize", "10"))
+	require.NoError(t, err)
+	assert.Len(t, data, 2)
+	assert.Equal(t, "page=2&pageSize=10", page2RawQuery,
+		"page 2 must carry exactly the absolute nextPage query — no duplicated or merged params")
+}
+
 // TestDoPaginated_MalformedJSON_IsError pins that a genuinely malformed (invalid)
 // JSON body is surfaced as an error rather than silently swallowed as a single
 // "page" — which would otherwise hide corruption, especially mid-pagination.

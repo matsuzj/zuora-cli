@@ -13,13 +13,20 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdRefund(f) }
 
 func TestPaymentRefund_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "POST", "/v1/payments/pay-001/refunds", map[string]interface{}{
-		"id":      "ref-001",
-		"number":  "R-00001",
-		"amount":  50.00,
-		"status":  "Processed",
-		"success": true,
-	})
+	// Expect (not OK) so the --body payload is asserted to reach the server
+	// intact (#484): the previous handler ignored r.Body entirely.
+	handler := cmdtest.Expect{
+		Method:   "POST",
+		Path:     "/v1/payments/pay-001/refunds",
+		JSONBody: `{"amount":50,"type":"External"}`,
+		Respond: map[string]interface{}{
+			"id":      "ref-001",
+			"number":  "R-00001",
+			"amount":  50.00,
+			"status":  "Processed",
+			"success": true,
+		},
+	}.Handler(t)
 
 	stdout, _, err := cmdtest.Run(t, "payment", newCmd, handler, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`, "--confirm")
 	require.NoError(t, err)
@@ -39,8 +46,5 @@ func TestPaymentRefund_RequiresBody(t *testing.T) {
 }
 
 func TestPaymentRefund_RequiresConfirm(t *testing.T) {
-	// Disbursing a refund cannot be undone — it must require --confirm. (#424)
-	_, _, err := cmdtest.Run(t, "payment", newCmd, nil, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "payment", newCmd, "payment", "refund", "pay-001", "--body", `{"amount":50,"type":"External"}`)
 }

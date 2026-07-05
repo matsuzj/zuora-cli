@@ -40,12 +40,20 @@ func TestCancel_WithPolicy(t *testing.T) {
 
 	stdout, stderr, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "cancel", "A-S001", "--policy", "EndOfCurrentTerm", "--confirm")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): bare Contains "true" matches the success flag anywhere.
+	assert.Regexp(t, `(?m)^Subscription ID:\s+sub-1$`, stdout)
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "cancelled")
 }
 
 func TestCancel_WithBody(t *testing.T) {
-	handler := cmdtest.OK(t, "PUT", "/v1/subscriptions/A-S001/cancel", map[string]interface{}{"success": true})
+	// JSONBody: the --body payload must reach the server intact. (#484)
+	handler := cmdtest.Expect{
+		Method:   "PUT",
+		Path:     "/v1/subscriptions/A-S001/cancel",
+		JSONBody: `{"cancellationPolicy":"EndOfCurrentTerm"}`,
+		Respond:  map[string]interface{}{"success": true},
+	}.Handler(t)
 
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "cancel", "A-S001", "--body", `{"cancellationPolicy":"EndOfCurrentTerm"}`, "--confirm")
 	require.NoError(t, err)

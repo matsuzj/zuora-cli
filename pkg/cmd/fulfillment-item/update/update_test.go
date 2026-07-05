@@ -41,9 +41,11 @@ func TestFulfillmentItemUpdate_Success(t *testing.T) {
 func TestFulfillmentItemUpdate_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "update", "item-001")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestFulfillmentItemUpdate_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "fulfillment-item", newCmd, nil, "fulfillment-item", "update", "--body", `{"quantity":10}`)
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

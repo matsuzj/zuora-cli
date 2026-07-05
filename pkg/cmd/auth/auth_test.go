@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando/go-keyring"
 )
 
 func newTestRoot(f *factory.Factory) *cobra.Command {
@@ -83,6 +85,103 @@ func TestAuthLogin_VerboseDoesNotLeakSecret(t *testing.T) {
 	assert.Contains(t, out, "* auth:", "verbose output must actually be produced (else NotContains is vacuous)")
 	assert.NotContains(t, out, secret, "client secret must never appear in verbose stderr")
 	assert.NotContains(t, out, issued, "the issued token must never appear in verbose stderr")
+}
+
+// TestAuthLogin_EnvVarFallback pins the ZR_CLIENT_ID/ZR_CLIENT_SECRET merge
+// in runLogin: with no --client-id/--client-secret flags, the env pair must
+// be what actually gets POSTed to the OAuth endpoint. Assertions run inside
+// the handler (assert, not require — handler goroutine) like the oauth unit
+// tests do.
+func TestAuthLogin_EnvVarFallback(t *testing.T) {
+	t.Setenv("ZR_CLIENT_ID", "env-id")
+	t.Setenv("ZR_CLIENT_SECRET", "env-secret")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parsing OAuth form: %v", err)
+		}
+		assert.Equal(t, "env-id", r.PostForm.Get("client_id"), "env client ID must be POSTed")
+		assert.Equal(t, "env-secret", r.PostForm.Get("client_secret"), "env client secret must be POSTed")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "env-token", "token_type": "bearer", "expires_in": 3600,
+		})
+	}))
+	defer server.Close()
+
+	ios, _, out, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+	f := factory.NewTestFactory(ios, cfg, server.URL, "")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"auth", "login"}) // no credential flags at all
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), "Logged in to sandbox")
+
+	token, err := cfg.Token("sandbox")
+	require.NoError(t, err)
+	assert.Equal(t, "env-token", token.AccessToken)
+}
+
+// TestAuthLogin_NonInteractiveWithoutCredentials pins the non-TTY rejection:
+// no flags, no env vars, and a buffer-backed stdin (no Fd()) must yield the
+// exact non-interactive error instead of hanging on a prompt.
+func TestAuthLogin_NonInteractiveWithoutCredentials(t *testing.T) {
+	// Hermetic: neutralize any ambient credentials in the dev environment.
+	t.Setenv("ZR_CLIENT_ID", "")
+	t.Setenv("ZR_CLIENT_SECRET", "")
+
+	ios, _, _, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "", "")
+
+	root := newTestRoot(f)
+	root.SetOut(ios.Out)
+	root.SetErr(ios.ErrOut)
+	root.SetArgs([]string{"auth", "login"})
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.EqualError(t, err,
+		"client-id and client-secret flags (or ZR_CLIENT_ID/ZR_CLIENT_SECRET env vars) are required in non-interactive mode")
+}
+
+// TestAuthLogin_KeyringPersistFailureWarnsButSucceeds pins the degraded-
+// persistence path: when the OS keyring rejects the write, login must still
+// exit 0 (the token was validated and cached), print the three warning lines
+// on stderr, and leave the token in the config cache.
+func TestAuthLogin_KeyringPersistFailureWarnsButSucceeds(t *testing.T) {
+	keyring.MockInitWithError(errors.New("no keychain available"))
+	t.Cleanup(keyring.MockInit) // restore the working in-memory mock from TestMain
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "kr-token", "token_type": "bearer", "expires_in": 3600,
+		})
+	}))
+	defer server.Close()
+
+	ios, _, out, errOut := iostreams.Test()
+	cfg := config.NewMockConfig()
+	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
+	f := factory.NewTestFactory(ios, cfg, server.URL, "")
+
+	root := newTestRoot(f)
+	root.SetArgs([]string{"auth", "login", "--client-id", "kid", "--client-secret", "ksecret"})
+	require.NoError(t, root.Execute(), "keyring persist failure must not fail the login")
+
+	stderr := errOut.String()
+	assert.Contains(t, stderr, "Warning: could not store credentials in keyring:")
+	assert.Contains(t, stderr, "no keychain available")
+	assert.Contains(t, stderr, "Token will be cached but credentials are not persisted.")
+	assert.Contains(t, stderr, "Set ZR_CLIENT_ID and ZR_CLIENT_SECRET environment variables for persistent access.")
+
+	assert.Contains(t, out.String(), "Logged in to sandbox")
+	token, err := cfg.Token("sandbox")
+	require.NoError(t, err)
+	assert.Equal(t, "kr-token", token.AccessToken, "token must still be cached despite the keyring failure")
 }
 
 func TestAuthLogout(t *testing.T) {
@@ -217,6 +316,7 @@ func TestAuthLogin_HungOAuthEndpointCancelsPromptly(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context canceled")
 	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt a hung OAuth request promptly")
 }
 
@@ -252,5 +352,6 @@ func TestAuthToken_HungOAuthEndpointCancelsPromptly(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context canceled")
 	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt a hung OAuth request promptly")
 }

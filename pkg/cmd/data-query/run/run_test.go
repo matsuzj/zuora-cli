@@ -2,7 +2,6 @@ package run
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,24 +37,18 @@ func TestRun_PollsThenDownloads(t *testing.T) {
 	dqutil.DownloadClientForTest = hardenedClientTrusting(resultSrv)
 	defer func() { dqutil.DownloadClientForTest = nil }()
 
-	polls := 0
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == "POST" && r.URL.Path == "/query/jobs":
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted"}})
-		case r.Method == "GET" && r.URL.Path == "/query/jobs/job-1":
-			polls++
-			d := map[string]interface{}{"id": "job-1", "queryStatus": "in_progress", "outputRows": "1"}
-			if polls >= 2 {
-				d["queryStatus"] = "completed"
-				d["dataFile"] = resultSrv.URL + "/result"
-			}
-			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": d})
-		default:
-			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-		}
+	handler := cmdtest.Route(t, map[string]http.HandlerFunc{
+		"/query/jobs": cmdtest.OK(t, "POST", "", map[string]interface{}{
+			"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted"},
+		}),
+		"/query/jobs/job-1": cmdtest.Sequence(
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "in_progress", "outputRows": "1"},
+			}),
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "completed", "outputRows": "1", "dataFile": resultSrv.URL + "/result"},
+			}),
+		),
 	})
 
 	out := filepath.Join(t.TempDir(), "res.csv")
@@ -72,7 +65,7 @@ func TestRun_NoOutputRendersMetadata(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.WriteHeader(200)
-			w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"completed","outputRows":"7"}}`))
+			w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"completed","outputRows":"7","processingTime":321,"dataFile":"https://dq.example.invalid/files/job-1.json"}}`))
 			return
 		}
 		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
@@ -80,6 +73,30 @@ func TestRun_NoOutputRendersMetadata(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--json")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "completed")
+}
+
+// TestRun_NoOutputDetailFieldsLabelBound pins the no---output detail rendering
+// (dqutil.DetailFields): the fixture carries EVERY key the renderer reads with
+// a distinctive value, and each field is asserted under its own label, so a
+// key typo or nesting mistake renders "" and fails here (fixture-masking,
+// #482). No --output means the dataFile URL is never fetched.
+func TestRun_NoOutputDetailFieldsLabelBound(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.WriteHeader(200)
+			w.Write([]byte(`{"data":{"id":"job-detail-1","queryStatus":"completed","outputRows":4321,"processingTime":987,"dataFile":"https://dq.example.invalid/files/res-42.json"}}`))
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+	})
+	stdout, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms")
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^ID:\s+job-detail-1$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+completed$`, stdout)
+	// JSON numbers render as plain decimals via GetDecimal (4321, not 4.321e+03).
+	assert.Regexp(t, `(?m)^Output Rows:\s+4321$`, stdout)
+	assert.Regexp(t, `(?m)^Processing Time:\s+987$`, stdout)
+	assert.Regexp(t, `(?m)^Data File:\s+https://dq\.example\.invalid/files/res-42\.json$`, stdout)
 }
 
 func TestRun_FailedJob(t *testing.T) {
@@ -102,7 +119,10 @@ func TestRun_TimeoutWhileQueued(t *testing.T) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"accepted"}}`))
 	})
-	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "30ms")
+	// 150ms deadline: ample room for the submit POST to complete first on a
+	// loaded runner, so the deadline deterministically lands in the poll loop
+	// and produces the friendly give-up message (30ms could expire mid-submit).
+	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "150ms")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting")
 }
@@ -137,4 +157,28 @@ func TestRun_GlobalTimeoutNoMisleadingMessage(t *testing.T) {
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "after 0s")
 	assert.NotContains(t, err.Error(), "raise --timeout")
+}
+
+// TestRun_PollLineSanitized pins that the poll progress line sanitizes the
+// response-derived job id/status: hostile values must not write escape codes
+// to the terminal via stderr.
+func TestRun_PollLineSanitized(t *testing.T) {
+	handler := cmdtest.Route(t, map[string]http.HandlerFunc{
+		"/query/jobs": cmdtest.OK(t, "POST", "", map[string]interface{}{
+			"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted\x1b[2J\x1b[H"},
+		}),
+		"/query/jobs/job-1": cmdtest.Sequence(
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "in_progress\x1b[31m", "outputRows": "3"},
+			}),
+			cmdtest.OK(t, "GET", "", map[string]interface{}{
+				"data": map[string]interface{}{"id": "job-1", "queryStatus": "completed", "outputRows": "3"},
+			}),
+		),
+	})
+
+	_, stderr, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms")
+	require.NoError(t, err)
+	assert.Contains(t, stderr, "polling in")
+	assert.NotContains(t, stderr, "\x1b", "response-derived values must be sanitized on the poll line")
 }

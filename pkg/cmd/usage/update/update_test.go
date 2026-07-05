@@ -21,6 +21,8 @@ func TestUsageUpdate_Success(t *testing.T) {
 		assert.Equal(t, "/v1/object/usage/usage123", r.URL.Path)
 		body, _ := io.ReadAll(r.Body)
 		assert.Contains(t, string(body), "Quantity")
+		// The full --body payload must reach the server intact. (#484)
+		assert.JSONEq(t, `{"Quantity":20}`, string(body))
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"Success": true,
@@ -57,4 +59,5 @@ func TestUsageUpdate_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "usage", newCmd, nil, "usage", "update")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

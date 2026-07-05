@@ -14,9 +14,7 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdCancel(f) }
 
 func TestCancel_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "data-query", newCmd, nil, "data-query", "cancel", "job-1")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "data-query", newCmd, "data-query", "cancel", "job-1")
 }
 
 func TestCancel_Confirmed(t *testing.T) {
@@ -34,4 +32,5 @@ func TestCancel_Confirmed(t *testing.T) {
 func TestCancel_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "data-query", newCmd, nil, "data-query", "cancel")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

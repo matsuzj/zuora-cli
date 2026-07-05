@@ -25,20 +25,26 @@ func TestInvoicePost_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "invoice", newCmd, handler, "invoice", "post", "inv-001", "--confirm")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Posted")
+	// Label-bound (F-08, #483): every prod-read detail field pinned under its
+	// own label (mirrors invoice/reverse) so a key typo renders "" and fails.
+	assert.Regexp(t, `(?m)^ID:\s+inv-001$`, stdout)
+	assert.Regexp(t, `(?m)^Invoice Number:\s+INV00001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Posted$`, stdout)
+	// "success" is a JSON bool; GetString formats it as "true".
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestInvoicePost_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "post")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 // TestInvoicePost_RequiresConfirm pins the irreversible-write guard: without
 // --confirm the command must refuse before issuing any request (nil handler
 // asserts no HTTP call is made).
 func TestInvoicePost_RequiresConfirm(t *testing.T) {
-	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "post", "inv-001")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	cmdtest.RequiresConfirm(t, "invoice", newCmd, "invoice", "post", "inv-001")
 }
 
 func TestInvoicePost_SuccessFalse(t *testing.T) {

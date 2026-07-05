@@ -55,6 +55,14 @@ func TestCreditMemoList_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "CM00001")
 	assert.Contains(t, stdout, "Posted")
+	// Pin every declared column's cell (#483, mirrors order/list in PR #495):
+	// ID/DATE/AMOUNT/BALANCE/ACCOUNT were fixtured but unasserted — a
+	// column-key typo would render an empty cell while the test stayed green.
+	assert.Contains(t, stdout, "cm-001")     // ID (id)
+	assert.Contains(t, stdout, "2026-01-15") // DATE (creditMemoDate)
+	assert.Contains(t, stdout, "100.50")     // AMOUNT (amount, Money)
+	assert.Contains(t, stdout, "25.25")      // BALANCE (unappliedAmount, Money)
+	assert.Contains(t, stdout, "A00000001")  // ACCOUNT (accountNumber)
 }
 
 func TestCreditMemoList_NoFilter(t *testing.T) {

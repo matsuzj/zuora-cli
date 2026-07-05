@@ -1,6 +1,7 @@
 package email
 
 import (
+	"io"
 	"net/http"
 	"testing"
 
@@ -18,6 +19,12 @@ func TestInvoiceEmail_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/invoices/inv-001/emails", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// The --body payload must reach the server intact (#484): the handler
+		// previously ignored r.Body.
+		body, rerr := io.ReadAll(r.Body)
+		if assert.NoError(t, rerr) {
+			assert.JSONEq(t, `{"emailAddresses":"user@example.com"}`, string(body))
+		}
 		cmdtest.OK(t, "", "", map[string]interface{}{
 			"success": true,
 		})(w, r)
@@ -27,6 +34,9 @@ func TestInvoiceEmail_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (F-08, #483): "true" alone matched ANY stdout containing the
+	// word; the detail view's single field must render under its own label.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Invoice inv-001 email sent.")
 }
 
@@ -41,6 +51,7 @@ func TestInvoiceEmail_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "email")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestInvoiceEmail_SuccessFalse(t *testing.T) {

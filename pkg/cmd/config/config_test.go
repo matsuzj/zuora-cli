@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -50,6 +51,68 @@ func TestConfigGet(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "sandbox\n", stdout)
+}
+
+// TestConfigGet_KeyBranches covers the remaining runGet switch arms beyond
+// active_environment (already tested above): zuora_version and default_output
+// print the config values, and an unknown key is the exact error.
+func TestConfigGet_KeyBranches(t *testing.T) {
+	tests := []struct {
+		key  string
+		want string
+	}{
+		{"zuora_version", "2025-08-12\n"},
+		{"default_output", "table\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.key, func(t *testing.T) {
+			stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", tc.key)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, stdout)
+		})
+	}
+
+	t.Run("unknown key", func(t *testing.T) {
+		_, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", "no_such_key")
+		require.Error(t, err)
+		assert.EqualError(t, err, "unknown config key: no_such_key")
+	})
+}
+
+// completeConfig drives cobra's shell-completion machinery for
+// `config <sub> <TAB>` and returns the raw completion output.
+func completeConfig(t *testing.T, args ...string) string {
+	t.Helper()
+	ios, _, out, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	f := factory.NewTestFactory(ios, cfg, "", "")
+	root := newTestRoot(f)
+	root.SetOut(ios.Out)
+	root.SetErr(ios.ErrOut)
+	root.SetArgs(append([]string{"__complete", "config"}, args...))
+	require.NoError(t, root.Execute(), "__complete must never fail")
+	return out.String()
+}
+
+// TestConfigGetSet_CompleteKeys pins the ValidArgsFunction closures in
+// newCmdGet and newCmdSet: the known config keys are suggested for the first
+// argument with ShellCompDirectiveNoFileComp (:4), and nothing is suggested
+// once a key is already present.
+func TestConfigGetSet_CompleteKeys(t *testing.T) {
+	for _, sub := range []string{"get", "set"} {
+		t.Run(sub, func(t *testing.T) {
+			lines := strings.Split(strings.TrimSpace(completeConfig(t, sub, "")), "\n")
+			assert.Contains(t, lines, "active_environment")
+			assert.Contains(t, lines, "zuora_version")
+			assert.Contains(t, lines, "default_output")
+			assert.Equal(t, ":4", lines[len(lines)-1], "directive must be ShellCompDirectiveNoFileComp")
+
+			// Key already given: no further suggestions (set's <value> arg
+			// and get's excess arg both hit the len(args)>0 branch).
+			got := strings.TrimSpace(completeConfig(t, sub, "zuora_version", ""))
+			assert.Equal(t, ":4", got, "no suggestions after the key argument")
+		})
+	}
 }
 
 func TestConfigList(t *testing.T) {

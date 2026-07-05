@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/matsuzj/zuora-cli/internal/config"
@@ -218,6 +219,52 @@ func TestSetCommand_RejectsEmptyExpansion(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+// completeAliasDelete drives cobra's shell-completion machinery for
+// `alias delete <TAB>` against a config dir and returns the raw completion
+// output (suggestion lines followed by the ":<directive>" line).
+func completeAliasDelete(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	ios, _, out, _ := iostreams.Test()
+	f := &factory.Factory{
+		IOStreams: ios,
+		Config:    func() (config.Config, error) { return config.Load(dir) },
+	}
+	root := newTestRootWithAlias(f, ios)
+	root.SetArgs(append([]string{"__complete", "alias", "delete"}, args...))
+	require.NoError(t, root.Execute(), "__complete must never fail, even on a broken store")
+	return out.String()
+}
+
+// TestDeleteCommand_CompletesAliasNames pins the ValidArgsFunction closure in
+// newCmdDelete: the defined alias names are suggested for the first arg with
+// ShellCompDirectiveNoFileComp (:4), and nothing is suggested once the name
+// is already present.
+func TestDeleteCommand_CompletesAliasNames(t *testing.T) {
+	dir := t.TempDir()
+	content := "alpha: a-command\nzulu: z-command\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "aliases.yml"), []byte(content), 0600))
+
+	lines := strings.Split(strings.TrimSpace(completeAliasDelete(t, dir, "")), "\n")
+	assert.Contains(t, lines, "alpha")
+	assert.Contains(t, lines, "zulu")
+	assert.Equal(t, ":4", lines[len(lines)-1], "directive must be ShellCompDirectiveNoFileComp")
+
+	// Second position: the name is already given, so nothing is suggested.
+	got := strings.TrimSpace(completeAliasDelete(t, dir, "alpha", ""))
+	assert.Equal(t, ":4", got, "no suggestions after the alias name")
+}
+
+// TestDeleteCommand_CompletionDegradesOnCorruptStore pins the error branch of
+// the completion closure: an unparsable aliases.yml must degrade to zero
+// suggestions with NoFileComp — no error, no panic.
+func TestDeleteCommand_CompletionDegradesOnCorruptStore(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "aliases.yml"), []byte("{invalid"), 0600))
+
+	got := strings.TrimSpace(completeAliasDelete(t, dir, ""))
+	assert.Equal(t, ":4", got, "corrupt store must yield no suggestions, only the NoFileComp directive")
 }
 
 func TestDeleteCommand_AllowsReservedName(t *testing.T) {

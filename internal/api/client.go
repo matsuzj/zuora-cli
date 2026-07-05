@@ -77,6 +77,18 @@ func WithHTTPClient(hc *http.Client) ClientOption {
 	return func(c *Client) { c.httpClient = hc }
 }
 
+// WithSleep replaces the retry/backoff sleeper. Like WithHTTPClient this is a
+// deliberate test seam: factory.NewTestFactory injects a no-backoff sleeper so
+// a command test whose handler returns a retryable status can never silently
+// spend real seconds in exponential backoff. A nil fn keeps the real sleeper.
+func WithSleep(fn func(context.Context, time.Duration) error) ClientOption {
+	return func(c *Client) {
+		if fn != nil {
+			c.sleep = fn
+		}
+	}
+}
+
 // NewClient creates a new API client.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
@@ -491,6 +503,7 @@ var readOnlyPOSTAllowList = []string{
 var readOnlyPOSTPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^v1/subscriptions/[^/]+/preview$`), // preview-change
 	regexp.MustCompile(`^meters/[^/]+/summary$`),           // meter summary (read-only)
+	regexp.MustCompile(`^commerce/products/[^/]+$`),        // product get — documented as POST, a read (#435)
 }
 
 // extractPath normalises a request path for allowlist matching.

@@ -575,6 +575,42 @@ func TestVerboseBody_TruncatesAtCap(t *testing.T) {
 	assert.Contains(t, buf.String(), "[body truncated at 4096 bytes]")
 }
 
+// TestVerboseBody_RedactBeforeTruncate_Straddle pins the ORDER of the two
+// vlogBody transforms (#325): masking must run before the 4096-byte cut. The
+// secret value is positioned to start ~6 bytes before maxBodyLog, so
+// truncate-before-mask would leave the truncated body as invalid JSON
+// (maskSecrets passes it through unchanged) with the secret's leading bytes
+// exposed in the log tail.
+func TestVerboseBody_RedactBeforeTruncate_Straddle(t *testing.T) {
+	const secret = "STRADDLE-SECRET-0123456789abcdef"
+	// Layout: {"pad":"<x…>","token":"<secret>"} with the secret starting at
+	// byte 4090 — 6 bytes before the maxBodyLog cut — and ending past it.
+	pad := strings.Repeat("x", maxBodyLog-len(`{"pad":"`)-len(`","token":"`)-6)
+	body := `{"pad":"` + pad + `","token":"` + secret + `"}`
+	start := strings.Index(body, secret)
+	require.Less(t, start, maxBodyLog, "the secret must start before the truncation point")
+	require.Greater(t, start+len(secret), maxBodyLog, "the secret must straddle the truncation point")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	c := newNoSleepClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var buf strings.Builder
+	c.SetVerbose(&buf)
+	c.SetVerboseBody()
+
+	_, err := c.Get("/v1/test")
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "[body truncated at 4096 bytes]", "the masked body still exceeds the cap")
+	assert.NotContains(t, out, secret[:6],
+		"no prefix of the secret may survive: truncate-before-mask would leak the bytes before the cut")
+}
+
 func TestVerboseBody_MultipartSkipped(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"success":true}`))

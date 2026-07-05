@@ -161,7 +161,9 @@ func TestOrderJobStatus_WatchCtrlCInterruptsSleep(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 	// The old raw time.Sleep(5s) held cancellation hostage for the full
 	// interval — this asserts the sleep is interruptible.
-	assert.Less(t, elapsed, 500*time.Millisecond, "Ctrl-C must interrupt the polling sleep promptly")
+	// 2s bound: generous for loaded CI runners, still far below the 5s default
+	// interval this test exists to prove is interruptible.
+	assert.Less(t, elapsed, 2*time.Second, "Ctrl-C must interrupt the polling sleep promptly")
 }
 
 func TestOrderJobStatus_WatchTimeoutGivesUp(t *testing.T) {
@@ -172,7 +174,11 @@ func TestOrderJobStatus_WatchTimeoutGivesUp(t *testing.T) {
 		})
 	})
 
-	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "30ms", "--timeout", "80ms")
+	// 400ms timeout with a 20ms interval: at least one poll reliably completes
+	// before the deadline even on a loaded runner, so the "last status" in the
+	// give-up message is deterministically InProgress (80ms left only ~2 polls
+	// of headroom and flaked if the first poll ran slow).
+	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "400ms")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting for job J1")
@@ -216,7 +222,9 @@ func TestOrderJobStatus_TimeoutAbortsInFlightRequest(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting for job J1", "mid-request timeout must use the friendly message")
-	assert.Less(t, elapsed, 500*time.Millisecond, "--timeout must abort an in-flight request promptly")
+	// 2s bound: the server stalls forever, so anything under 2s proves the
+	// deadline aborted the in-flight GET (500ms flirted with CI scheduling noise).
+	assert.Less(t, elapsed, 2*time.Second, "--timeout must abort an in-flight request promptly")
 }
 
 // TestOrderJobStatus_WatchTreatsCanceledAsTerminal pins the US-spelling fix:

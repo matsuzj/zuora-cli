@@ -1,6 +1,7 @@
 package apply
 
 import (
+	"io"
 	"net/http"
 	"testing"
 
@@ -18,6 +19,12 @@ func TestPaymentApply_Success(t *testing.T) {
 		assert.Equal(t, "PUT", r.Method)
 		assert.Equal(t, "/v1/payments/pay-001/apply", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// The --body payload must reach the server intact (#484): the handler
+		// previously ignored r.Body.
+		body, rerr := io.ReadAll(r.Body)
+		if assert.NoError(t, rerr) {
+			assert.JSONEq(t, `{"invoices":[{"invoiceId":"inv-001","amount":50}]}`, string(body))
+		}
 		cmdtest.OK(t, "", "", map[string]interface{}{
 			"id":      "pay-001",
 			"number":  "P-00000001", // real Payments field is "number" (see payment/get); "paymentNumber" never existed

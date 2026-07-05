@@ -30,6 +30,12 @@ func TestInvoiceItems_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "S-00001")
 	assert.Contains(t, stdout, "Monthly Fee")
+	// Pin every declared column's cell (#483): ID/CHARGE_AMOUNT/CHARGE_DATE
+	// were fixtured but unasserted — a struct-tag typo would render an empty
+	// cell while the test stayed green.
+	assert.Contains(t, stdout, "item-001")   // ID
+	assert.Contains(t, stdout, "150.00")     // CHARGE_AMOUNT (%.2f)
+	assert.Contains(t, stdout, "2026-01-15") // CHARGE_DATE
 }
 
 func TestInvoiceItems_RequiresArg(t *testing.T) {

@@ -32,9 +32,12 @@ func TestOrderLineItemUpdate_Success(t *testing.T) {
 		})
 	})
 
-	_, stderr, err := cmdtest.Run(t, "order-line-item", newCmd, handler, "order-line-item", "update", "OLI-001", "--body", `{"description":"Updated description"}`)
+	stdout, stderr, err := cmdtest.Run(t, "order-line-item", newCmd, handler, "order-line-item", "update", "OLI-001", "--body", `{"description":"Updated description"}`)
 
 	require.NoError(t, err)
+	// Label-bound (#483): the command's only detail row is Success, read from
+	// the response "success" key — previously stdout was never asserted at all.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Order line item OLI-001 updated.")
 }
 

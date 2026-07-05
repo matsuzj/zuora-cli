@@ -42,13 +42,23 @@ func TestPlanPurchaseOptions_Success(t *testing.T) {
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"data":    []interface{}{},
+			"data": []interface{}{
+				map[string]interface{}{
+					"id":   "po-9b1c6e42",
+					"name": "Purchase Option Fixture #483",
+				},
+			},
 		})
 	})
 
 	stdout, _, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "purchase-options", "--plan", "plan-123")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "success")
+	// Distinctive row VALUES must be rendered (#483): the old empty-data
+	// fixture plus a bare Contains("success") passed for ANY non-crash
+	// rendering. Commerce fixtures are not live-verifiable; key shapes kept.
+	assert.Contains(t, stdout, "po-9b1c6e42")
+	assert.Contains(t, stdout, "Purchase Option Fixture #483")
 }
 
 func TestPlanPurchaseOptions_RequiresPlan(t *testing.T) {

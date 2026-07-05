@@ -13,16 +13,25 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdPreview(f) }
 
 func TestSubscriptionPreview_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "POST", "/v1/subscriptions/preview", map[string]interface{}{
-		"success":      true,
-		"amount":       100.0,
-		"invoiceItems": []interface{}{},
-	})
+	// JSONBody: the --body payload must reach the server intact. (#484)
+	handler := cmdtest.Expect{
+		Method:   "POST",
+		Path:     "/v1/subscriptions/preview",
+		JSONBody: `{"accountKey":"A001"}`,
+		Respond: map[string]interface{}{
+			"success":      true,
+			"amount":       123.45,
+			"invoiceItems": []interface{}{},
+		},
+	}.Handler(t)
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "preview", "--body", `{"accountKey":"A001"}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "success")
 	assert.Contains(t, stdout, "amount")
+	// The distinctive VALUE must survive the passthrough, not just the keys the
+	// test itself injected. (#483)
+	assert.Contains(t, stdout, `"amount": 123.45`)
 }
 
 func TestSubscriptionPreview_RequiresBody(t *testing.T) {

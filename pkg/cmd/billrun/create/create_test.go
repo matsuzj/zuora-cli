@@ -21,6 +21,8 @@ func TestBillRunCreate_Success(t *testing.T) {
 		assert.Equal(t, "/v1/bill-runs", r.URL.Path)
 		body, _ := io.ReadAll(r.Body)
 		assert.Contains(t, string(body), "AllBatches")
+		// The full --body payload must reach the server intact. (#484)
+		assert.JSONEq(t, `{"batches":["AllBatches"],"targetDate":"2026-06-30"}`, string(body))
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":            "br-001",
@@ -33,6 +35,10 @@ func TestBillRunCreate_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "billrun", newCmd, handler, "billrun", "create", "--body", `{"batches":["AllBatches"],"targetDate":"2026-06-30"}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "BR-00000001")
+	// Label-bound (#483): pin each rendered field under its own label.
+	assert.Regexp(t, `(?m)^ID:\s+br-001$`, stdout)
+	assert.Regexp(t, `(?m)^Bill Run Number:\s+BR-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Pending$`, stdout)
 }
 
 func TestBillRunCreate_RequiresBody(t *testing.T) {

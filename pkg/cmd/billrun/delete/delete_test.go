@@ -17,7 +17,8 @@ func TestBillRunDelete_Success(t *testing.T) {
 
 	stdout, _, err := cmdtest.Run(t, "billrun", newCmd, handler, "billrun", "delete", "br-001", "--confirm")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): bare Contains "true" matches the success flag anywhere.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestBillRunDelete_RequiresConfirm(t *testing.T) {

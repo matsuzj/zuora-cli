@@ -16,13 +16,17 @@ func TestChangelog_Success(t *testing.T) {
 	handler := cmdtest.OK(t, "GET", "/v1/subscription-change-logs/S-00000001", map[string]interface{}{
 		"success": true,
 		"changeLogs": []map[string]interface{}{
-			{"type": "Create", "date": "2026-01-01"},
+			{"type": "Create", "date": "2026-01-17"},
 		},
 	})
 
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "changelog", "S-00000001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "changeLogs")
+	// The entry's VALUES must survive the passthrough — the envelope key alone
+	// matches any rendering that echoes the key the test itself injected. (#483)
+	assert.Contains(t, stdout, `"type": "Create"`)
+	assert.Contains(t, stdout, `"date": "2026-01-17"`)
 }
 
 // TestChangelog_Version folds in the old `changelog-version` via --version.
@@ -35,6 +39,9 @@ func TestChangelog_Version(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "changelog", "S-00000001", "--version", "2")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "changeLogs")
+	// Entry values, not just the envelope key the test injected. (#483)
+	assert.Contains(t, stdout, `"type": "Update"`)
+	assert.Contains(t, stdout, `"version": 2`)
 }
 
 // TestChangelog_ByOrder folds in the old `changelog-by-order` via --order.
@@ -47,6 +54,9 @@ func TestChangelog_ByOrder(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "changelog", "--order", "O-00000001")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "changeLogs")
+	// Entry values, not just the envelope key the test injected. (#483)
+	assert.Contains(t, stdout, `"type": "Update"`)
+	assert.Contains(t, stdout, `"orderNumber": "O-00000001"`)
 }
 
 func TestChangelog_RequiresSubscriptionOrOrder(t *testing.T) {

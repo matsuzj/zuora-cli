@@ -13,13 +13,18 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdUpdateCustomFields(f) }
 
 func TestSubscriptionUpdateCustomFields_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "PUT", "/v1/subscriptions/A-S001/versions/1/customFields", map[string]interface{}{
-		"success": true,
-	})
+	// JSONBody: the --body payload must reach the server intact. (#484)
+	handler := cmdtest.Expect{
+		Method:   "PUT",
+		Path:     "/v1/subscriptions/A-S001/versions/1/customFields",
+		JSONBody: `{"cf_MyField__c":"value"}`,
+		Respond:  map[string]interface{}{"success": true},
+	}.Handler(t)
 
 	stdout, stderr, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "update-custom-fields", "A-S001", "1", "--body", `{"cf_MyField__c":"value"}`)
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): bare Contains "true" matches the success flag anywhere.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Custom fields updated.")
 }
 

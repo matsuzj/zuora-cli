@@ -26,6 +26,10 @@ func TestCommitmentBalance_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "CMT-00000001")
 	assert.Contains(t, stdout, "remainingAmount")
+	// Values, not just the keys the test itself injected. (#483)
+	assert.Contains(t, stdout, `"remainingAmount": 750`)
+	assert.Contains(t, stdout, `"consumedAmount": 250`)
+	assert.Contains(t, stdout, `"currency": "USD"`)
 }
 
 func TestCommitmentBalance_RequiresArg(t *testing.T) {

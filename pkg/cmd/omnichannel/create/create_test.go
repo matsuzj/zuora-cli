@@ -19,6 +19,13 @@ func TestOmnichannelCreate_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/v1/omni-channel-subscriptions", r.URL.Path)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		// Body must reach the server intact (#484): a command that dropped or
+		// mangled the --body payload would fail here.
+		var payload map[string]interface{}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		assert.Equal(t, "ext-sub-1", payload["externalSubscriptionId"])
+		assert.Equal(t, "AppleAppStore", payload["externalSourceSystem"])
+
 		// Doc-verified POST response (#414): subscriptionId/subscriptionNumber/
 		// accountNumber — the old subscriptionKey key does not exist, so the
 		// success message never fired.

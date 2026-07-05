@@ -34,6 +34,10 @@ func TestOrderUpdateCustomFields_Success(t *testing.T) {
 	stdout, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "update-custom-fields", "O-00000001", "--body", `{"cf_MyField__c":"value"}`)
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "true")
+	// Label-bound (#483): the command's only detail row is Success, read from
+	// the response "success" key — a bare Contains "true" would pass on any
+	// stray "true" anywhere in the output.
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 	assert.Contains(t, stderr, "Custom fields updated for order O-00000001.")
 }
 

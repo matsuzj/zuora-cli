@@ -24,6 +24,9 @@ func TestChangelogVersion_Success(t *testing.T) {
 	stdout, _, err := cmdtest.Run(t, "subscription", newCmd, handler, "subscription", "changelog-version", "S-00000001", "2")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "changeLog")
+	// Entry values, not just the envelope key the test injected. (#483)
+	assert.Contains(t, stdout, `"type": "Update"`)
+	assert.Contains(t, stdout, `"version": 2`)
 }
 
 func TestChangelogVersion_RequiresArgs(t *testing.T) {

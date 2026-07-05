@@ -40,11 +40,12 @@ func runSnapshot(cmd *cobra.Command, f *factory.Factory, id string) error {
 				{Key: "Last Name", Value: cmdutil.GetString(raw, "lastName")},
 				{Key: "Email", Value: cmdutil.GetString(raw, "workEmail")},
 				{Key: "Country", Value: cmdutil.GetString(raw, "country")},
-				// A contact snapshot is a point-in-time copy of a contact, so it
-				// mirrors the contact field names (zipCode, like contact get — not
-				// "postalCode"). The snapshot endpoint is not live-probeable on this
-				// sandbox; this matches the verified contact shape. (#427)
-				{Key: "Postal Code", Value: cmdutil.GetString(raw, "zipCode")},
+				// Zuora spells this field DIFFERENTLY across the two endpoints: the
+				// contact schema uses "zipCode" but the contact-snapshot schema uses
+				// "postalCode" (both verified against the official API reference,
+				// 2026-07-05, #486 — the snapshot endpoint is not live-probeable on
+				// this sandbox: recent invoices carry only null snapshot IDs).
+				{Key: "Postal Code", Value: cmdutil.GetString(raw, "postalCode")},
 				{Key: "Contact ID", Value: cmdutil.GetString(raw, "contactId")},
 			}
 		},

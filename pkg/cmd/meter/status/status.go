@@ -32,13 +32,17 @@ func runStatus(cmd *cobra.Command, f *factory.Factory, meterID, version string) 
 		Method: "GET",
 		Path:   fmt.Sprintf("/meters/%s/%s/runStatus", url.PathEscape(meterID), url.PathEscape(version)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// Real shape per the official API reference (doc-verified 2026-07-05,
+			// #486; this sandbox cannot probe mediation endpoints): the envelope is
+			// {success, data:{runStatus, runStatusDescription}} — runStatus is an
+			// integer enum (1=NEVER_RUN … 13=CONSUME_COMPLETED) and the previous
+			// flat keys (meterId/version/status/runType/startTime/endTime) do not
+			// exist in the response.
+			data, _ := raw["data"].(map[string]interface{})
 			return []output.DetailField{
-				{Key: "Meter ID", Value: cmdutil.GetString(raw, "meterId")},
-				{Key: "Version", Value: cmdutil.GetString(raw, "version")},
-				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-				{Key: "Run Type", Value: cmdutil.GetString(raw, "runType")},
-				{Key: "Start Time", Value: cmdutil.GetString(raw, "startTime")},
-				{Key: "End Time", Value: cmdutil.GetString(raw, "endTime")},
+				{Key: "Run Status", Value: cmdutil.GetDecimal(data, "runStatus")},
+				{Key: "Description", Value: cmdutil.GetString(data, "runStatusDescription")},
+				{Key: "Success", Value: cmdutil.GetString(raw, "success")},
 			}
 		},
 	})

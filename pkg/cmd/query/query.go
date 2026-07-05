@@ -37,7 +37,7 @@ large exports or full SQL, use ` + "`zr data-query`" + ` (asynchronous Data Quer
 		Example: `  zr query "SELECT Id, Name FROM Account"
   zr query "SELECT Id, Name FROM Account" --limit 10
   zr query "SELECT Id, Name FROM Account" --csv
-  zr query "SELECT Id, Name FROM Account" --export results.csv --csv
+  zr query "SELECT Id, Name FROM Account" --output results.csv --csv
   zr query "SELECT Id, Name FROM Account" --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +45,13 @@ large exports or full SQL, use ` + "`zr data-query`" + ` (asynchronous Data Quer
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.Export, "export", "", "Export results to file")
+	// --output is the primary name (#456), matching data-query run --output for
+	// the same concept (result-file destination). The old --export stays
+	// registered (hidden, deprecated) for back-compat; both bind the same
+	// variable.
+	cmd.Flags().StringVar(&opts.Export, "output", "", "Write results to this file")
+	cmd.Flags().StringVar(&opts.Export, "export", "", "Deprecated alias of --output")
+	_ = cmd.Flags().MarkDeprecated("export", "use --output instead")
 	cmd.Flags().IntVar(&opts.Limit, "limit", 0, "Maximum number of rows (0 = all)")
 
 	return cmd

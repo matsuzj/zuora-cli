@@ -41,7 +41,7 @@ summary go to stderr; with "--output -" the raw result bytes stream to stdout
 stdout effect there).`,
 		Example: `  zr data-query run "SELECT accountnumber FROM account" --output result.json
   zr data-query run --file q.sql --output - > result.jsonl
-  zr data-query run "SELECT 1" --interval 3s --timeout 5m`,
+  zr data-query run "SELECT 1" --interval 3s --wait-timeout 5m`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRun(cmd, f, opts, args)
@@ -51,7 +51,13 @@ stdout effect there).`,
 	dqutil.RegisterSubmitCompletions(cmd)
 	cmd.Flags().StringVar(&opts.Output, "output", "", "Write the result file here (- for stdout)")
 	cmd.Flags().DurationVar(&opts.Interval, "interval", 5*time.Second, "Polling interval")
-	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Give up the submit+poll wait after this duration (0 = no limit); local to this command, distinct from the global 'zr --timeout'")
+	// --wait-timeout is the primary name (#456): the old local --timeout
+	// shadowed the global persistent `zr --timeout` in help output. The old
+	// name stays registered (hidden, deprecated) for back-compat; both bind
+	// the same variable.
+	cmd.Flags().DurationVar(&opts.Timeout, "wait-timeout", 0, "Give up the submit+poll wait after this duration (0 = no limit); distinct from the global 'zr --timeout'")
+	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Deprecated alias of --wait-timeout")
+	_ = cmd.Flags().MarkDeprecated("timeout", "use --wait-timeout instead")
 	cmd.Flags().DurationVar(&opts.DownloadTimeout, "download-timeout", 10*time.Minute, "Maximum time for the result download")
 	return cmd
 }
@@ -193,7 +199,7 @@ func runRun(cmd *cobra.Command, f *factory.Factory, opts *runOptions, args []str
 // through unchanged.
 func waitErr(err error, jobID string, timeout time.Duration, lastStatus string) error {
 	if errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("gave up waiting for data-query job %s after %s (last status: %s; the job may still be queued by tenant concurrency limits — use `data-query get %s` or raise --timeout)",
+		return fmt.Errorf("gave up waiting for data-query job %s after %s (last status: %s; the job may still be queued by tenant concurrency limits — use `data-query get %s` or raise --wait-timeout)",
 			jobID, timeout, lastStatus, jobID)
 	}
 	return err

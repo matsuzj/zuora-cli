@@ -32,11 +32,20 @@ func runGet(cmd *cobra.Command, f *factory.Factory, subscriptionKey string) erro
 		Method: "GET",
 		Path:   fmt.Sprintf("/v1/omni-channel-subscriptions/%s", url.PathEscape(subscriptionKey)),
 		Fields: func(raw map[string]interface{}) []output.DetailField {
+			// Real shape per the official API reference (doc-verified 2026-07-05,
+			// #414): the response is flat and carries NONE of the previously read
+			// keys — subscriptionKey is only the path-parameter name, the states
+			// are `state` (Zuora) and `externalState` (store), the source app
+			// store is `externalSourceSystem`, and there is no createdDate.
 			return []output.DetailField{
-				{Key: "Subscription Key", Value: cmdutil.GetString(raw, "subscriptionKey")},
-				{Key: "Status", Value: cmdutil.GetString(raw, "status")},
-				{Key: "Channel", Value: cmdutil.GetString(raw, "channel")},
-				{Key: "Created Date", Value: cmdutil.GetString(raw, "createdDate")},
+				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
+				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},
+				{Key: "State", Value: cmdutil.GetString(raw, "state")},
+				{Key: "External State", Value: cmdutil.GetString(raw, "externalState")},
+				{Key: "Source System", Value: cmdutil.GetString(raw, "externalSourceSystem")},
+				{Key: "External Subscription ID", Value: cmdutil.GetString(raw, "externalSubscriptionId")},
+				{Key: "Auto Renew", Value: cmdutil.GetString(raw, "autoRenew")},
+				{Key: "Currency", Value: cmdutil.GetString(raw, "currency")},
 			}
 		},
 	})

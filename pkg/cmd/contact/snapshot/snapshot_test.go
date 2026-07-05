@@ -13,10 +13,13 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdSnapshot(f) }
 
 func TestContactSnapshot_Success(t *testing.T) {
+	// The snapshot schema uses "postalCode" — unlike contact get's "zipCode"
+	// (both doc-verified, #486). The distinctive value guards the key: reverting
+	// prod to zipCode leaves the Postal Code row blank and fails the assertion.
 	handler := cmdtest.OK(t, "GET", "/v1/contact-snapshots/snap-123", map[string]interface{}{
 		"id": "snap-123", "firstName": "John", "lastName": "Doe",
 		"workEmail": "j@example.com", "country": "US", "contactId": "c-456",
-		"zipCode": "1000000",
+		"postalCode": "1000000",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "contact", newCmd, handler, "contact", "snapshot", "snap-123")

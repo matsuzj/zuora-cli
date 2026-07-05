@@ -13,19 +13,22 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdStatus(f) }
 
 func TestMeterStatus_Success(t *testing.T) {
+	// Doc-verified mediation envelope (#486): {success, data:{runStatus,
+	// runStatusDescription}} — the old flat meterId/version/status/runType/
+	// startTime/endTime fixture encoded keys the API never returns.
 	handler := cmdtest.OK(t, "GET", "/meters/meter123/1/runStatus", map[string]interface{}{
-		"meterId":   "meter123",
-		"version":   "1",
-		"status":    "COMPLETED",
-		"runType":   "FULL",
-		"startTime": "2025-01-01T00:00:00Z",
-		"endTime":   "2025-01-01T01:00:00Z",
+		"success": true,
+		"data": map[string]interface{}{
+			"runStatus":            13,
+			"runStatusDescription": "CONSUME_COMPLETED",
+		},
 	})
 
 	stdout, _, err := cmdtest.Run(t, "meter", newCmd, handler, "meter", "status", "meter123", "1")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "meter123")
-	assert.Contains(t, stdout, "COMPLETED")
+	assert.Regexp(t, `(?m)^Run Status:\s+13$`, stdout)
+	assert.Regexp(t, `(?m)^Description:\s+CONSUME_COMPLETED$`, stdout)
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestMeterStatus_RequiresArgs(t *testing.T) {

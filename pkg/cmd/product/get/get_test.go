@@ -15,11 +15,16 @@ import (
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdGet(f) }
 
 func TestProductGet_Success(t *testing.T) {
-	handler := cmdtest.OK(t, "GET", "/commerce/products/PROD-001", map[string]interface{}{
-		"id":          "prod-001",
-		"name":        "My Product",
-		"sku":         "SKU-001",
-		"description": "A test product",
+	// Doc-verified (#435): the operation is POST, the response is the product
+	// object at top level with camelCase keys (startDate/endDate — the old
+	// snake_case keys never existed) and no top-level description.
+	handler := cmdtest.OK(t, "POST", "/commerce/products/PROD-001", map[string]interface{}{
+		"id":        "prod-001",
+		"name":      "My Product",
+		"sku":       "SKU-001",
+		"state":     "Active",
+		"startDate": "2026-02-03",
+		"endDate":   "2031-04-05",
 	})
 
 	stdout, _, err := cmdtest.Run(t, "product", newCmd, handler, "product", "get", "PROD-001")
@@ -27,6 +32,23 @@ func TestProductGet_Success(t *testing.T) {
 	// Label-bound (F-08): values under their own labels.
 	assert.Regexp(t, `(?m)^Name:\s+My Product$`, stdout)
 	assert.Regexp(t, `(?m)^ID:\s+prod-001$`, stdout)
+	assert.Regexp(t, `(?m)^SKU:\s+SKU-001$`, stdout)
+	assert.Regexp(t, `(?m)^State:\s+Active$`, stdout)
+	assert.Regexp(t, `(?m)^Start Date:\s+2026-02-03$`, stdout)
+	assert.Regexp(t, `(?m)^End Date:\s+2031-04-05$`, stdout)
+}
+
+// TestProductGet_AllowedInReadOnlyMode pins the read-only allowlist entry for
+// the POST-that-is-a-read retrieve operation (#435): without the
+// ^commerce/products/[^/]+$ pattern, --read-only would block a pure read.
+func TestProductGet_AllowedInReadOnlyMode(t *testing.T) {
+	handler := cmdtest.OK(t, "POST", "/commerce/products/PROD-001", map[string]interface{}{
+		"id": "prod-001", "name": "RO Product",
+	})
+
+	stdout, _, err := cmdtest.Run(t, "product", newCmd, handler, "product", "get", "PROD-001", "--read-only")
+	require.NoError(t, err, "product get is a read and must pass in read-only mode despite using POST")
+	assert.Regexp(t, `(?m)^Name:\s+RO Product$`, stdout)
 }
 
 func TestProductGet_PathEscape(t *testing.T) {

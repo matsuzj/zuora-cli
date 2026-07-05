@@ -126,7 +126,10 @@ func TestRun_TimeoutWhileQueued(t *testing.T) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"accepted"}}`))
 	})
-	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "30ms")
+	// 150ms deadline: ample room for the submit POST to complete first on a
+	// loaded runner, so the deadline deterministically lands in the poll loop
+	// and produces the friendly give-up message (30ms could expire mid-submit).
+	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "150ms")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting")
 }

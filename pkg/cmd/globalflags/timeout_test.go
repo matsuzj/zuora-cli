@@ -22,11 +22,13 @@ import (
 // NOT the Ctrl-C context.Canceled → exit 130 path).
 func TestApply_TimeoutFlagAbortsSlowRequest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Respond after 200ms, OR return early when the client cancels (the
+		// Respond after 600ms, OR return early when the client cancels (the
 		// --timeout deadline). With a 20ms timeout the deadline wins; with NO
-		// timeout the 200ms response wins — which is what makes the test bite.
+		// timeout the 600ms response wins — which is what makes the test bite.
+		// 600ms (was 200ms) keeps a wide margin over the 20ms deadline so a
+		// loaded CI runner cannot let the response beat a late-firing timer.
 		select {
-		case <-time.After(200 * time.Millisecond):
+		case <-time.After(600 * time.Millisecond):
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"ok":true}`))
 		case <-r.Context().Done():
@@ -82,7 +84,7 @@ func TestApply_NoTimeoutLeavesRequestUnbounded(t *testing.T) {
 func TestApply_TimeoutReadsRootDespiteLocalShadow(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
-		case <-time.After(200 * time.Millisecond):
+		case <-time.After(600 * time.Millisecond):
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"ok":true}`))
 		case <-r.Context().Done():

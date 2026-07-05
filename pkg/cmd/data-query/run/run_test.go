@@ -122,7 +122,7 @@ func TestRun_TimeoutWhileQueued(t *testing.T) {
 	// 150ms deadline: ample room for the submit POST to complete first on a
 	// loaded runner, so the deadline deterministically lands in the poll loop
 	// and produces the friendly give-up message (30ms could expire mid-submit).
-	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "150ms")
+	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--wait-timeout", "150ms")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gave up waiting")
 }
@@ -181,4 +181,17 @@ func TestRun_PollLineSanitized(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stderr, "polling in")
 	assert.NotContains(t, stderr, "\x1b", "response-derived values must be sanitized on the poll line")
+}
+
+// TestRun_DeprecatedTimeoutAlias pins the #456 rename back-compat: the old
+// local --timeout (hidden deprecated alias of --wait-timeout) still bounds
+// the submit+poll wait.
+func TestRun_DeprecatedTimeoutAlias(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"accepted"}}`))
+	})
+	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "150ms")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gave up waiting")
 }

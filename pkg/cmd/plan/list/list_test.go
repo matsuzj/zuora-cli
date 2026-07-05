@@ -25,43 +25,58 @@ func TestPlanList_Success(t *testing.T) {
 		// body would still pass.
 		body, err := io.ReadAll(r.Body)
 		if assert.NoError(t, err) {
-			assert.JSONEq(t, `{"page":0,"page_size":20}`, string(body))
+			assert.JSONEq(t, `{"filters":[{"field":"state","operator":"EQ","value":"active"}]}`, string(body))
 		}
+		// Doc-verified envelope (#453): {"values":[...]} with no success flag
+		// at 200 — the old {"success","data"} fixture shape does not exist in
+		// the documented schema.
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"data": []interface{}{
+			"values": []interface{}{
 				map[string]interface{}{
-					"id":   "prp-4f7d2a83",
-					"name": "Plan List Fixture #483",
+					"id":                    "prp-4f7d2a83",
+					"name":                  "Plan List Fixture #483",
+					"productRatePlanNumber": "PRP-00000172",
+					"productId":             "prod-9b1c",
+					"state":                 "active",
+					"startDate":             "2026-01-01",
+					"endDate":               "2031-12-31",
 				},
 			},
 		})
 	})
 
-	stdout, _, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "list", "--body", `{"page":0,"page_size":20}`)
+	stdout, _, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "list", "--body", `{"filters":[{"field":"state","operator":"EQ","value":"active"}]}`)
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "success")
-	// Distinctive row VALUES must be rendered (#483): the old empty-data
-	// fixture plus a bare Contains("success") passed for ANY non-crash
-	// rendering. Commerce fixtures are not live-verifiable (404 on this
-	// tenant), so only the values are distinctive; the key shapes are kept.
-	assert.Contains(t, stdout, "prp-4f7d2a83")
-	assert.Contains(t, stdout, "Plan List Fixture #483")
+	// Table cells for every declared column (#453/#483).
+	for _, cell := range []string{"Plan List Fixture #483", "PRP-00000172", "prod-9b1c", "active", "2026-01-01", "2031-12-31", "prp-4f7d2a83"} {
+		assert.Contains(t, stdout, cell)
+	}
 }
 
-// TestPlanList_EmptyData pins the empty-result rendering of this JSON-only
-// command: the full envelope is emitted verbatim (there is no table
-// empty-state here), asserted structurally rather than via a substring.
-func TestPlanList_EmptyData(t *testing.T) {
+// TestPlanList_EmptyValues pins the zero-row table empty state (#453): the
+// human table prints "No results found." on stderr with stdout empty, and
+// --json still passes the raw envelope through.
+func TestPlanList_EmptyValues(t *testing.T) {
 	handler := cmdtest.OK(t, "POST", "/commerce/plans/list", map[string]interface{}{
-		"success": true,
-		"data":    []interface{}{},
+		"values": []interface{}{},
 	})
 
-	stdout, _, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "list", "--body", `{"page":0,"page_size":20}`)
+	stdout, stderr, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "list", "--body", `{"filters":[]}`)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"success":true,"data":[]}`, stdout)
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "No results found.")
+}
+
+// TestPlanList_JSONPassthrough pins that --json emits the raw envelope.
+func TestPlanList_JSONPassthrough(t *testing.T) {
+	handler := cmdtest.OK(t, "POST", "/commerce/plans/list", map[string]interface{}{
+		"values": []interface{}{},
+	})
+
+	stdout, _, err := cmdtest.Run(t, "plan", newCmd, handler, "plan", "list", "--body", `{"filters":[]}`, "--json")
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"values":[]}`, stdout)
 }
 
 func TestPlanList_RequiresBody(t *testing.T) {

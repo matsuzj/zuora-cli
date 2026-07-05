@@ -100,4 +100,5 @@ func TestMeterAudit_RequiresArg(t *testing.T) {
 	)
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

@@ -36,4 +36,5 @@ func TestCompletionInvalidShell(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "completion", "invalid")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `invalid argument "invalid"`)
 }

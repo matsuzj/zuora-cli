@@ -34,4 +34,5 @@ func TestCancel_Confirmed(t *testing.T) {
 func TestCancel_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "data-query", newCmd, nil, "data-query", "cancel")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

@@ -26,6 +26,15 @@ func TestOrderGet_Success(t *testing.T) {
 	assert.Contains(t, stdout, "O-00000001")   // orderNumber (nested)
 	assert.Contains(t, stdout, "Completed")    // status (nested)
 	assert.Contains(t, stdout, "ACCT-9000001") // existingAccountNumber (nested, drift-prone)
+	// Label-bound (F-08) asserts for the keys backfilled into the golden fixture
+	// (#482): description/createdBy/updatedDate/updatedBy previously appeared in
+	// NO fixture, so a key typo would render "" while tests stayed green.
+	assert.Regexp(t, `(?m)^Order Date:\s+2026-01-01$`, stdout)
+	assert.Regexp(t, `(?m)^Description:\s+Fixture order description #482$`, stdout)
+	assert.Regexp(t, `(?m)^Created Date:\s+2026-01-01T00:00:00Z$`, stdout)
+	assert.Regexp(t, `(?m)^Created By:\s+usr-created-11111111$`, stdout)
+	assert.Regexp(t, `(?m)^Updated Date:\s+2026-01-02T03:04:05Z$`, stdout)
+	assert.Regexp(t, `(?m)^Updated By:\s+usr-updated-22222222$`, stdout)
 }
 
 func TestOrderGet_RequiresArg(t *testing.T) {

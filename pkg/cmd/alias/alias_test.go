@@ -144,6 +144,7 @@ func TestSetCommand_ExactArgs(t *testing.T) {
 	cmd.SetArgs([]string{"set", "onlyname"})
 	err := cmd.Execute()
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 1")
 }
 
 // newTestRootWithAlias builds a zr-shaped root: the alias group plus a dummy

@@ -35,4 +35,5 @@ func TestGet_DescendsIntoData(t *testing.T) {
 func TestGet_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "data-query", newCmd, nil, "data-query", "get")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }

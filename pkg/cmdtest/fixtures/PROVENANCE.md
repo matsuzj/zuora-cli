@@ -26,4 +26,4 @@ re-anonymise and confirm the test still passes:
 
 | Fixture | Endpoint (real-shape source) | Used by | Shape notes |
 |---|---|---|---|
-| `order_get.json` | `GET /v1/orders/{orderNumber}` — [Zuora: Retrieve an order](https://www.zuora.com/developer/api-references/api/operation/GET_Order) | `pkg/cmd/order/get` | Order fields nest under an `order` key alongside a top-level `success`. The test asserts `existingAccountNumber` (NOT the flatter `accountNumber`) — a drift-prone nested key the unwrap fallback depends on. |
+| `order_get.json` | `GET /v1/orders/{orderNumber}` — [Zuora: Retrieve an order](https://www.zuora.com/developer/api-references/api/operation/GET_Order) | `pkg/cmd/order/get` | Order fields nest under an `order` key alongside a top-level `success`. The test asserts `existingAccountNumber` (NOT the flatter `accountNumber`) — a drift-prone nested key the unwrap fallback depends on. `description`/`createdBy`/`updatedDate`/`updatedBy` were added synthetically (#482) — standard order-envelope siblings per the Zuora API reference, shape-consistent with the captured response but not themselves live-captured. |

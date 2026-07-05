@@ -172,6 +172,7 @@ func TestQuery_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "", newCmd, nil, "query")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestQuery_ExportWritesFileAtomically(t *testing.T) {

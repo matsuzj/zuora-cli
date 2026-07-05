@@ -41,6 +41,7 @@ func TestInvoiceEmail_RequiresArg(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "invoice", newCmd, nil, "invoice", "email")
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s), received 0")
 }
 
 func TestInvoiceEmail_SuccessFalse(t *testing.T) {

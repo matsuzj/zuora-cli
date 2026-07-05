@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -637,4 +638,89 @@ func TestVerboseBody_MultipartSkipCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "[multipart body omitted]")
 	assert.NotContains(t, buf.String(), "SECRET-UPLOAD")
+}
+
+// TestParseRetryAfter_OverflowSecondsClamped pins the int64-overflow guard:
+// pre-fix, "9223372037" seconds wrapped NEGATIVE when multiplied by
+// time.Second, slipped past the caller's `d > maxRetryAfter` cap (negative is
+// not greater), and turned the rate-limit wait into zero-delay hot retries —
+// the exact hostile-header scenario the cap exists to prevent.
+func TestParseRetryAfter_OverflowSecondsClamped(t *testing.T) {
+	for _, v := range []string{"9223372037", "9223372036854775807"} {
+		d, ok := parseRetryAfter(v)
+		require.True(t, ok, v)
+		assert.GreaterOrEqual(t, d, time.Duration(0), "parsed duration must never be negative (%s)", v)
+		assert.Equal(t, maxRetryAfter, d, v)
+	}
+	// Beyond int64 entirely: Atoi fails and it is not an HTTP date -> unusable.
+	_, ok := parseRetryAfter("92233720368547758070")
+	assert.False(t, ok)
+}
+
+// TestRetry_429_RetryAfterCapped pins the 60s cap end-to-end through the 429
+// path: both a large-but-sane server value (3600) and an overflowing hostile
+// value must produce exactly one recorded sleep of maxRetryAfter.
+func TestRetry_429_RetryAfterCapped(t *testing.T) {
+	for _, header := range []string{"3600", "9223372037"} {
+		t.Run(header, func(t *testing.T) {
+			var calls int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if atomic.AddInt32(&calls, 1) == 1 {
+					w.Header().Set("Retry-After", header)
+					w.WriteHeader(429)
+					w.Write([]byte(`{"message":"rate limited"}`))
+					return
+				}
+				w.WriteHeader(200)
+				w.Write([]byte(`{"ok":true}`))
+			}))
+			defer srv.Close()
+
+			var slept []time.Duration
+			c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+			c.sleep = func(ctx context.Context, d time.Duration) error {
+				slept = append(slept, d)
+				return ctx.Err()
+			}
+
+			resp, err := c.Get("/v1/test")
+			require.NoError(t, err)
+			assert.Equal(t, 200, resp.StatusCode)
+			require.Len(t, slept, 1, "Retry-After present: exactly one honored wait, no extra backoff")
+			assert.Equal(t, maxRetryAfter, slept[0], "wait must be capped at maxRetryAfter, never negative/zero")
+		})
+	}
+}
+
+// TestClient_401_RefreshThen401_SurfacesAuthErrorWithoutLoop pins the
+// !tokenRefreshed guard: a second 401 after the one allowed refresh must
+// surface the auth error (with its login hint) instead of refreshing again —
+// exactly 2 HTTP calls and 2 token-source calls (initial + one refresh).
+func TestClient_401_RefreshThen401_SurfacesAuthErrorWithoutLoop(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(401)
+		w.Write([]byte(`{"message":"unauthorized"}`))
+	}))
+	defer srv.Close()
+
+	var tokenCalls int32
+	c := newNoSleepClient(
+		WithBaseURL(srv.URL),
+		WithHTTPClient(srv.Client()),
+		WithTokenSource(func(context.Context) (string, error) {
+			n := atomic.AddInt32(&tokenCalls, 1)
+			return fmt.Sprintf("token-%d", n), nil
+		}),
+	)
+
+	_, err := c.Get("/v1/test")
+	require.Error(t, err)
+	assert.Equal(t, int32(2), atomic.LoadInt32(&calls), "second 401 must not trigger another refresh/resend cycle")
+	assert.Equal(t, int32(2), atomic.LoadInt32(&tokenCalls), "exactly one initial token + one refresh")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 401, apiErr.StatusCode)
+	assert.Contains(t, err.Error(), "zr auth login", "the second 401 must surface the auth hint")
 }

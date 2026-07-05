@@ -134,10 +134,14 @@ echo "  Testing: submit a fresh job then cancel it"
 CANCEL_ID=$($ZR data-query submit "$DQ_SQL" --json 2>/dev/null | jq -r '.data.id // empty')
 if [ -n "$CANCEL_ID" ]; then
   run $ZR data-query cancel "$CANCEL_ID" --confirm
-  # The job may finish before the cancel lands; either a cancelled status or a
-  # clean 2xx (RenderDeleteResult) is an acceptable terminal outcome.
-  if [ "$RUN_RC" -eq 0 ] && printf '%s%s' "$RUN_OUT" "$RUN_ERR" | grep -qiE "cancelled|completed"; then
-    pass "cancel → DELETE accepted (status: $(printf '%s%s' "$RUN_OUT" "$RUN_ERR" | grep -oiE 'cancelled|completed' | head -1))"
+  # The job may finish before the cancel lands. Acceptable terminal outcomes:
+  # a clean 2xx (cancelled, or an already-completed job), OR Zuora's HTTP 400
+  # "not in accepted or in_progress status" when the job reached a terminal
+  # state first — the tenant often completes this small query in under a
+  # second (hit live 2026-07-05), and losing that race is correct CLI behavior.
+  if { [ "$RUN_RC" -eq 0 ] && printf '%s%s' "$RUN_OUT" "$RUN_ERR" | grep -qiE "cancelled|completed"; } \
+     || printf '%s' "$RUN_ERR" | grep -qi "not in accepted or in_progress status"; then
+    pass "cancel → accepted, or job already terminal before the cancel landed"
   else
     fail "cancel (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
   fi

@@ -26,9 +26,11 @@ func TestSubscriptionUpdateCustomFields_Success(t *testing.T) {
 func TestSubscriptionUpdateCustomFields_RequiresBody(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "update-custom-fields", "A-S001", "1")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "body" not set`)
 }
 
 func TestSubscriptionUpdateCustomFields_RequiresArgs(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "subscription", newCmd, nil, "subscription", "update-custom-fields")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 2 arg(s), received 0")
 }

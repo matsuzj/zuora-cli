@@ -8,9 +8,10 @@
 >   誤メモ由来の false positive）。③ billrun cancel/post・invoice post/reverse/writeoff は 415 回避の
 >   ため明示的に `{}` ボディを送る ④ §5/7 の object-query による account 取得は未実装
 >   (実装は `GET /v1/accounts/{key}`)。
-> - **本書は初期グループ(account/subscription/order/contact/usage)のみ**を扱う。
->   billrun・credit/debitmemo・payment・commitment・ramp・commerce(product/plan/charge)・
->   fulfillment・omnichannel・prepaid・meter・signup・query 等の出荷済みグループは未記載。
+> - **本書の §1〜§17 は初期グループ(account/subscription/order/contact/usage)のみ**を扱う。
+>   meter・commitment・commerce(plan/charge/product)・omnichannel・contact-snapshot・
+>   payment-methods cascading・order activate/revert は **§18(2026-07-05 doc-verified)** に追記済み。
+>   billrun・credit/debitmemo・payment・ramp・fulfillment・prepaid・signup・query 等は引き続き未記載。
 > - 正は常にコード(`pkg/cmd/<group>/<action>/` の Path)と公式 API リファレンス。
 
 # Zuora API Reference - Extracted Documentation for CLI Implementation
@@ -549,3 +550,75 @@ When contacting Zuora support, provide:
 - `processId` from error body
 - Timestamp
 - Operation attempted
+
+---
+
+## 18. 2026-07-05 doc-verified additions (meter / commitments / Commerce / omnichannel / snapshots / cascading)
+
+> Sources: developer.zuora.com official schemas fetched 2026-07-05 (the raw
+> `.md` variants, e.g. `/v1-api-reference/api/<section>/<operation>.md`, fetch
+> cleanly; section indexes: `/api/commerce.md`, `/api/commitments.md`).
+> **Doc-verified, NOT live-verified** — these features are unprovisioned on the
+> dev sandbox. Re-confirm on a provisioned tenant when available.
+> Cross-cutting: none of these 200 responses carries a `success` flag (unlike
+> classic v1 envelopes); success/reasons appear only in error schemas.
+
+### 18.1 Mediation / meter APIs (no `/v1` prefix — official)
+
+| Operation | Envelope | Notes |
+|---|---|---|
+| `GET /meters/{id}/{version}/runStatus` | `{success, data:{runStatus, runStatusDescription}}` | `runStatus` is an int enum 1=NEVER_RUN … 13=CONSUME_COMPLETED. No flat meterId/version/status/runType/startTime/endTime. |
+| `POST /meters/{id}/summary` | `{success, data:{requestId, requestTime, query:{runType,…}, output:[{dimensions, output, totalErrorCount}]}, previousPage, nextPage, error}` | runType lives under `data.query`, not top level. |
+| `GET /meters/{id}/auditTrail/entries` | `{success, data:[{errorTime, timestamp, errorCode, errorMessage, payload, eventId, traceId, operatorType, operatorName, operatorId}], previousPage, nextPage, error}` | `data` is an ARRAY. Required query params: `queryFromTime`/`queryToTime` (ISO 8601) — `from`/`to` do not exist. Enums: `exportType` SAMPLE\|ERROR, `runType` DEBUG\|NORMAL. |
+
+### 18.2 Commitments (v1)
+
+Item shape is FLAT (no `commitment` wrapper): `id, commitmentNumber, name,
+type(MinCommitment|MaxCommitment), status, accountNumber, startDate, endDate,
+totalAmount, currency, version, priority, prepaymentType, orderNumber, …`.
+
+| Operation | Envelope | Notes |
+|---|---|---|
+| `GET /v1/commitments` | `{total, page, page_size, commitments:[…]}` | `page_size` is snake_case HERE only. Query: `accountNumber` (required), `type`, `page`, `pageSize` (camelCase in request). |
+| `GET /v1/commitments/{key}` | flat item at top level | `commitmentKey` is only the path-param name, never a response key. |
+| `GET /v1/commitments/periods` | `{total, page, pageSize, periods:[…]}` | camelCase pageSize. Item: amount/balance/trueUpAmount/expiredAmount/billedTotalSpending/currency/isProrated. |
+| `GET /v1/commitments/{key}/schedules` | `{schedules:[…], total, page, pageSize}` | Item: periodType enum, amountBase, nested prepaymentDefinition. |
+| `GET /v1/commitments/{id}/balancepreview` | `{total, page, pageSize, periods:[…]}` | A LIST of period balances. `status` is SCREAMING_SNAKE here (ACTIVE, ACTIVE_WITH_DRAWDOWN, …) unlike periods' PascalCase. |
+
+### 18.3 Commerce APIs (`/commerce/*`, no `/v1`)
+
+| Operation | Envelope | Notes |
+|---|---|---|
+| `POST /commerce/plans/list` | `{values:[…]}` | Request REQUIRES `filters:[{field, operator, value}]`; no page/page_size in the documented request. Item: id, name, productId, productRatePlanNumber, state, status, startDate, endDate, activeCurrencies. |
+| `POST /commerce/plans/query` | top-level object | **DOC BUG**: the published schema is byte-identical to charges/query (a charge object) — the real plan shape cannot be doc-settled. CLI keeps this JSON-only. |
+| `POST /commerce/charges/query` | bare PRPC object at top level | id, name, productRatePlanChargeNumber, chargeType, chargeModel, pricingSummary (ARRAY of display strings, e.g. ["USD100"]), listPriceBase, triggerEvent, unitOfMeasure, taxMode. |
+| `POST /commerce/purchase-options/list` | `{productRatePlans:[…], error}` | Different array key from plans/list. `filters[].value` is a typed OBJECT here ({string_value|number_value|boolean_value}), unlike plans/list's plain string. |
+| `POST /commerce/products/{key}` | product object at top level | Documented method is POST (optional expand body) — a read despite the verb (on the CLI read-only allowlist). Keys are camelCase: startDate/endDate (snake_case never existed); no top-level description. |
+
+### 18.4 Omnichannel subscriptions (v1)
+
+| Operation | Response | Notes |
+|---|---|---|
+| `GET /v1/omni-channel-subscriptions/{subscriptionKey}` | flat: `id, subscriptionNumber, state, externalState, externalSourceSystem, externalSubscriptionId, externalQuantity, currency, autoRenew, originalPurchaseDate, externalPurchaseDate/…Activation/…Expiration, externalPrice, …` | `subscriptionKey` is only the path-param name. There is NO status/channel/createdDate. |
+| `POST /v1/omni-channel-subscriptions` | `{processId, reasons, requestId, success, subscriptionId, subscriptionNumber, accountId, accountNumber}` | Required request fields: `externalSubscriptionId` + `externalSourceSystem`. |
+
+### 18.5 Contact snapshots & cascading payment methods (v1)
+
+- `GET /v1/contact-snapshots/{contactSnapshotId}`: flat; **uses `postalCode`**,
+  unlike `GET /v1/contacts/{id}` which uses `zipCode` — Zuora deliberately
+  spells these differently across the two schemas. Also `description` here vs
+  `contactDescription` on contact get. Snapshot IDs come from billing docs
+  (`billToContactSnapshotId`/`soldToContactSnapshotId`); this sandbox carries
+  only nulls there, so the endpoint is not live-probeable here.
+- `GET /v1/accounts/{key}/payment-methods/cascading`:
+  `{consent: bool, priorities:[{paymentMethodId, order}], success}` — no flat
+  paymentMethod*/creditCard* keys exist.
+
+### 18.6 Order activate / revert (v1, live-verified 2026-07-05)
+
+- `PUT /v1/orders/{n}/activate` (LIVE-verified on a Draft order): flat
+  `{success, orderNumber, accountNumber, status, subscriptions:[{subscriptionNumber, subscriptionOwnerId, subscriptionOwnerNumber, status}]}`.
+- `POST /v1/orders/{n}/revert`: endpoint exists and validates the body
+  (`orderDate` required → 70770022), but the feature is disabled on this
+  tenant (70770030 "the Reverting Order API is not available") — response
+  shape unverified.

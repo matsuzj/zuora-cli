@@ -491,6 +491,7 @@ var readOnlyPOSTAllowList = []string{
 var readOnlyPOSTPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^v1/subscriptions/[^/]+/preview$`), // preview-change
 	regexp.MustCompile(`^meters/[^/]+/summary$`),           // meter summary (read-only)
+	regexp.MustCompile(`^commerce/products/[^/]+$`),        // product get — documented as POST, a read (#435)
 }
 
 // extractPath normalises a request path for allowlist matching.

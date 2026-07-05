@@ -18,8 +18,10 @@ func TestOrderCreate_Success(t *testing.T) {
 		Path:     "/v1/orders",
 		JSONBody: `{"existingAccountNumber":"A001"}`,
 		Respond: map[string]interface{}{
-			"success":     true,
-			"orderNumber": "O-00000001",
+			"success":       true,
+			"orderNumber":   "O-00000001",
+			"accountNumber": "ACCT-CREATE-7777777",
+			"status":        "Pending",
 		},
 	}.Handler(t)
 
@@ -28,6 +30,14 @@ func TestOrderCreate_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "O-00000001")
 	assert.Contains(t, stderr, "Order O-00000001 created.")
+	// Label-bound (F-08) asserts for the previously unfixtured keys (#482):
+	// accountNumber and status never appeared in any fixture, so a key typo
+	// would render "" while the test stayed green.
+	assert.Regexp(t, `(?m)^Order Number:\s+O-00000001$`, stdout)
+	assert.Regexp(t, `(?m)^Account Number:\s+ACCT-CREATE-7777777$`, stdout)
+	assert.Regexp(t, `(?m)^Status:\s+Pending$`, stdout)
+	// success is a JSON boolean read via GetString — renders fmt %v "true".
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestOrderCreate_SuccessFalse(t *testing.T) {

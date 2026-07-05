@@ -22,6 +22,7 @@ func TestOrderList_Success(t *testing.T) {
 				"status":                "Completed",
 				"orderDate":             "2026-01-01",
 				"existingAccountNumber": "A00000001",
+				"description":           "List fixture description #482",
 				"createdDate":           "2026-01-01T00:00:00Z",
 			},
 		},
@@ -31,6 +32,13 @@ func TestOrderList_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "O-00000001")
 	assert.Contains(t, stdout, "Completed")
+	// Pin every declared column's cell (#482): description was never fixtured,
+	// and ORDER_DATE/ACCOUNT/CREATED cells were fixtured but unasserted — a
+	// column-key typo would render an empty cell while the test stayed green.
+	assert.Contains(t, stdout, "2026-01-01")                    // ORDER_DATE (orderDate)
+	assert.Contains(t, stdout, "A00000001")                     // ACCOUNT (existingAccountNumber)
+	assert.Contains(t, stdout, "List fixture description #482") // DESCRIPTION (description)
+	assert.Contains(t, stdout, "2026-01-01T00:00:00Z")          // CREATED (createdDate)
 }
 
 func TestOrderList_WithStatusFilter(t *testing.T) {

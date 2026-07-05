@@ -22,7 +22,7 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 4. `go tool staticcheck ./...` — **CI runs this; fix every finding.** The version is pinned by go.mod's `tool` directive, so local and CI always run the same staticcheck — no separate install. (Note: a `map[string]interface{}` → `any` editor hint is gopls "modernize", NOT staticcheck, and does not fail CI — the codebase uses `interface{}` throughout.)
 5. `make vuln` (i.e. `go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...`) — **CI runs govulncheck and fails on any vulnerability finding.** (Pinned to v1.3.0: v1.4.0's bundled x/tools v0.46.0 panics under the Go 1.26 toolchain. See the Makefile `vuln` comment.)
 6. `go test -race -count=1 ./...`
-7. Coverage floor: **≥ 78.0%** total (`make cover` enforces it locally; CI enforces it too)
+7. Coverage floor: **≥ 83.0%** total (-coverpkg: covered-by-any-test semantics) (`make cover` enforces it locally; CI enforces it too)
 8. `make build` (what CI runs — produces `bin/zr` with version ldflags; a bare `go build ./...` does not exercise that linkage)
 9. For changes to live API/auth/output behavior: run the **E2E suite** (`make e2e` — every `tests/e2e-*.sh` suite against the live sandbox) — it is the only thing that catches Zuora-specific behavior that mocked unit tests miss. E2E is a MANUAL pre-merge/release gate and is intentionally NOT in CI.
 

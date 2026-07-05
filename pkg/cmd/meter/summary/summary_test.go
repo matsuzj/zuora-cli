@@ -24,21 +24,33 @@ func TestMeterSummary_Success(t *testing.T) {
 		require.NoError(t, err)
 		var reqBody map[string]interface{}
 		require.NoError(t, json.Unmarshal(body, &reqBody))
-		assert.Equal(t, "FULL", reqBody["runType"])
+		assert.Equal(t, "NORMAL", reqBody["runType"])
 
+		// Doc-verified mediation envelope (#486): {success, data:{requestId,
+		// requestTime, query:{runType}, output:[…]}} — the old flat
+		// meterId/runType fixture encoded keys the API never returns.
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"meterId": "meter123",
-			"runType": "FULL",
+			"data": map[string]interface{}{
+				"requestId":   "req-0042",
+				"requestTime": "2026-07-05T10:00:00Z",
+				"query":       map[string]interface{}{"runType": "NORMAL"},
+				"output": []interface{}{
+					map[string]interface{}{"dimensions": map[string]interface{}{"accountId": "a1"}, "output": 7, "totalErrorCount": 0},
+				},
+			},
 		})
 	})
 
-	stdout, _, err := cmdtest.Run(t, "meter", newCmd, handler, "meter", "summary", "meter123", "--run-type", "FULL")
+	stdout, _, err := cmdtest.Run(t, "meter", newCmd, handler, "meter", "summary", "meter123", "--run-type", "NORMAL")
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "meter123")
-	assert.Contains(t, stdout, "FULL")
+	assert.Regexp(t, `(?m)^Request ID:\s+req-0042$`, stdout)
+	assert.Regexp(t, `(?m)^Request Time:\s+2026-07-05T10:00:00Z$`, stdout)
+	assert.Regexp(t, `(?m)^Run Type:\s+NORMAL$`, stdout)
+	assert.Regexp(t, `(?m)^Output Groups:\s+1$`, stdout)
+	assert.Regexp(t, `(?m)^Success:\s+true$`, stdout)
 }
 
 func TestMeterSummary_WithBody(t *testing.T) {

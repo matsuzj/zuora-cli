@@ -13,44 +13,41 @@ build:
 	mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY_NAME) ./cmd/zr/
 
+# -coverpkg=./... counts CROSS-PACKAGE execution (a statement is covered if
+# ANY test runs it), so the 24 register-only command-group parents — executed
+# by root's command-tree tests — no longer read 0% and need no exemption
+# list: any package at 0% is a real regression and fails the floor. (#489)
 test:
-	go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...
+	go test -race -count=1 -coverpkg=./... -coverprofile=cov.out -covermode=atomic ./...
 
-# Register-only command-group parents (pure cobra AddCommand wiring, no
-# logic): exempt from the per-package coverage floor. Anything ELSE dropping
-# to 0% must fail — keep this list explicit so a package that loses its tests
-# cannot silently slip through.
-COVER_EXEMPT := pkg/cmd/account pkg/cmd/billrun pkg/cmd/charge pkg/cmd/commitment \
-	pkg/cmd/contact pkg/cmd/creditmemo pkg/cmd/data-query pkg/cmd/debitmemo pkg/cmd/fulfillment \
-	pkg/cmd/fulfillment-item pkg/cmd/invoice pkg/cmd/meter pkg/cmd/omnichannel \
-	pkg/cmd/order pkg/cmd/order-action pkg/cmd/order-line-item pkg/cmd/payment \
-	pkg/cmd/plan pkg/cmd/prepaid pkg/cmd/product pkg/cmd/ramp pkg/cmd/rateplan \
-	pkg/cmd/subscription pkg/cmd/usage
-
-# Per-package floor — RATCHET: 60% sits at today's lowest non-exempt package
+# Per-package floor — RATCHET: 60% sits at today's lowest package
 # (internal/build, 60.0%); raise it as the lows improve. The total floor
-# (78%, was 73%) alone hid a dozen sub-floor packages behind the average.
+# (83%) alone hid a dozen sub-floor packages behind the average.
 COVER_PKG_FLOOR := 60.0
 
-# Enforce the same coverage floors CI uses: total (78%) + per-package ratchet.
+# Enforce the same coverage floors CI uses: total (83%) + per-package ratchet.
+# 83.0 re-pinned for -coverpkg semantics (measured 88.2%, was 82.8%/floor 78).
 cover: test
 	@total="$$(go tool cover -func=cov.out | awk '/^total:/ {sub(/%/, "", $$3); print $$3}')"; \
 	echo "Total coverage: $$total%"; \
-	if awk "BEGIN{exit !($$total < 78.0)}"; then \
-		echo "FAIL: coverage $$total% is below the 78.0% threshold"; exit 1; \
+	if awk "BEGIN{exit !($$total < 83.0)}"; then \
+		echo "FAIL: coverage $$total% is below the 83.0% threshold"; exit 1; \
 	fi
-	@awk -v floor="$(COVER_PKG_FLOOR)" -v exempt="$(COVER_EXEMPT)" '\
-	BEGIN { n = split(exempt, e, /[ \t]+/); for (i = 1; i <= n; i++) ex["github.com/matsuzj/zuora-cli/" e[i]] = 1 } \
+	@awk -v floor="$(COVER_PKG_FLOOR)" '\
 	NR > 1 { \
-		colon = index($$1, ":"); file = substr($$1, 1, colon - 1); \
-		pkg = file; sub(/\/[^\/]*$$/, "", pkg); \
-		stmts[pkg] += $$2; if ($$3 > 0) cov[pkg] += $$2; \
+		key = $$1; if (!(key in stmts)) stmts[key] = $$2; \
+		if ($$3 > 0) cov[key] = 1; \
 	} \
 	END { \
+		for (k in stmts) { \
+			colon = index(k, ":"); file = substr(k, 1, colon - 1); \
+			pkg = file; sub(/\/[^\/]*$$/, "", pkg); \
+			ps[pkg] += stmts[k]; if (k in cov) pc[pkg] += stmts[k]; \
+		} \
 		bad = 0; \
-		for (p in stmts) { \
-			pct = 100 * cov[p] / stmts[p]; \
-			if (pct < floor && !(p in ex)) { printf "FAIL: %s %.1f%% < %.1f%% per-package floor\n", p, pct, floor; bad = 1 } \
+		for (p in ps) { \
+			pct = 100 * pc[p] / ps[p]; \
+			if (pct < floor) { printf "FAIL: %s %.1f%% < %.1f%% per-package floor\n", p, pct, floor; bad = 1 } \
 		} \
 		if (!bad) print "Per-package coverage floor (" floor "%): OK"; \
 		exit bad; \

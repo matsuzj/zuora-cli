@@ -39,6 +39,7 @@ expect_fail "usage upload validation → file not found (local)" \
 
 # The old `usage post` name stays as a deprecated alias (#455) — still dispatches
 # to the same command (validation-level check; no live upload).
+# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
 echo "  Testing: usage post (deprecated alias) still dispatches"
 expect_fail "usage post alias → still requires --file" 'required flag(s) "file" not set' -- $ZR usage post
 

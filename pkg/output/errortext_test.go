@@ -27,3 +27,11 @@ func TestSanitizeErrorText(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeInline(t *testing.T) {
+	// Single-line variant: escapes/format chars drop AND newlines collapse,
+	// so a hostile value cannot fake extra lines in a progress message.
+	if got := SanitizeInline("In\x1b[31m Progress\nDone"); got != "In[31m Progress Done" {
+		t.Errorf("SanitizeInline() = %q", got)
+	}
+}

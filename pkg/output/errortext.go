@@ -13,3 +13,11 @@ package output
 func SanitizeErrorText(s string) string {
 	return sanitizeRunes(s, true)
 }
+
+// SanitizeInline is SanitizeErrorText for single-line stderr contexts —
+// progress/diagnostic lines that embed a response-derived value (e.g. a poll
+// loop printing a job status). Newlines also collapse to spaces, matching
+// the table-cell rules, so a hostile value cannot fake additional lines.
+func SanitizeInline(s string) string {
+	return sanitizeRunes(s, false)
+}

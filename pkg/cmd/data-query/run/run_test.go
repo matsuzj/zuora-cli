@@ -138,3 +138,32 @@ func TestRun_GlobalTimeoutNoMisleadingMessage(t *testing.T) {
 	assert.NotContains(t, err.Error(), "after 0s")
 	assert.NotContains(t, err.Error(), "raise --timeout")
 }
+
+// TestRun_PollLineSanitized pins that the poll progress line sanitizes the
+// response-derived job id/status: hostile values must not write escape codes
+// to the terminal via stderr.
+func TestRun_PollLineSanitized(t *testing.T) {
+	polls := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "POST" && r.URL.Path == "/query/jobs":
+			w.WriteHeader(200)
+			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"id": "job-1", "queryStatus": "accepted\x1b[2J\x1b[H"}})
+		case r.Method == "GET" && r.URL.Path == "/query/jobs/job-1":
+			polls++
+			status := "in_progress\x1b[31m"
+			if polls >= 2 {
+				status = "completed"
+			}
+			w.WriteHeader(200)
+			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"id": "job-1", "queryStatus": status, "outputRows": "3"}})
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	})
+
+	_, stderr, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms")
+	require.NoError(t, err)
+	assert.Contains(t, stderr, "polling in")
+	assert.NotContains(t, stderr, "\x1b", "response-derived values must be sanitized on the poll line")
+}

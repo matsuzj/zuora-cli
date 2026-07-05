@@ -237,3 +237,23 @@ func TestOrderJobStatus_WatchTreatsCanceledAsTerminal(t *testing.T) {
 	assert.Contains(t, stdout, "Canceled")
 	assert.Equal(t, int32(2), atomic.LoadInt32(&calls), "polling must stop at the terminal status")
 }
+
+// TestOrderJobStatus_WatchPollLineSanitized pins that the --watch progress
+// line sanitizes the response-derived status: a hostile value must not write
+// escape codes to the terminal via stderr on every poll.
+func TestOrderJobStatus_WatchPollLineSanitized(t *testing.T) {
+	var calls int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		status := "In Progress\x1b[2J\x1b[H"
+		if atomic.AddInt32(&calls, 1) >= 2 {
+			status = "Completed"
+		}
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": status, "success": true})
+	})
+
+	_, stderr, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "5ms")
+	require.NoError(t, err)
+	assert.Contains(t, stderr, "polling in")
+	assert.NotContains(t, stderr, "\x1b", "response-derived status must be sanitized on the poll line")
+}

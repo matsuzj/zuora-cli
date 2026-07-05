@@ -113,7 +113,10 @@ func runRun(cmd *cobra.Command, f *factory.Factory, opts *runOptions, args []str
 
 	// Poll until the job reaches a terminal state.
 	for !dqutil.IsTerminalStatus(status) {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Data Query job %s: %s (polling in %s...)\n", jobID, status, opts.Interval)
+		// jobID and status are response-derived: sanitize so hostile values
+		// cannot write escape codes to the terminal via the progress line.
+		fmt.Fprintf(f.IOStreams.ErrOut, "Data Query job %s: %s (polling in %s...)\n",
+			output.SanitizeInline(jobID), output.SanitizeInline(status), opts.Interval)
 		if err := cmdutil.SleepContext(pollCtx, opts.Interval); err != nil {
 			// Only frame a deadline as "gave up after <timeout>" when the LOCAL
 			// --timeout set it. With opts.Timeout==0 the deadline came from the
@@ -177,7 +180,7 @@ func runRun(cmd *cobra.Command, f *factory.Factory, opts *runOptions, args []str
 			dest = "stdout"
 		}
 		fmt.Fprintf(f.IOStreams.ErrOut, "Data Query job %s completed (%s rows); wrote result to %s\n",
-			jobID, cmdutil.GetDecimal(d, "outputRows"), dest)
+			output.SanitizeInline(jobID), output.SanitizeInline(cmdutil.GetDecimal(d, "outputRows")), dest)
 		return nil
 	}
 

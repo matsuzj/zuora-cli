@@ -12,10 +12,6 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/order/get"
 	jobstatus "github.com/matsuzj/zuora-cli/pkg/cmd/order/job-status"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/order/list"
-	listbyinvoiceowner "github.com/matsuzj/zuora-cli/pkg/cmd/order/list-by-invoice-owner"
-	listbysubscription "github.com/matsuzj/zuora-cli/pkg/cmd/order/list-by-subscription"
-	listbysubscriptionowner "github.com/matsuzj/zuora-cli/pkg/cmd/order/list-by-subscription-owner"
-	listpending "github.com/matsuzj/zuora-cli/pkg/cmd/order/list-pending"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/order/preview"
 	previewasync "github.com/matsuzj/zuora-cli/pkg/cmd/order/preview-async"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/order/revert"
@@ -47,10 +43,6 @@ func NewCmdOrder(f *factory.Factory) *cobra.Command {
 	cmd.AddCommand(preview.NewCmdPreview(f))
 
 	// Query commands
-	cmd.AddCommand(listbysubscriptionowner.NewCmdListBySubscriptionOwner(f))
-	cmd.AddCommand(listbysubscription.NewCmdListBySubscription(f))
-	cmd.AddCommand(listpending.NewCmdListPending(f))
-	cmd.AddCommand(listbyinvoiceowner.NewCmdListByInvoiceOwner(f))
 
 	// Custom fields & trigger dates
 	cmd.AddCommand(updatecustomfields.NewCmdUpdateCustomFields(f))

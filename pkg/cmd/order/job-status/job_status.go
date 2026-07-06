@@ -33,11 +33,7 @@ func NewCmdJobStatus(f *factory.Factory) *cobra.Command {
 
 Use --watch to poll until the job completes; --interval controls the
 polling cadence and --wait-timeout gives up after a duration (0 = no limit).
-Ctrl-C cancels immediately, including mid-interval.
-
-Note: the global 'zr --timeout' (see 'zr --help') bounds the WHOLE command
-run; --wait-timeout bounds only the --watch wait. (While the deprecated
---timeout alias exists, the global flag is hidden from this help.)`,
+Ctrl-C cancels immediately, including mid-interval.`,
 		Example: `  zr order job-status 2c92c0f9876...
   zr order job-status 2c92c0f9876... --watch
   zr order job-status 2c92c0f9876... --watch --interval 10s --wait-timeout 5m
@@ -50,13 +46,9 @@ run; --wait-timeout bounds only the --watch wait. (While the deprecated
 
 	cmd.Flags().BoolVar(&opts.Watch, "watch", false, "Poll until job completes")
 	cmd.Flags().DurationVar(&opts.Interval, "interval", 5*time.Second, "Polling interval for --watch")
-	// --wait-timeout is the primary name (#456): the old local --timeout
-	// shadowed the global persistent `zr --timeout` in help output. The old
-	// name stays registered (hidden, deprecated) for back-compat; both bind
-	// the same variable.
+	// Named --wait-timeout (#456) so it cannot shadow the global persistent
+	// `zr --timeout` (the deprecated --timeout alias was removed in #512).
 	cmd.Flags().DurationVar(&opts.Timeout, "wait-timeout", 0, "Give up --watch after this duration (0 = no limit); distinct from the global 'zr --timeout'")
-	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Deprecated alias of --wait-timeout")
-	_ = cmd.Flags().MarkDeprecated("timeout", "use --wait-timeout instead")
 	return cmd
 }
 
@@ -150,7 +142,12 @@ func runJobStatus(cmd *cobra.Command, f *factory.Factory, opts *jobStatusOptions
 		// escape codes to the terminal (jobID echoes the user's own argument).
 		fmt.Fprintf(f.IOStreams.ErrOut, "Job %s: %s (polling in %s...)\n", jobID, output.SanitizeInline(status), opts.Interval)
 		if err := cmdutil.SleepContext(ctx, opts.Interval); err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
+			// Only frame a deadline as the friendly give-up when the LOCAL
+			// --wait-timeout set it; a GLOBAL `zr --timeout` deadline would
+			// otherwise print a misleading "after 0s" (#428 class — data-query
+			// run was fixed in #428, this branch had the same bug, exposed by
+			// the #512 alias removal).
+			if opts.Timeout > 0 && errors.Is(err, context.DeadlineExceeded) {
 				return fmt.Errorf("gave up waiting for job %s after %s (last status: %s)", jobID, opts.Timeout, status)
 			}
 			return err

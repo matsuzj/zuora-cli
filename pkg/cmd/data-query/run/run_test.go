@@ -183,15 +183,16 @@ func TestRun_PollLineSanitized(t *testing.T) {
 	assert.NotContains(t, stderr, "\x1b", "response-derived values must be sanitized on the poll line")
 }
 
-// TestRun_DeprecatedTimeoutAlias pins the #456 rename back-compat: the old
-// local --timeout (hidden deprecated alias of --wait-timeout) still bounds
-// the submit+poll wait.
-func TestRun_DeprecatedTimeoutAlias(t *testing.T) {
+// TestRun_TimeoutAliasRemoved pins the #512 removal: --timeout no longer
+// binds the local wait (it falls through to the GLOBAL deadline), so the
+// local friendly give-up message must NOT appear.
+func TestRun_TimeoutAliasRemoved(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(`{"data":{"id":"job-1","queryStatus":"accepted"}}`))
 	})
 	_, _, err := cmdtest.Run(t, "data-query", newCmd, handler, "data-query", "run", "SELECT 1", "--interval", "5ms", "--timeout", "150ms")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "gave up waiting")
+	assert.NotContains(t, err.Error(), "gave up waiting",
+		"the local alias must be gone; --timeout now means the GLOBAL deadline")
 }

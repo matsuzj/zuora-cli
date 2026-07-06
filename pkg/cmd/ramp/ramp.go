@@ -4,11 +4,8 @@ package ramp
 import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/ramp/get"
-	getbysub "github.com/matsuzj/zuora-cli/pkg/cmd/ramp/get-by-subscription"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/ramp/list"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/ramp/metrics"
-	metricsbyorder "github.com/matsuzj/zuora-cli/pkg/cmd/ramp/metrics-by-order"
-	metricsbysub "github.com/matsuzj/zuora-cli/pkg/cmd/ramp/metrics-by-subscription"
 	"github.com/spf13/cobra"
 )
 
@@ -22,10 +19,7 @@ func NewCmdRamp(f *factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(get.NewCmdGet(f))
 	cmd.AddCommand(list.NewCmdList(f))
-	cmd.AddCommand(getbysub.NewCmdGetBySubscription(f))
 	cmd.AddCommand(metrics.NewCmdMetrics(f))
-	cmd.AddCommand(metricsbysub.NewCmdMetricsBySubscription(f))
-	cmd.AddCommand(metricsbyorder.NewCmdMetricsByOrder(f))
 
 	return cmd
 }

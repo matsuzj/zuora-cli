@@ -5,8 +5,6 @@ import (
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/subscription/cancel"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/subscription/changelog"
-	changelogbyorder "github.com/matsuzj/zuora-cli/pkg/cmd/subscription/changelog-by-order"
-	changelogversion "github.com/matsuzj/zuora-cli/pkg/cmd/subscription/changelog-version"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/subscription/create"
 	deletecmd "github.com/matsuzj/zuora-cli/pkg/cmd/subscription/delete"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/subscription/get"
@@ -52,8 +50,6 @@ func NewCmdSubscription(f *factory.Factory) *cobra.Command {
 
 	// Changelog commands
 	cmd.AddCommand(changelog.NewCmdChangelog(f))
-	cmd.AddCommand(changelogbyorder.NewCmdChangelogByOrder(f))
-	cmd.AddCommand(changelogversion.NewCmdChangelogVersion(f))
 
 	return cmd
 }

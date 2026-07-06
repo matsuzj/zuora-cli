@@ -211,10 +211,10 @@ expect_fail "changelog validation → --order + arg rejected" \
 # changelog-by-order / changelog-version are now deprecated aliases of
 # `changelog --order` / `changelog --version` (#454) but still dispatch and
 # validate their args.
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: subscription changelog-by-order (deprecated) without argument"
-expect_fail "changelog-by-order validation → requires argument" \
-  "accepts 1 arg(s), received 0" -- $ZR subscription changelog-by-order
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: subscription changelog-by-order (removed alias) is gone"
+expect_fail "changelog-by-order removed (#512)" \
+  'unknown command "changelog-by-order"' -- $ZR subscription changelog-by-order
 
 echo "  Testing: subscription changelog-version without arguments"
 expect_fail "changelog-version validation → requires arguments" \

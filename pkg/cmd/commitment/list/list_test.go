@@ -66,7 +66,7 @@ func TestCommitmentList_RequiresAccount(t *testing.T) {
 	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "list")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "--account-number is required")
+	assert.Contains(t, err.Error(), `required flag(s) "account-number" not set`)
 }
 
 // TestCommitmentList_AccountAliasRemoved pins that the deprecated --account

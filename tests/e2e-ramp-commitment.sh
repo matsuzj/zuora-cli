@@ -39,10 +39,10 @@ echo "  Testing: ramp list without --subscription"
 expect_fail "ramp list validation → requires --subscription" \
   'required flag(s) "subscription" not set' -- $ZR ramp list
 
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: ramp get-by-subscription (deprecated) without argument"
-expect_fail "ramp get-by-subscription validation → requires argument" \
-  "accepts 1 arg(s), received 0" -- $ZR ramp get-by-subscription
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: ramp get-by-subscription (removed alias) is gone"
+expect_fail "ramp get-by-subscription removed (#512)" \
+  'unknown command "get-by-subscription"' -- $ZR ramp get-by-subscription
 
 echo "  Testing: ramp metrics without a selector"
 expect_fail "ramp metrics validation → requires ramp-number/--order/--subscription" \
@@ -55,10 +55,10 @@ expect_fail "ramp metrics validation → selectors mutually exclusive" \
 # metrics-by-order / metrics-by-subscription are now deprecated aliases of
 # `ramp metrics --order` / `--subscription` (#454) but still dispatch and
 # validate their args.
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: ramp metrics-by-order (deprecated) without argument"
-expect_fail "ramp metrics-by-order validation → requires argument" \
-  "accepts 1 arg(s), received 0" -- $ZR ramp metrics-by-order
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: ramp metrics-by-order (removed alias) is gone"
+expect_fail "ramp metrics-by-order removed (#512)" \
+  'unknown command "metrics-by-order"' -- $ZR ramp metrics-by-order
 
 echo "  Testing: ramp metrics-by-subscription without argument"
 expect_fail "ramp metrics-by-subscription validation → requires argument" \
@@ -71,7 +71,7 @@ echo "  Testing: commitment get without argument"
 expect_fail "commitment get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR commitment get
 
 echo "  Testing: commitment list without --account-number"
-expect_fail "commitment list validation → requires --account-number" "--account-number is required" -- $ZR commitment list
+expect_fail "commitment list validation → requires --account-number" 'required flag(s) "account-number" not set' -- $ZR commitment list
 
 echo "  Testing: commitment balance without argument"
 expect_fail "commitment balance validation → requires argument" \

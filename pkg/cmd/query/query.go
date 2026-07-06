@@ -45,13 +45,9 @@ large exports or full SQL, use ` + "`zr data-query`" + ` (asynchronous Data Quer
 		},
 	}
 
-	// --output is the primary name (#456), matching data-query run --output for
-	// the same concept (result-file destination). The old --export stays
-	// registered (hidden, deprecated) for back-compat; both bind the same
-	// variable.
+	// Named --output (#456), matching data-query run --output for the same
+	// concept (the deprecated --export alias was removed in #512).
 	cmd.Flags().StringVar(&opts.Export, "output", "", "Write results to this file")
-	cmd.Flags().StringVar(&opts.Export, "export", "", "Deprecated alias of --output")
-	_ = cmd.Flags().MarkDeprecated("export", "use --output instead")
 	cmd.Flags().IntVar(&opts.Limit, "limit", 0, "Maximum number of rows (0 = all)")
 
 	return cmd

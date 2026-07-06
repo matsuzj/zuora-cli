@@ -39,10 +39,14 @@ echo "  Testing: ramp list without --subscription"
 expect_fail "ramp list validation → requires --subscription" \
   'required flag(s) "subscription" not set' -- $ZR ramp list
 
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: ramp get-by-subscription (deprecated) without argument"
-expect_fail "ramp get-by-subscription validation → requires argument" \
-  "accepts 1 arg(s), received 0" -- $ZR ramp get-by-subscription
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: ramp get-by-subscription (removed alias) absent from help"
+run $ZR ramp --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "get-by-subscription"; then
+  fail "ramp get-by-subscription still listed in help (should be removed, #512)"
+else
+  pass "ramp get-by-subscription removed from help (#512)"
+fi
 
 echo "  Testing: ramp metrics without a selector"
 expect_fail "ramp metrics validation → requires ramp-number/--order/--subscription" \
@@ -52,17 +56,26 @@ echo "  Testing: ramp metrics with two selectors (mutually exclusive)"
 expect_fail "ramp metrics validation → selectors mutually exclusive" \
   "specify only one of" -- $ZR ramp metrics R-1 --order O-1
 
-# metrics-by-order / metrics-by-subscription are now deprecated aliases of
-# `ramp metrics --order` / `--subscription` (#454) but still dispatch and
-# validate their args.
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: ramp metrics-by-order (deprecated) without argument"
-expect_fail "ramp metrics-by-order validation → requires argument" \
-  "accepts 1 arg(s), received 0" -- $ZR ramp metrics-by-order
+# metrics-by-order / metrics-by-subscription were removed in #512; these
+# checks pin that the old names STAY gone (were: aliases of ramp metrics
+# --order / --subscription, #454).
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: ramp metrics-by-order (removed alias) absent from help"
+run $ZR ramp --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "metrics-by-order"; then
+  fail "ramp metrics-by-order still listed in help (should be removed, #512)"
+else
+  pass "ramp metrics-by-order removed from help (#512)"
+fi
 
-echo "  Testing: ramp metrics-by-subscription without argument"
-expect_fail "ramp metrics-by-subscription validation → requires argument" \
-  "accepts 1 arg(s), received 0" -- $ZR ramp metrics-by-subscription
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: ramp metrics-by-subscription (removed alias) absent from help"
+run $ZR ramp --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "metrics-by-subscription"; then
+  fail "ramp metrics-by-subscription still listed in help (should be removed, #512)"
+else
+  pass "ramp metrics-by-subscription removed from help (#512)"
+fi
 
 # ─────────────────────────────────────────
 header "Step 2: Commitment Validation"
@@ -71,7 +84,7 @@ echo "  Testing: commitment get without argument"
 expect_fail "commitment get validation → requires argument" "accepts 1 arg(s), received 0" -- $ZR commitment get
 
 echo "  Testing: commitment list without --account-number"
-expect_fail "commitment list validation → requires --account-number" "--account-number is required" -- $ZR commitment list
+expect_fail "commitment list validation → requires --account-number" 'required flag(s) "account-number" not set' -- $ZR commitment list
 
 echo "  Testing: commitment balance without argument"
 expect_fail "commitment balance validation → requires argument" \

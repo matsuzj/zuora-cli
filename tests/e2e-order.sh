@@ -147,9 +147,14 @@ echo "  Testing: order list --pending without --subscription"
 expect_fail "order list --pending validation → requires --subscription" \
   "--pending requires --subscription" -- $ZR order list --pending
 
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: order list-pending (deprecated) validation (no arg)"
-expect_fail "order list-pending validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-pending
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: order list-pending (removed alias) absent from help"
+run $ZR order --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "list-pending"; then
+  fail "order list-pending still listed in help (should be removed, #512)"
+else
+  pass "order list-pending removed from help (#512)"
+fi
 
 if [ -n "$SUB_NUM" ]; then
   echo "  Testing: order list --subscription $SUB_NUM --pending"
@@ -363,9 +368,14 @@ echo "  Testing: order list scope flags mutually exclusive"
 expect_fail "order list validation → scope flags mutually exclusive" \
   "specify at most one of --subscription" -- $ZR order list --subscription A-S1 --invoice-owner A00000002
 
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: order list-by-subscription (deprecated) validation (no arg)"
-expect_fail "order list-by-subscription validation → requires arg" "accepts 1 arg(s), received 0" -- $ZR order list-by-subscription
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: order list-by-subscription (removed alias) absent from help"
+run $ZR order --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "list-by-subscription"; then
+  fail "order list-by-subscription still listed in help (should be removed, #512)"
+else
+  pass "order list-by-subscription removed from help (#512)"
+fi
 
 if [ -n "$SUB_NUM" ]; then
   echo "  Testing: order list --subscription $SUB_NUM"
@@ -396,13 +406,13 @@ else
 fi
 
 # The old list-by-* names still dispatch (deprecated). Spot-check one live.
-# ALIAS-TRIPWIRE(#454/#455): update when this deprecated alias is removed (v0.6.0) - grep ALIAS-TRIPWIRE for every site.
-echo "  Testing: order list-by-subscription-owner (deprecated alias) still works"
-run $ZR order list-by-subscription-owner "$ACCT_NUM" --json
-if [ "$RUN_RC" -eq 0 ] && echo "$RUN_OUT" | jq -e '.orders | type == "array"' >/dev/null 2>&1; then
-  pass "order list-by-subscription-owner (deprecated) → .orders array"
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: order list-by-subscription-owner (removed alias) absent from help"
+run $ZR order --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "list-by-subscription-owner"; then
+  fail "order list-by-subscription-owner still listed in help (should be removed, #512)"
 else
-  fail "order list-by-subscription-owner (rc=$RUN_RC) → ${RUN_ERR:-$RUN_OUT}"
+  pass "order list-by-subscription-owner removed from help (#512)"
 fi
 
 # ─────────────────────────────────────────

@@ -38,12 +38,7 @@ the result file.
 Provide the SQL as an argument or via --file (exactly one). Progress and the
 summary go to stderr; with "--output -" the raw result bytes stream to stdout
 (job metadata is never written to stdout in that mode, so --json/--csv have no
-stdout effect there).
-
-Note: the global 'zr --timeout' (see 'zr --help') bounds the WHOLE command
-run; --wait-timeout bounds only the submit+poll wait and --download-timeout
-the download. (While the deprecated --timeout alias exists, the global flag
-is hidden from this help.)`,
+stdout effect there).`,
 		Example: `  zr data-query run "SELECT accountnumber FROM account" --output result.json
   zr data-query run --file q.sql --output - > result.jsonl
   zr data-query run "SELECT 1" --interval 3s --wait-timeout 5m`,
@@ -56,13 +51,9 @@ is hidden from this help.)`,
 	dqutil.RegisterSubmitCompletions(cmd)
 	cmd.Flags().StringVar(&opts.Output, "output", "", "Write the result file here (- for stdout)")
 	cmd.Flags().DurationVar(&opts.Interval, "interval", 5*time.Second, "Polling interval")
-	// --wait-timeout is the primary name (#456): the old local --timeout
-	// shadowed the global persistent `zr --timeout` in help output. The old
-	// name stays registered (hidden, deprecated) for back-compat; both bind
-	// the same variable.
+	// Named --wait-timeout (#456) so it cannot shadow the global persistent
+	// `zr --timeout` (the deprecated --timeout alias was removed in #512).
 	cmd.Flags().DurationVar(&opts.Timeout, "wait-timeout", 0, "Give up the submit+poll wait after this duration (0 = no limit); distinct from the global 'zr --timeout'")
-	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 0, "Deprecated alias of --wait-timeout")
-	_ = cmd.Flags().MarkDeprecated("timeout", "use --wait-timeout instead")
 	cmd.Flags().DurationVar(&opts.DownloadTimeout, "download-timeout", 10*time.Minute, "Maximum time for the result download")
 	return cmd
 }

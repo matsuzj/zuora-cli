@@ -43,12 +43,17 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 			{Header: "CURRENCY", Key: "currency"},
 		},
 	})
-	// The endpoint requires accountNumber; listcmd has no required-flag
-	// concept, so validate by wrapping RunE (the order-list pattern, #472).
+	// The endpoint requires accountNumber. With the deprecated --account
+	// alias long gone (v0.7.0), cobra's own required-flag machinery applies
+	// (#512 companion). An EXPLICIT empty value (--account-number "", e.g.
+	// an unset shell variable) passes cobra's Changed-bit check, so a
+	// value-level guard enforces non-emptiness with the same wording — the
+	// P5-2 pattern (Codex catch on #512).
+	_ = cmd.MarkFlagRequired("account-number")
 	inner := cmd.RunE
 	cmd.RunE = func(c *cobra.Command, args []string) error {
 		if v, _ := c.Flags().GetString("account-number"); v == "" {
-			return fmt.Errorf("--account-number is required")
+			return fmt.Errorf(`required flag(s) "account-number" not set`)
 		}
 		return inner(c, args)
 	}

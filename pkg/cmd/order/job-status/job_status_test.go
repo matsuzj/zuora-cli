@@ -262,10 +262,12 @@ func TestOrderJobStatus_WatchPollLineSanitized(t *testing.T) {
 	assert.NotContains(t, stderr, "\x1b", "response-derived status must be sanitized on the poll line")
 }
 
-// TestOrderJobStatus_DeprecatedTimeoutAlias pins the #456 rename back-compat:
-// the old local --timeout (hidden deprecated alias of --wait-timeout) still
-// bounds the watch and produces the friendly give-up message.
-func TestOrderJobStatus_DeprecatedTimeoutAlias(t *testing.T) {
+// TestOrderJobStatus_TimeoutAliasRemoved pins the #512 removal: the old
+// local --timeout alias is gone, so the spelling now falls through to the
+// GLOBAL persistent --timeout — under cmdtest's root that flag exists, so
+// the local wait keeps running and the global deadline aborts the command
+// with the raw deadline error, not the local friendly give-up message.
+func TestOrderJobStatus_TimeoutAliasRemoved(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -275,5 +277,6 @@ func TestOrderJobStatus_DeprecatedTimeoutAlias(t *testing.T) {
 
 	_, _, err := cmdtest.Run(t, "order", newCmd, handler, "order", "job-status", "J1", "--watch", "--interval", "20ms", "--timeout", "400ms")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "gave up waiting for job J1")
+	assert.NotContains(t, err.Error(), "gave up waiting for job J1",
+		"the local alias must be gone; --timeout now means the GLOBAL deadline")
 }

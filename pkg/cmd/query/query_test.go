@@ -205,20 +205,10 @@ func TestQuery_ExportFormatsNestedObjectCells(t *testing.T) {
 	assert.Contains(t, cells, `["a","b"]`, "array cell must be JSON-encoded")
 }
 
-// TestQuery_DeprecatedExportAlias pins the #456 rename back-compat: the old
-// --export flag still writes the result file (it is a hidden deprecated alias
-// of --output bound to the same variable).
-func TestQuery_DeprecatedExportAlias(t *testing.T) {
-	handler := cmdtest.OK(t, "POST", "/v1/action/query", map[string]interface{}{
-		"records": []map[string]interface{}{{"Id": "001", "Name": "Acme"}},
-		"size":    1, "done": true,
-	})
-
-	out := filepath.Join(t.TempDir(), "res.csv")
-	_, _, err := cmdtest.Run(t, "", newCmd, handler, "query", "SELECT Id, Name FROM Account", "--csv", "--export", out)
-	require.NoError(t, err)
-
-	b, rerr := os.ReadFile(out)
-	require.NoError(t, rerr)
-	assert.Contains(t, string(b), "Acme")
+// TestQuery_ExportAliasRemoved pins the #512 removal: only --output is
+// accepted.
+func TestQuery_ExportAliasRemoved(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "", newCmd, nil, "query", "SELECT Id FROM Account", "--export", "out.csv")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --export")
 }

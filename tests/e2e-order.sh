@@ -148,8 +148,13 @@ expect_fail "order list --pending validation → requires --subscription" \
   "--pending requires --subscription" -- $ZR order list --pending
 
 # ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
-echo "  Testing: order list-pending (removed alias) is gone"
-expect_fail "order list-pending removed (#512)" 'unknown command "list-pending"' -- $ZR order list-pending
+echo "  Testing: order list-pending (removed alias) absent from help"
+run $ZR order --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "list-pending"; then
+  fail "order list-pending still listed in help (should be removed, #512)"
+else
+  pass "order list-pending removed from help (#512)"
+fi
 
 if [ -n "$SUB_NUM" ]; then
   echo "  Testing: order list --subscription $SUB_NUM --pending"
@@ -364,8 +369,13 @@ expect_fail "order list validation → scope flags mutually exclusive" \
   "specify at most one of --subscription" -- $ZR order list --subscription A-S1 --invoice-owner A00000002
 
 # ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
-echo "  Testing: order list-by-subscription (removed alias) is gone"
-expect_fail "order list-by-subscription removed (#512)" 'unknown command "list-by-subscription"' -- $ZR order list-by-subscription
+echo "  Testing: order list-by-subscription (removed alias) absent from help"
+run $ZR order --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "list-by-subscription"; then
+  fail "order list-by-subscription still listed in help (should be removed, #512)"
+else
+  pass "order list-by-subscription removed from help (#512)"
+fi
 
 if [ -n "$SUB_NUM" ]; then
   echo "  Testing: order list --subscription $SUB_NUM"
@@ -397,8 +407,13 @@ fi
 
 # The old list-by-* names still dispatch (deprecated). Spot-check one live.
 # ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
-echo "  Testing: order list-by-subscription-owner (removed alias) is gone"
-expect_fail "order list-by-subscription-owner removed (#512)" 'unknown command "list-by-subscription-owner"' -- $ZR order list-by-subscription-owner "$ACCT_NUM"
+echo "  Testing: order list-by-subscription-owner (removed alias) absent from help"
+run $ZR order --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "list-by-subscription-owner"; then
+  fail "order list-by-subscription-owner still listed in help (should be removed, #512)"
+else
+  pass "order list-by-subscription-owner removed from help (#512)"
+fi
 
 # ─────────────────────────────────────────
 header "Summary"

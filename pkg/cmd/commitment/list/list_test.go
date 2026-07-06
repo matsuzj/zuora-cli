@@ -76,3 +76,13 @@ func TestCommitmentList_AccountAliasRemoved(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown flag: --account")
 }
+
+// TestCommitmentList_RejectsExplicitEmptyAccount pins the value-level guard
+// (P5-2 pattern): an explicit empty --account-number (e.g. an unset shell
+// variable) passes cobra's required-flag Changed check but must still be
+// rejected before any request.
+func TestCommitmentList_RejectsExplicitEmptyAccount(t *testing.T) {
+	_, _, err := cmdtest.Run(t, "commitment", newCmd, nil, "commitment", "list", "--account-number", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `required flag(s) "account-number" not set`)
+}

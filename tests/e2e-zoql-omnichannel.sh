@@ -208,17 +208,25 @@ echo "  Testing: subscription changelog --order + arg (mutually exclusive)"
 expect_fail "changelog validation → --order + arg rejected" \
   "--order cannot be combined" -- $ZR subscription changelog S-1 --order O-1
 
-# changelog-by-order / changelog-version are now deprecated aliases of
-# `changelog --order` / `changelog --version` (#454) but still dispatch and
-# validate their args.
+# changelog-by-order / changelog-version were removed in #512; these checks
+# pin that the old names STAY gone.
 # ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
-echo "  Testing: subscription changelog-by-order (removed alias) is gone"
-expect_fail "changelog-by-order removed (#512)" \
-  'unknown command "changelog-by-order"' -- $ZR subscription changelog-by-order
+echo "  Testing: subscription changelog-by-order (removed alias) absent from help"
+run $ZR subscription --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "changelog-by-order"; then
+  fail "subscription changelog-by-order still listed in help (should be removed, #512)"
+else
+  pass "subscription changelog-by-order removed from help (#512)"
+fi
 
-echo "  Testing: subscription changelog-version without arguments"
-expect_fail "changelog-version validation → requires arguments" \
-  "accepts 2 arg(s), received 0" -- $ZR subscription changelog-version
+# ALIAS-TRIPWIRE(#454/#455): REMOVED in #512 - this now pins that the old name STAYS gone.
+echo "  Testing: subscription changelog-version (removed alias) absent from help"
+run $ZR subscription --help
+if printf '%s' "$RUN_OUT$RUN_ERR" | grep -qw "changelog-version"; then
+  fail "subscription changelog-version still listed in help (should be removed, #512)"
+else
+  pass "subscription changelog-version removed from help (#512)"
+fi
 
 # Live changelog on a ZOQL-derived subscription. This tenant lacks the
 # changelog permission (HTTP 403, code 50000010) — lock that EXPECTED error

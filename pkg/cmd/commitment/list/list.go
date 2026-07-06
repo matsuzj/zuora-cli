@@ -2,6 +2,8 @@
 package list
 
 import (
+	"fmt"
+
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmdutil/listcmd"
 	"github.com/spf13/cobra"
@@ -43,8 +45,17 @@ func NewCmdList(f *factory.Factory) *cobra.Command {
 	})
 	// The endpoint requires accountNumber. With the deprecated --account
 	// alias long gone (v0.7.0), cobra's own required-flag machinery applies
-	// cleanly (#512 companion — the hand-written value guard existed only
-	// because the alias era's Changed-bit check couldn't see alias values).
+	// (#512 companion). An EXPLICIT empty value (--account-number "", e.g.
+	// an unset shell variable) passes cobra's Changed-bit check, so a
+	// value-level guard enforces non-emptiness with the same wording — the
+	// P5-2 pattern (Codex catch on #512).
 	_ = cmd.MarkFlagRequired("account-number")
+	inner := cmd.RunE
+	cmd.RunE = func(c *cobra.Command, args []string) error {
+		if v, _ := c.Flags().GetString("account-number"); v == "" {
+			return fmt.Errorf(`required flag(s) "account-number" not set`)
+		}
+		return inner(c, args)
+	}
 	return cmd
 }

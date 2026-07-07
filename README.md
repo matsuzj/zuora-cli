@@ -134,7 +134,7 @@ zr subscription create --account-key A-001 --body @sub.json -vv 2>>~/zuora-mutat
 
 `-vv` (or `ZR_DEBUG=api`, its env-var equivalent) additionally logs request/response bodies (4KB cap, multipart skipped) — bodies are billing data, so plain `-v` never includes them.
 
-**Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md) for the full allowlist.
+**Read-only mode**: `--read-only` (or `ZR_READ_ONLY`) blocks all write operations (PUT/DELETE/PATCH and most POST requests). The environment variable accepts any conventional truthy value (`true`, `1`, `yes`, `on`); for safety it **fails closed** — a non-empty value that isn't a recognized falsy spelling (`false`, `0`, `no`, `off`) enables read-only rather than silently allowing writes. The `--read-only` flag takes precedence over the env var. Read-only POST endpoints — ZOQL queries, Commerce API queries/lists, order/subscription previews, and meter summaries — are allowed. See [docs/read-only.md](docs/read-only.md) for the full (generated) allowlist.
 
 **Data Query in read-only mode**: Zuora Data Query is read-only by nature but submits via `POST /query/jobs` and cancels via `DELETE /query/jobs/{id}`, so under `--read-only` it is **blocked by default**. Pass `--read-only-allow-data-query` (or set `ZR_READ_ONLY_ALLOW_DATA_QUERY=1`) to permit Data Query submit/cancel while every other write stays blocked.
 
@@ -313,7 +313,7 @@ For each setting, values are resolved highest-to-lowest:
 |----------|---------|
 | `ZR_CLIENT_ID` | OAuth client ID (with `ZR_CLIENT_SECRET`, overrides the keyring) |
 | `ZR_CLIENT_SECRET` | OAuth client secret |
-| `ZR_READ_ONLY` | Block write operations — truthy values enable it; fails closed (see [Read-only mode](#global-flags) and [docs/plans/read-only-mode.md](docs/plans/read-only-mode.md)) |
+| `ZR_READ_ONLY` | Block write operations — truthy values enable it; fails closed (see [Read-only mode](#global-flags) and [docs/read-only.md](docs/read-only.md)) |
 | `ZR_READ_ONLY_ALLOW_DATA_QUERY` | **Separate from `ZR_READ_ONLY`** — does not enable read-only, only *relaxes* it for Data Query. When read-only is on, a truthy value additionally permits Data Query submit/cancel (`POST /query/jobs`, `DELETE /query/jobs/{id}`); all other writes stay blocked. Fails closed in the **opposite** direction to `ZR_READ_ONLY`: an unrecognized value leaves it **off** (never accidentally widens the guard) |
 | `XDG_CONFIG_HOME` | Relocate the config directory (defaults to `~/.config`) |
 | `PAGER` | Pager command for long output (default: `less`); `LESS` / `LV` tune the respective pagers |

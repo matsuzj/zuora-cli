@@ -37,6 +37,7 @@ func runCascading(cmd *cobra.Command, f *factory.Factory, key string) error {
 			// success} — every previously read flat key (paymentMethodId at top
 			// level, paymentMethodCascadingConsent, paymentMethodType/Number,
 			// creditCardType/MaskNumber) is absent, so the whole view was blank.
+			// LIVE-UNVERIFIED(cascading payment-methods shape {consent,priorities[]}; since 2026-07-05; trigger: tenant with cascading payments enabled)
 			fields := []output.DetailField{
 				{Key: "Consent", Value: cmdutil.GetString(raw, "consent")},
 			}

@@ -16,6 +16,7 @@ import (
 // flat item shape the official schema documents for commitment get. This
 // endpoint is not provisioned on the dev sandbox (404), so the shape comes
 // from the published API reference, like the #486/#435 batch.
+// LIVE-UNVERIFIED(commitment list shape {total,page,page_size,commitments[]}; since 2026-07-05; trigger: tenant with /v1/commitments provisioned)
 func NewCmdList(f *factory.Factory) *cobra.Command {
 	cmd := listcmd.New(f, listcmd.Spec{
 		Use:   "list",

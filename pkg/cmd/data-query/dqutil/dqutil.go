@@ -102,6 +102,7 @@ func ResolveSQL(args []string, file string) (string, error) {
 // sourceData and useIndexJoin are live-verified against an apac-sandbox tenant
 // (2026-06-29; the response echoes sourceData/useIndexJoin). columnSeparator
 // (DSV) and readDeleted follow the API reference but were not exercised live.
+// LIVE-UNVERIFIED(data-query columnSeparator/readDeleted submit options; since 2026-06-29; trigger: any tenant - submit a DSV/readDeleted job)
 func BuildSubmitBody(sql string, sf *SubmitFlags) ([]byte, error) {
 	body := map[string]interface{}{
 		"query":        sql,

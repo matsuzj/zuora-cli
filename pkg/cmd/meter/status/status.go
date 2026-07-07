@@ -38,6 +38,7 @@ func runStatus(cmd *cobra.Command, f *factory.Factory, meterID, version string) 
 			// integer enum (1=NEVER_RUN … 13=CONSUME_COMPLETED) and the previous
 			// flat keys (meterId/version/status/runType/startTime/endTime) do not
 			// exist in the response.
+			// LIVE-UNVERIFIED(meter runStatus envelope {success,data:{runStatus int enum,...}}; since 2026-07-05; trigger: tenant with mediation/metering provisioned)
 			data, _ := raw["data"].(map[string]interface{})
 			return []output.DetailField{
 				{Key: "Run Status", Value: cmdutil.GetDecimal(data, "runStatus")},

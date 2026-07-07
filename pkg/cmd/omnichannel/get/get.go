@@ -37,6 +37,7 @@ func runGet(cmd *cobra.Command, f *factory.Factory, subscriptionKey string) erro
 			// keys — subscriptionKey is only the path-parameter name, the states
 			// are `state` (Zuora) and `externalState` (store), the source app
 			// store is `externalSourceSystem`, and there is no createdDate.
+			// LIVE-UNVERIFIED(omni-channel subscription GET flat shape incl. state/externalState; since 2026-07-05; trigger: tenant with Omni-Channel provisioned)
 			return []output.DetailField{
 				{Key: "ID", Value: cmdutil.GetString(raw, "id")},
 				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},

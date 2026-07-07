@@ -74,6 +74,7 @@ func runAudit(cmd *cobra.Command, opts *auditOptions, meterID string) error {
 			// payload, …}, …]} — data is an ARRAY of entries; the previous flat
 			// meterId key does not exist. The detail view summarizes; --json
 			// carries the full entries.
+			// LIVE-UNVERIFIED(meter auditTrail data[] entry shape and required queryFromTime/queryToTime params; since 2026-07-05; trigger: tenant with mediation/metering provisioned)
 			entries, _ := raw["data"].([]interface{})
 			return []output.DetailField{
 				{Key: "Entries", Value: fmt.Sprintf("%d", len(entries))},

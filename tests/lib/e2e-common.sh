@@ -174,61 +174,26 @@ read_or_skip_on() {
 }
 
 # require_auth — Step 0 gate for live suites: binary present, token valid, AND
-# the active tenant is a sandbox. `auth status` reports a valid token regardless
-# of WHICH tenant it targets, so without this check a maintainer who left the
-# active environment pointed at production would have the write suites silently
-# create real, IRREVERSIBLE billing state (accounts, orders, subscriptions, bill
-# runs) on it. See issue #267.
-#
-# The tenant gate FAILS CLOSED: it proceeds only when the Base URL looks like a
-# sandbox; a known production host OR an unrecognized tenant is blocked unless
-# the operator explicitly opts in with ZR_E2E_ALLOW_PROD=1. This is deliberately
-# stricter than a production-host denylist — a denylist fails OPEN on any host it
-# does not know (a new prod region, a custom domain), which is the wrong default
-# for a guard standing in front of irreversible writes.
+# the active tenant is a sandbox (fail-closed, ZR_E2E_ALLOW_PROD=1 to override).
+# The single implementation lives in scripts/require-sandbox.sh (#524) so
+# ad-hoc live probes get the exact same gate the suites use (the #267
+# rationale is documented there); this wrapper only maps its diagnostics onto
+# the suite's pass/fail counters and hard-exits on failure, as before.
+_E2E_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../scripts/require-sandbox.sh
+source "$_E2E_LIB_DIR/../../scripts/require-sandbox.sh"
+
 require_auth() {
-  [ -x "$ZR" ] || { red "zr binary not found/executable at $ZR (build it first)"; exit 1; }
-  # auth status always exits 0 and prints "Token: valid|expired"; the only
-  # reliable signal of a usable session is a "Token: ... valid" line.
-  local auth_out
-  auth_out=$("$ZR" auth status 2>&1)
-  if ! echo "$auth_out" | grep -qE "Token:[[:space:]]+valid"; then
-    fail "Auth failed (token not valid): $(echo "$auth_out" | grep -i 'token' | head -1)"
-    exit 1
-  fi
-
-  # When ZR_ENV pins the environment for this run, confirm the binary actually
-  # targeted it. `zr auth status` honors ZR_ENV, so a mismatch means something
-  # unexpected (e.g. the binary ignored it) — fail rather than write to a tenant
-  # the operator did not name. Unset ZR_ENV keeps the default behavior.
-  if [ -n "${ZR_ENV:-}" ]; then
-    local env_name
-    env_name=$(echo "$auth_out" | awk '/^Environment:/ {print $2}')
-    if [ "$env_name" != "$ZR_ENV" ]; then
-      fail "ZR_ENV=$ZR_ENV but the active environment is '${env_name:-<unknown>}' — refusing to run against an unexpected tenant"
-      exit 1
-    fi
-  fi
-
-  # Tenant-safety gate. Zuora sandbox hosts carry a "sandbox" or ".test." marker
-  # (rest.apisandbox.zuora.com, rest.test.ap.zuora.com); the production hosts
-  # (rest.zuora.com, rest.na/eu/ap.zuora.com) carry neither.
-  local base_url
-  base_url=$(echo "$auth_out" | awk '/^Base URL:/ {print $NF}')
-  case "$base_url" in
-    *sandbox*|*.test.*)
-      pass "Auth OK (sandbox tenant: $base_url)"
-      ;;
-    *)
-      if [ "${ZR_E2E_ALLOW_PROD:-0}" = "1" ]; then
-        yellow "  ⚠ ZR_E2E_ALLOW_PROD=1 set — running write suites against a NON-sandbox tenant: ${base_url:-<unknown>}"
-        pass "Auth OK (production override)"
-      else
-        fail "Active tenant does not look like a sandbox: ${base_url:-<unknown>}. E2E write suites must NOT run against production. Switch with: zr config env apac-sandbox   (intentional override: ZR_E2E_ALLOW_PROD=1)"
-        exit 1
-      fi
-      ;;
-  esac
+  local out rc line
+  out="$(require_sandbox_check "$ZR")"; rc=$?
+  while IFS= read -r line; do
+    case "$line" in
+      OK:*)   pass "Auth OK (${line#OK: })" ;;
+      WARN:*) yellow "  ⚠ ${line#WARN: }"; pass "Auth OK (production override)" ;;
+      FAIL:*) fail "Auth gate: ${line#FAIL: }" ;;
+    esac
+  done <<< "$out"
+  [ "$rc" -eq 0 ] || exit 1
 }
 
 # print_summary — counts + log path + RESULT line; exits 1 when FAIL > 0.

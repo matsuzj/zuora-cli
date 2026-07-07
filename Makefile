@@ -122,6 +122,13 @@ lint:
 		echo "refresh the block between the markers with: scripts/gen-pending-live.sh"; \
 		exit 1; \
 	fi
+	@gen="$$(go run ./cmd/gen-readonly-doc)"; \
+	cur="$$(sed -n '/readonly-allowlist:begin/,/readonly-allowlist:end/p' docs/read-only.md | sed '1d;$$d')"; \
+	if [ "$$gen" != "$$cur" ]; then \
+		echo "docs/read-only.md allowlist drifted from internal/api's read-only gate (#526);"; \
+		echo "refresh the block between the markers with: go run ./cmd/gen-readonly-doc"; \
+		exit 1; \
+	fi
 	@bad=""; \
 	for f in $$(grep -rl 'cmdutil\.RequireConfirm' pkg/cmd --include='*.go' | grep -v _test); do \
 		ex="$$(awk '/^[[:space:]]*Example: `/{f=1} f{print; if (/`,[[:space:]]*$$/) exit}' "$$f")"; \

@@ -5,8 +5,8 @@ Guidance for AI coding agents working in this repo. Read this first.
 ## Build & Run
 
 - `task build` or `make build` — Build binary (output: `./bin/zr`, gitignored)
-- `task test` or `make test` — Run tests (`go test -race -count=1 -coverprofile=cov.out -covermode=atomic ./...`)
-- `task lint` or `make lint` — Linters (go vet + staticcheck + deadcode)
+- `task test` or `make test` — Run tests (race + coverage profile incl. `-coverpkg=./...`; the Makefile `test` target is the source of truth for exact flags — don't hand-copy them)
+- `task lint` or `make lint` — go vet + staticcheck + deadcode **plus the drift/containment gates** (destructive-list, Examples-in-Long, fixture provenance, …); the Makefile `lint` target is the authoritative list
 - `task fmt` or `make fmt` — `gofmt -w .` (run before pushing)
 - `task check` / `make check` — local pre-commit gate (see "Verifying changes" — it is a SUBSET of CI)
 - `task e2e` or `make e2e` — run E2E suites against a LIVE authenticated tenant (`./tests/run-all.sh`)
@@ -26,7 +26,7 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
 8. `make build` (what CI runs — produces `bin/zr` with version ldflags; a bare `go build ./...` does not exercise that linkage)
 9. For changes to live API/auth/output behavior: run the **E2E suite** (`make e2e` — every `tests/e2e-*.sh` suite against the live sandbox) — it is the only thing that catches Zuora-specific behavior that mocked unit tests miss. E2E is a MANUAL pre-merge/release gate and is intentionally NOT in CI.
 
-`main` is protected (strict): PRs serialize. After one PR merges, others go BEHIND — `gh pr update-branch <n>`, wait for CI, then merge. `--admin`/auto-merge are not available.
+`main` is protected (strict): PRs serialize. After one PR merges, others go BEHIND — `gh pr update-branch <n>`, wait for CI, then merge. `--admin` is unavailable (enforce_admins); auto-merge is deliberately left disabled — under strict protection it would not skip the update-branch → CI cycle anyway.
 
 ## Go Code Standards
 
@@ -104,8 +104,9 @@ Settled by the 2026-07 command-design audit (#457):
      destructive command is involved (`make lint` gates drift);
   4. the Makefile register-only parent invariant is unaffected;
   5. `tests/e2e-*.sh` updated — deliberate old-name checks carry the
-     `ALIAS-TRIPWIRE` marker (#490), so the eventual alias removal (v0.6.0)
-     is a single `grep -rn ALIAS-TRIPWIRE tests/` sweep.
+     `ALIAS-TRIPWIRE` marker (#490), so an eventual alias removal is a single
+     `grep -rn ALIAS-TRIPWIRE tests/` sweep (the #512/#513 wave, shipped in
+     v0.9.0, used exactly this; `usage post` deliberately survives it).
 
 ## Testing
 

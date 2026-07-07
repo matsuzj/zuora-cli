@@ -1,5 +1,16 @@
 # Data Query を Read-Only から除外し、専用 `zr data-query` コマンドを追加
 
+Status: shipped (PR #411, 2026-06-29)
+
+> **本文は計画当時のまま**。実装との差分は直下の「実装メモ」が正。
+
+## 実装メモ(2026-07-08 追記 — 計画からの逸脱)
+
+- **パッケージ構成は計画の逆が出荷された**: 本計画(Codex 6 パスレビュー済み)はフラット単一パッケージ `pkg/cmd/dataquery` を第一候補としたが、実装レビュー(PR #411 の P1)で `scripts/gen-destructive-list.sh` がコマンド名をディレクトリ構造から導出する制約と衝突することが判明し、代替案だったサブパッケージ構成 `pkg/cmd/data-query/{submit,get,list,cancel,run}` + 共有 `dqutil/` が採用された。
+- `run --timeout` は #506 で `--wait-timeout` に改名(global `--timeout` との二重定義回避)。
+- 本文中のカバレッジ床 73% は当時の値。現行は total 83.0% / per-package 60.0(Makefile が正)。
+- Open items の live 検証は 2026-06-29 に apac-sandbox で実施済み — 結果は `pkg/cmd/data-query/dqutil/dqutil.go` の日付入り live-verified コメントが正。
+
 ## Context
 
 Zuora **Data Query**（非同期 Trino SQL：`POST /query/jobs` 投入 → `GET /query/jobs/{id}` ポーリング → 完了後に S3 の `dataFile` をダウンロード）は **読み取り専用**の機能だが、CLI の read-only ガードは HTTP メソッドベースで `POST`/`DELETE` をデフォルトでブロックする（`internal/api/client.go:476-498`）。そのため Data Query は `--read-only` / `ZR_READ_ONLY` 下で投入も取消もできない。

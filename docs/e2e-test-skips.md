@@ -127,10 +127,11 @@ task build            # or: make build  (produces ./bin/zr)
 
 `tests/logs/` (git-ignored) holds the per-run logs; each suite prints a
 `Passed / Failed / Skipped` summary and a final `RESULT:` line. The latest full
-run: **10/10 suites pass** (the 2026-06-12 expansion added the billrun suite
-plus behavior-change, flag-matrix, and lifecycle coverage; check counts grow
-with coverage — see the latest run logs for exact numbers). Prune old logs with
-`make e2e-clean` (deletes `tests/logs/*.log` older than 30 days).
+run passes **all suites** — `ls tests/e2e-*.sh` is the authoritative count
+(11 since PR #411 added the dataquery suite on 2026-06-29; don't hand-copy the
+number forward). Check counts grow with coverage — see the latest run logs
+for exact numbers. Prune old logs with `make e2e-clean` (deletes
+`tests/logs/*.log` older than 30 days).
 
 ## Manual cleanup after a broken run
 

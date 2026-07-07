@@ -1,5 +1,13 @@
 # Read-Only Mode for zuora-cli
 
+Status: shipped
+
+> **警告: 本文の allowlist は 2026-03-26 時点のスナップショット**であり、現行の正は
+> `internal/api/client.go`(read-only ゲート実装)。本文に無い出荷後の拡張:
+> (a) `^commerce/products/[^/]+$` POST パターン(#435 — product get は POST だが読み取り)、
+> (b) Data Query の read-only オプトイン `--read-only-allow-data-query` /
+> `ZR_READ_ONLY_ALLOW_DATA_QUERY`(#411)。allowlist 文書の生成化は #526 で予定。
+
 ## Context
 
 zuora-cli は Claude Code のスキルから自動実行されることを想定している。誤って書き込み API (POST/PUT/DELETE/PATCH) を呼ぶリスクを防ぐため、読み取り専用モードを追加する。

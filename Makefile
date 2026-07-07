@@ -73,6 +73,23 @@ vuln:
 e2e: build
 	./tests/run-all.sh $(ARGS)
 
+# Files allowed to write directly to IOStreams.Out, bypassing the pkg/output
+# funnel (#453/#518 gate below). Every entry carries a reason; shrinking this
+# list is #519. Tripwire scope: the gate greps the `Fprint*(…IOStreams.Out`
+# spelling only — io.Copy / Out.Write / json.NewEncoder(Out) are not caught.
+#   version/version.go — human fallback AFTER output.FromCmd dispatch (the compliant pattern)
+#   auth/token.go      — prints the raw token for piping (deliberate exception; #519 decides)
+#   auth/login.go auth/logout.go config/get.go config/set.go config/env.go
+#                      — pre-gate violators, queued for the #519 funnel-fix PR
+OUT_WRITE_ALLOWLIST := \
+	pkg/cmd/version/version.go \
+	pkg/cmd/auth/token.go \
+	pkg/cmd/auth/login.go \
+	pkg/cmd/auth/logout.go \
+	pkg/cmd/config/get.go \
+	pkg/cmd/config/set.go \
+	pkg/cmd/config/env.go
+
 # staticcheck/deadcode run via go.mod's `tool` directive, so local and CI
 # always use the same pinned version (dependabot bumps it) — no separate
 # install needed. deadcode -test must stay EMPTY: code reachable from neither
@@ -112,6 +129,16 @@ lint:
 		echo "WithoutCheckSuccess is for the raw 'zr api' GET/HEAD passthrough only — typed"; \
 		echo "commands must keep the default success-flag check (AGENTS.md, Response handling):"; \
 		echo "$$bad"; exit 1; \
+	fi
+	@bad=""; \
+	for f in $$(grep -rl 'Fprint[a-z]*(.*IOStreams\.Out' pkg/cmd --include='*.go' --exclude='*_test.go' | sort); do \
+		case " $(OUT_WRITE_ALLOWLIST) " in (*" $$f "*) ;; (*) bad="$$bad $$f";; esac; \
+	done; \
+	if [ -n "$$bad" ]; then \
+		echo "direct Fprint* to IOStreams.Out in pkg/cmd bypasses the pkg/output funnel, so"; \
+		echo "--json/--jq/--template/--csv get silently ignored (#453/#518). Route through"; \
+		echo "pkg/output, or add the file to OUT_WRITE_ALLOWLIST (with a reason) in the Makefile:"; \
+		for f in $$bad; do echo "  $$f"; done; exit 1; \
 	fi
 	@for fx in pkg/cmdtest/fixtures/*.json; do \
 		base="$$(basename "$$fx")"; \

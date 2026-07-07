@@ -45,7 +45,9 @@ CI (`.github/workflows/ci.yml`) gates merges on more than `make check` does. To 
   Never hand-roll output that ignores them — silently emitting text when
   `--json` was asked for is a bug (#453). Route through `pkg/output`; for
   non-API data, synthesize a JSON body and call `output.RenderDetail`/`Render`
-  (see `version.go`).
+  (see `version.go`). `make lint` enforces containment: a direct `Fprint*` to
+  `IOStreams.Out` in `pkg/cmd` fails unless the file is allowlisted, with a
+  reason, in the Makefile's `OUT_WRITE_ALLOWLIST` (#518).
 - A write command that renders a JSON response body plus a stderr success line
   uses `output.RenderJSONWithMessage` — do not re-inline the
   `jq/template → PrintJSON → Fprintf` tail (it was deduped in #453). Bodyless

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -13,12 +14,17 @@ func newCmdEnv(f *factory.Factory) *cobra.Command {
 		Short: "Switch the active environment",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runEnv(f, args[0])
+			return runEnv(cmd, f, args[0])
 		},
 	}
 }
 
-func runEnv(f *factory.Factory, name string) error {
+func runEnv(cmd *cobra.Command, f *factory.Factory, name string) error {
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	cfg, err := f.Config()
 	if err != nil {
 		return err
@@ -37,6 +43,8 @@ func runEnv(f *factory.Factory, name string) error {
 		return err
 	}
 
-	fmt.Fprintf(f.IOStreams.Out, "Switched to environment %s (%s)\n", name, env.BaseURL)
-	return nil
+	// Machine flags get {"success": true}; the human message goes to stderr,
+	// keeping stdout clean (#453/#519).
+	return output.RenderSuccess(f.IOStreams, fmtOpts,
+		fmt.Sprintf("Switched to environment %s (%s)\n", name, env.BaseURL))
 }

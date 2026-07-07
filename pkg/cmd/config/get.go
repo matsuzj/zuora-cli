@@ -1,9 +1,11 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -20,12 +22,12 @@ func newCmdGet(f *factory.Factory) *cobra.Command {
 		Short: "Get a configuration value",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGet(f, args[0])
+			return runGet(cmd, f, args[0])
 		},
 	}
 }
 
-func runGet(f *factory.Factory, key string) error {
+func runGet(cmd *cobra.Command, f *factory.Factory, key string) error {
 	cfg, err := f.Config()
 	if err != nil {
 		return err
@@ -43,6 +45,20 @@ func runGet(f *factory.Factory, key string) error {
 		return fmt.Errorf("unknown config key: %s", key)
 	}
 
+	fmtOpts := output.FromCmd(cmd)
+	if fmtOpts.JSON || fmtOpts.JQ != "" || fmtOpts.Template != "" || fmtOpts.CSV {
+		rawJSON, err := json.Marshal(map[string]string{"key": key, "value": value})
+		if err != nil {
+			return fmt.Errorf("marshaling config value: %w", err)
+		}
+		fields := []output.DetailField{
+			{Key: "Key", Value: key},
+			{Key: "Value", Value: value},
+		}
+		return output.RenderDetail(f.IOStreams, rawJSON, fmtOpts, fields)
+	}
+
+	// Human default stays the bare scalar — pipe-friendly (`zr config get key`).
 	fmt.Fprintln(f.IOStreams.Out, value)
 	return nil
 }

@@ -36,7 +36,7 @@ func TestAuthLogin_WithFlags(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ios, _, out, _ := iostreams.Test()
+	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
 	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
 	f := factory.NewTestFactory(ios, cfg, server.URL, "")
@@ -46,7 +46,8 @@ func TestAuthLogin_WithFlags(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "Logged in to sandbox")
+	assert.Contains(t, errOut.String(), "Logged in to sandbox")
+	assert.Empty(t, out.String(), "stdout is reserved for data (#453/#519)")
 
 	token, err := cfg.Token("sandbox")
 	assert.NoError(t, err)
@@ -109,7 +110,7 @@ func TestAuthLogin_EnvVarFallback(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ios, _, out, _ := iostreams.Test()
+	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
 	cfg.Envs["sandbox"] = &config.Environment{BaseURL: server.URL}
 	f := factory.NewTestFactory(ios, cfg, server.URL, "")
@@ -117,7 +118,8 @@ func TestAuthLogin_EnvVarFallback(t *testing.T) {
 	root := newTestRoot(f)
 	root.SetArgs([]string{"auth", "login"}) // no credential flags at all
 	require.NoError(t, root.Execute())
-	assert.Contains(t, out.String(), "Logged in to sandbox")
+	assert.Contains(t, errOut.String(), "Logged in to sandbox")
+	assert.Empty(t, out.String(), "stdout is reserved for data (#453/#519)")
 
 	token, err := cfg.Token("sandbox")
 	require.NoError(t, err)
@@ -178,14 +180,15 @@ func TestAuthLogin_KeyringPersistFailureWarnsButSucceeds(t *testing.T) {
 	assert.Contains(t, stderr, "Token will be cached but credentials are not persisted.")
 	assert.Contains(t, stderr, "Set ZR_CLIENT_ID and ZR_CLIENT_SECRET environment variables for persistent access.")
 
-	assert.Contains(t, out.String(), "Logged in to sandbox")
+	assert.Contains(t, errOut.String(), "Logged in to sandbox")
+	assert.Empty(t, out.String(), "stdout is reserved for data (#453/#519)")
 	token, err := cfg.Token("sandbox")
 	require.NoError(t, err)
 	assert.Equal(t, "kr-token", token.AccessToken, "token must still be cached despite the keyring failure")
 }
 
 func TestAuthLogout(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
+	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
 	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
 		AccessToken: "old-token",
@@ -198,10 +201,29 @@ func TestAuthLogout(t *testing.T) {
 	err := root.Execute()
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "Logged out of sandbox")
+	assert.Contains(t, errOut.String(), "Logged out of sandbox")
+	assert.Empty(t, out.String(), "stdout is reserved for data (#453/#519)")
 
 	token, _ := cfg.Token("sandbox")
 	assert.Nil(t, token)
+}
+
+// TestAuthLogout_JSON pins the bodyless-write contract (#519): --json renders
+// {"success": true} on stdout via output.RenderSuccess.
+func TestAuthLogout_JSON(t *testing.T) {
+	ios, _, out, _ := iostreams.Test()
+	cfg := config.NewMockConfig()
+	require.NoError(t, cfg.SetToken("sandbox", &config.TokenEntry{
+		AccessToken: "old-token",
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
+	}))
+	f := factory.NewTestFactory(ios, cfg, "", "")
+
+	root := newTestRoot(f)
+	globalflags.Register(root) // defines --json so FromCmd resolves it
+	root.SetArgs([]string{"auth", "logout", "--json"})
+	require.NoError(t, root.Execute())
+	assert.JSONEq(t, `{"success": true}`, out.String())
 }
 
 func TestAuthStatus_Valid(t *testing.T) {

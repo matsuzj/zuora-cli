@@ -74,21 +74,16 @@ e2e: build
 	./tests/run-all.sh $(ARGS)
 
 # Files allowed to write directly to IOStreams.Out, bypassing the pkg/output
-# funnel (#453/#518 gate below). Every entry carries a reason; shrinking this
-# list is #519. Tripwire scope: the gate greps the `Fprint*(…IOStreams.Out`
-# spelling only — io.Copy / Out.Write / json.NewEncoder(Out) are not caught.
+# funnel (#453/#518 gate below). Every entry carries a reason. Tripwire scope:
+# the gate greps the `Fprint*(…IOStreams.Out` spelling only — io.Copy /
+# Out.Write / json.NewEncoder(Out) are not caught.
 #   version/version.go — human fallback AFTER output.FromCmd dispatch (the compliant pattern)
-#   auth/token.go      — prints the raw token for piping (deliberate exception; #519 decides)
-#   auth/login.go auth/logout.go config/get.go config/set.go config/env.go
-#                      — pre-gate violators, queued for the #519 funnel-fix PR
+#   config/get.go      — same compliant pattern: bare-scalar human fallback after FromCmd (#519)
+#   auth/token.go      — prints the raw token to stdout for piping (deliberate exception, #519)
 OUT_WRITE_ALLOWLIST := \
 	pkg/cmd/version/version.go \
-	pkg/cmd/auth/token.go \
-	pkg/cmd/auth/login.go \
-	pkg/cmd/auth/logout.go \
 	pkg/cmd/config/get.go \
-	pkg/cmd/config/set.go \
-	pkg/cmd/config/env.go
+	pkg/cmd/auth/token.go
 
 # staticcheck/deadcode run via go.mod's `tool` directive, so local and CI
 # always use the same pinned version (dependabot bumps it) — no separate

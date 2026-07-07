@@ -5,6 +5,7 @@ import (
 
 	iauth "github.com/matsuzj/zuora-cli/internal/auth"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -14,14 +15,20 @@ func newCmdLogout(f *factory.Factory) *cobra.Command {
 		Short: "Remove authentication credentials",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLogout(f)
+			return runLogout(cmd, f)
 		},
 	}
 
 	return cmd
 }
 
-func runLogout(f *factory.Factory) error {
+func runLogout(cmd *cobra.Command, f *factory.Factory) error {
+	fmtOpts := output.FromCmd(cmd)
+	// Reject bare --csv BEFORE mutating credential state (write-command contract).
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	cfg, err := f.Config()
 	if err != nil {
 		return err
@@ -41,13 +48,13 @@ func runLogout(f *factory.Factory) error {
 		return err
 	}
 
-	fmt.Fprintf(f.IOStreams.Out, "Logged out of %s\n", envName)
-
 	// Warn if env vars will still provide credentials
 	if _, _, ok := iauth.EnvCredentials(); ok {
 		fmt.Fprintln(f.IOStreams.ErrOut, "Note: ZR_CLIENT_ID/ZR_CLIENT_SECRET environment variables are still set.")
 		fmt.Fprintln(f.IOStreams.ErrOut, "Unset them to fully disable authentication.")
 	}
 
-	return nil
+	// Machine flags get {"success": true}; the human message goes to stderr,
+	// keeping stdout clean (#453/#519).
+	return output.RenderSuccess(f.IOStreams, fmtOpts, fmt.Sprintf("Logged out of %s\n", envName))
 }

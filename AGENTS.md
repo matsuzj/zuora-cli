@@ -142,6 +142,33 @@ When adding/maintaining a command that calls the API:
 - Branch naming: `feat/` `fix/` `docs/` `chore/` `refactor/` `test/` `perf/` `sec/`.
 - Conventional Commits: `feat:` `fix:` `docs:` `chore:` `test:` `refactor:` `perf:` `ci:`.
 
+## Autonomous pipeline & PR contract
+
+- **`ai-implement` issues**: autonomous implementation does NOT close the
+  tracking issue by itself — the shipping PR must carry `Closes #N.` as its
+  own sentence, ONE issue per sentence (the comma-joined multi-issue form has
+  already failed to auto-close: #444 → #438 needed manual cleanup).
+- **Before implementing any open issue**, run `scripts/preflight-issue.sh <n>`:
+  issues may already be done on main (#403 requested what PR #319 had merged
+  3 days earlier) and stale topic branches may pre-exist. Implement in an
+  isolated worktree off `origin/main`, never in the user's checkout.
+- **Derive live state, never snapshot it**: open work → `gh issue list` /
+  `gh pr list`; releases → `git tag -l`; pending live probes →
+  `make pending-live`. Copied-out status rots within hours at this repo's
+  merge velocity — store the query, not its output.
+- **PR body skeleton**: Summary / Deviations & deliberately-not-done (every
+  deferral references an open issue or a `LIVE-UNVERIFIED` marker) / Review
+  gates (make ci; Codex passes found→fixed→clean; live E2E N/M or an explicit
+  skip justification) / `Closes #N.` sentences.
+- **Never hand-copy volatile facts** (counts, version anchors, Makefile
+  recipes) into prose — use globs and pointers to the owning artifact, or
+  generate the copy with a lint drift-gate (destructive-list / pending-live /
+  read-only-doc are the precedents).
+- **De-scope ladder**: a convention-invoked script that breaks twice or sits
+  unused for a quarter gets demoted to scoped prose here and deleted;
+  review for disuse quarterly. (Process only — this file never carries
+  credentials or tenant identifiers; the repo is public.)
+
 ## Reviewing a branch with sub-agents / tools
 
 - Inspect a pushed branch READ-ONLY via `git diff main...origin/<branch>` and `git show origin/<branch>:<path>`. **Do NOT `git checkout` the branch in a shared worktree from a sub-agent/tool** — a stray `git checkout main` silently switches the whole tree and discards in-flight work. (Commit + push before any review tooling so a clobber is one `git checkout <branch>` away from recovery, and verify the branch/HEAD afterward — `git status` clean does not prove the tree is intact.)

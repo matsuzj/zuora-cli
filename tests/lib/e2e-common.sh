@@ -249,10 +249,11 @@ print_summary() {
 }
 
 # ── Deprecated-alias tripwires (#454/#455) ──────────────────────────────────
-# Several suites deliberately exercise DEPRECATED alias commands (usage post,
-# ramp get-by-subscription / metrics-by-*, order list-pending / list-by-*,
-# subscription changelog-by-order) so an accidental removal breaks E2E loudly.
-# When v0.6.0 removes the aliases for real, update every site in ONE sweep:
+# Several suites deliberately exercised DEPRECATED alias commands so an
+# accidental removal would break E2E loudly. The #512/#513 wave (v0.9.0)
+# removed the -by-X commands and flag aliases; those sites now PIN that the
+# old names STAY gone ("REMOVED in #512"). `usage post` remains a deliberate
+# live alias. When removing an alias for real, update every site in ONE sweep:
 #     grep -rn 'ALIAS-TRIPWIRE' tests/
 # Each site carries that marker on the line above its check. The past rename
 # waves broke E2E precisely because these checks were scattered and unmarked.

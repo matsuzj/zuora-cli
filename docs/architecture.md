@@ -8,6 +8,7 @@
 ```
 cmd/zr/            main: エイリアス展開(resolveAliasArgs)→ root.NewCmdRoot + ExecuteContext → exit code 変換
 pkg/cmd/<group>/<action>/   1コマンド=1パッケージ(gh CLI 流儀)
+pkg/cmd/data-query/  submit/get/list/cancel/run + 共有 dqutil/(グループ内共有ヘルパの先例 — gen-destructive-list.sh のディレクトリ導出制約により、フラット単一パッケージ案は PR #411 で不採用)
 pkg/cmd/root/      ルートコマンド組み立て
 pkg/cmd/factory/   DI コンテナ(IOStreams / Config / HttpClient / AuthToken、遅延初期化)
 pkg/cmd/globalflags/  グローバルフラグの定義(Register)と適用(Apply)の単一ソース
@@ -77,7 +78,8 @@ internal/config/   config.yml / environments.yml / tokens.yml
 - ユニット: pkg/cmdtest ハーネス(実 globalflags.Apply を通す。ZR_READ_ONLY /
   ZR_DEBUG / ZR_ENV を中和)。fixture は実レスポンス形から(fixture-masking 防止、
   AGENTS.md 参照)。
-- E2E: tests/e2e-*.sh(10スイート、live sandbox、手動ゲート)。スキップは期待
-  エラーコード限定。[docs/e2e-test-skips.md](e2e-test-skips.md) が正。
+- E2E: tests/e2e-*.sh(全スイート — 数は `ls tests/e2e-*.sh` が正、live sandbox、
+  手動ゲート)。スキップは期待エラーコード限定。
+  [docs/e2e-test-skips.md](e2e-test-skips.md) が正。
 - ゲート: `make ci`(CI と同一)+ per-package カバレッジフロア + deadcode +
   Examples: 残存検査。

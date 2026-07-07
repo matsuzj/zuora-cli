@@ -82,6 +82,7 @@ func runSummary(cmd *cobra.Command, opts *summaryOptions, meterID string) error 
 			// {success, data:{requestId, requestTime, query:{runType,…}, output:[…]}}.
 			// The previous flat meterId/runType keys do not exist; runType lives
 			// nested under data.query. Full output groups are available via --json.
+			// LIVE-UNVERIFIED(meter summary envelope {success,data:{query,output[]}}; since 2026-07-05; trigger: tenant with mediation/metering provisioned)
 			data, _ := raw["data"].(map[string]interface{})
 			query, _ := data["query"].(map[string]interface{})
 			groups, _ := data["output"].([]interface{})

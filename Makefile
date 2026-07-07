@@ -7,7 +7,7 @@ LDFLAGS := -s -w \
 	-X github.com/matsuzj/zuora-cli/internal/build.Commit=$(COMMIT) \
 	-X github.com/matsuzj/zuora-cli/internal/build.Date=$(DATE)
 
-.PHONY: build test e2e e2e-clean lint vuln cover clean fmt fmtcheck modverify check ci release-check
+.PHONY: build test e2e e2e-clean lint vuln cover clean fmt fmtcheck modverify check ci release-check pending-live
 
 build:
 	mkdir -p bin
@@ -73,6 +73,12 @@ vuln:
 e2e: build
 	./tests/run-all.sh $(ARGS)
 
+# List every LIVE-UNVERIFIED marker (doc-verified assumption awaiting a live
+# probe) with exact line numbers. The generated ledger lives in
+# docs/e2e-test-skips.md (drift-gated by lint); see scripts/gen-pending-live.sh.
+pending-live:
+	@grep -rn --include='*.go' --include='*.sh' 'LIVE-UNVERIFIED(' pkg internal tests 2>/dev/null || echo "no pending live verifications"
+
 # Files allowed to write directly to IOStreams.Out, bypassing the pkg/output
 # funnel (#453/#518 gate below). Every entry carries a reason. Tripwire scope:
 # the gate greps the `Fprint*(…IOStreams.Out` spelling only — io.Copy /
@@ -107,6 +113,13 @@ lint:
 	if [ "$$gen" != "$$cur" ]; then \
 		echo "README destructive-command list drifted from the RequireConfirm ground truth;"; \
 		echo "refresh the block between the markers with: scripts/gen-destructive-list.sh"; \
+		exit 1; \
+	fi
+	@gen="$$(scripts/gen-pending-live.sh)"; \
+	cur="$$(sed -n '/pending-live:begin/,/pending-live:end/p' docs/e2e-test-skips.md | sed '1d;$$d')"; \
+	if [ "$$gen" != "$$cur" ]; then \
+		echo "docs/e2e-test-skips.md pending-live ledger drifted from the LIVE-UNVERIFIED markers (#521);"; \
+		echo "refresh the block between the markers with: scripts/gen-pending-live.sh"; \
 		exit 1; \
 	fi
 	@bad=""; \

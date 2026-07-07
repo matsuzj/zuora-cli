@@ -33,6 +33,7 @@ func runGet(cmd *cobra.Command, f *factory.Factory, productKey string) error {
 	// read despite the verb, like the other Commerce query/list endpoints on
 	// the read-only allowlist. Doc-verified 2026-07-05 (#435); Commerce is not
 	// provisioned on this sandbox, so GET-vs-POST tolerance is doc-only.
+	// LIVE-UNVERIFIED(POST /commerce/products/{key} documented-read semantics incl. GET-vs-POST; since 2026-07-05; trigger: Commerce-provisioned tenant)
 	return cmdutil.RunDetail(cmd, f, cmdutil.Action{
 		Method: "POST",
 		Path:   fmt.Sprintf("/commerce/products/%s", url.PathEscape(productKey)),

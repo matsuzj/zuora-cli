@@ -45,6 +45,7 @@ func runSnapshot(cmd *cobra.Command, f *factory.Factory, id string) error {
 				// "postalCode" (both verified against the official API reference,
 				// 2026-07-05, #486 — the snapshot endpoint is not live-probeable on
 				// this sandbox: recent invoices carry only null snapshot IDs).
+				// LIVE-UNVERIFIED(contact-snapshot postalCode field spelling; since 2026-07-05; trigger: invoice with a non-null contact-snapshot ID)
 				{Key: "Postal Code", Value: cmdutil.GetString(raw, "postalCode")},
 				{Key: "Contact ID", Value: cmdutil.GetString(raw, "contactId")},
 			}

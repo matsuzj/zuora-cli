@@ -52,6 +52,7 @@ func runCreate(cmd *cobra.Command, opts *createOptions) error {
 			// 2026-07-05, #414): {subscriptionId, subscriptionNumber, accountId,
 			// accountNumber, success, …} — there is no subscriptionKey key, so
 			// the success message never fired and the detail row was blank.
+			// LIVE-UNVERIFIED(omni-channel create POST response {subscriptionId,subscriptionNumber,...}; since 2026-07-05; trigger: tenant with Omni-Channel provisioned)
 			return []output.DetailField{
 				{Key: "Subscription ID", Value: cmdutil.GetString(raw, "subscriptionId")},
 				{Key: "Subscription Number", Value: cmdutil.GetString(raw, "subscriptionNumber")},

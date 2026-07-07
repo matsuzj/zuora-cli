@@ -1,6 +1,6 @@
 # Read-Only Mode for zuora-cli
 
-Status: shipped
+Status: shipped (2026-03 初期実装; 出荷後拡張 #411/#435)
 
 > **警告: 本文の allowlist は 2026-03-26 時点のスナップショット**であり、現行の正は
 > `internal/api/client.go`(read-only ゲート実装)。本文に無い出荷後の拡張:

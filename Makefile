@@ -135,6 +135,17 @@ lint:
 		echo "pkg/output, or add the file to OUT_WRITE_ALLOWLIST (with a reason) in the Makefile:"; \
 		for f in $$bad; do echo "  $$f"; done; exit 1; \
 	fi
+	@bad=""; \
+	for f in docs/plans/*.md; do \
+		case "$$f" in (docs/plans/README.md) continue;; esac; \
+		grep -qE '^Status: (active|shipped \(.+\))$$' "$$f" || bad="$$bad $$f"; \
+	done; \
+	if [ -n "$$bad" ]; then \
+		echo "plan files need a lifecycle 'Status: active' or 'Status: shipped (PR #n)' line (#520);"; \
+		echo "(archiving = move under docs/plans/archive/ with the historical banner);"; \
+		echo "template & contract: docs/plans/README.md:"; \
+		for f in $$bad; do echo "  $$f"; done; exit 1; \
+	fi
 	@for fx in pkg/cmdtest/fixtures/*.json; do \
 		base="$$(basename "$$fx")"; \
 		if ! grep -q "$$base" pkg/cmdtest/fixtures/PROVENANCE.md; then \

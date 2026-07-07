@@ -7,6 +7,7 @@ import (
 	"github.com/matsuzj/zuora-cli/internal/auth"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -47,6 +48,11 @@ at the (no-echo) prompt.`,
 
 func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 	f := opts.Factory
+	fmtOpts := output.FromCmd(cmd)
+	// Reject bare --csv BEFORE the token fetch/persist (write-command contract).
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
 	cfg, err := f.Config()
 	if err != nil {
 		return err
@@ -143,6 +149,8 @@ func runLogin(cmd *cobra.Command, opts *loginOptions) error {
 		fmt.Fprintln(f.IOStreams.ErrOut, "Set ZR_CLIENT_ID and ZR_CLIENT_SECRET environment variables for persistent access.")
 	}
 
-	fmt.Fprintf(f.IOStreams.Out, "Logged in to %s (%s)\n", envName, env.BaseURL)
-	return nil
+	// Machine flags get {"success": true}; the human message goes to stderr,
+	// keeping stdout clean (#453/#519).
+	return output.RenderSuccess(f.IOStreams, fmtOpts,
+		fmt.Sprintf("Logged in to %s (%s)\n", envName, env.BaseURL))
 }

@@ -27,7 +27,7 @@ func NewCmdVersion(f *factory.Factory) *cobra.Command {
 func runVersion(cmd *cobra.Command, f *factory.Factory) error {
 	fmtOpts := output.FromCmd(cmd)
 
-	if fmtOpts.JSON || fmtOpts.JQ != "" || fmtOpts.Template != "" {
+	if fmtOpts.JSON || fmtOpts.JQ != "" || fmtOpts.Template != "" || fmtOpts.CSV {
 		data := map[string]string{
 			"version": build.Version,
 			"commit":  build.Commit,

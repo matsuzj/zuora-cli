@@ -83,11 +83,15 @@ fi
 
 echo "  Testing: config set default_output (round-trip)"
 expect_ok "config set → accepts default_output" "Set default_output to json" -- zr config set default_output json
+# From here until the restore below, default_output=json is LIVE and command
+# substitution is non-TTY, so config get itself now answers in implicit JSON —
+# #519 wired config get/set through the output funnel, so they honor the
+# P4-3/#214 switch like every other command.
 GOT2=$(zr config get default_output 2>&1)
-if [ "$GOT2" = "json" ]; then
-  pass "config get → reads back default_output=json"
+if printf '%s' "$GOT2" | jq -e '.value == "json"' >/dev/null 2>&1; then
+  pass "config get → reads back default_output=json (implicit JSON in pipes, #519)"
 else
-  fail "config get → expected json, got '$GOT2'"
+  fail "config get → expected JSON {value: json}, got '$GOT2'"
 fi
 
 # default_output=json must actually SWITCH the output format for piped
@@ -105,8 +109,9 @@ fi
 # Restore the default: default_output is WIRED now (P4-3) — leaving it on
 # json would flip every later piped check (and the following suites) to JSON
 # output, which is exactly what broke the alias-execution check when the
-# wiring first landed.
-expect_ok "config set → restores default_output" "Set default_output to table" -- zr config set default_output table
+# wiring first landed. This restoring set still runs UNDER default_output=json,
+# so its own output is the implicit-JSON success body (#519 RenderSuccess).
+expect_ok "config set → restores default_output" '"success": true' -- zr config set default_output table
 OUT_TABLE=$(zr version 2>&1)
 case "$OUT_TABLE" in
   "zr version"*) pass "default_output=table → 'zr version' back to human text" ;;

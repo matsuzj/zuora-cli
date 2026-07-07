@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -26,12 +27,17 @@ Valid keys:
   default_output      Default output format (table, json)`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSet(f, args[0], args[1])
+			return runSet(cmd, f, args[0], args[1])
 		},
 	}
 }
 
-func runSet(f *factory.Factory, key, value string) error {
+func runSet(cmd *cobra.Command, f *factory.Factory, key, value string) error {
+	fmtOpts := output.FromCmd(cmd)
+	if err := output.RejectBareCSV(fmtOpts); err != nil {
+		return err
+	}
+
 	cfg, err := f.Config()
 	if err != nil {
 		return err
@@ -58,6 +64,7 @@ func runSet(f *factory.Factory, key, value string) error {
 		return err
 	}
 
-	fmt.Fprintf(f.IOStreams.Out, "Set %s to %s\n", key, value)
-	return nil
+	// Machine flags get {"success": true}; the human message goes to stderr,
+	// keeping stdout clean (#453/#519).
+	return output.RenderSuccess(f.IOStreams, fmtOpts, fmt.Sprintf("Set %s to %s\n", key, value))
 }

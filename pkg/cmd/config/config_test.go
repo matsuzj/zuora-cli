@@ -7,8 +7,10 @@ import (
 
 	"github.com/matsuzj/zuora-cli/internal/config"
 	"github.com/matsuzj/zuora-cli/pkg/cmd/factory"
+	"github.com/matsuzj/zuora-cli/pkg/cmd/globalflags"
 	"github.com/matsuzj/zuora-cli/pkg/cmdtest"
 	"github.com/matsuzj/zuora-cli/pkg/iostreams"
+	"github.com/matsuzj/zuora-cli/pkg/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +27,7 @@ func newTestRoot(f *factory.Factory) *cobra.Command {
 func newCmd(f *factory.Factory) *cobra.Command { return NewCmdConfig(f) }
 
 func TestConfigSet(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
+	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, "", "")
 
@@ -35,7 +37,8 @@ func TestConfigSet(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "2026-01-01", cfg.ZuoraVersion())
-	assert.Contains(t, out.String(), "Set zuora_version to 2026-01-01")
+	assert.Contains(t, errOut.String(), "Set zuora_version to 2026-01-01")
+	assert.Empty(t, out.String(), "stdout is reserved for data (#453/#519)")
 	assert.Equal(t, 1, cfg.SaveCallCount)
 }
 
@@ -76,6 +79,67 @@ func TestConfigGet_KeyBranches(t *testing.T) {
 		_, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", "no_such_key")
 		require.Error(t, err)
 		assert.EqualError(t, err, "unknown config key: no_such_key")
+	})
+}
+
+// TestConfigGet_FormatFlags pins the #519 fix: config get must honor the
+// global format flags instead of silently printing the bare scalar with
+// exit 0 (the #453 bug class). Bite: reverting runGet to a bare Fprintln
+// makes the json/jq subtests fail.
+func TestConfigGet_FormatFlags(t *testing.T) {
+	t.Run("json", func(t *testing.T) {
+		stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", "active_environment", "--json")
+		require.NoError(t, err)
+		var got map[string]string
+		require.NoError(t, json.Unmarshal([]byte(stdout), &got), "stdout must be JSON, got: %s", stdout)
+		assert.Equal(t, "active_environment", got["key"])
+		assert.Equal(t, "sandbox", got["value"])
+	})
+	t.Run("jq", func(t *testing.T) {
+		stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", "active_environment", "--jq", ".value")
+		require.NoError(t, err)
+		assert.Contains(t, stdout, "sandbox")
+		assert.NotContains(t, stdout, "{", "jq must project the value, not echo the object")
+	})
+	t.Run("csv", func(t *testing.T) {
+		stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", "active_environment", "--csv")
+		require.NoError(t, err)
+		assert.Contains(t, stdout, "Field,Value")
+		assert.Contains(t, stdout, "Value,sandbox", "CSV must carry the value row (Codex P2)")
+	})
+	t.Run("human default stays the bare scalar", func(t *testing.T) {
+		stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "get", "active_environment")
+		require.NoError(t, err)
+		assert.Equal(t, "sandbox\n", stdout, "pipe-friendly bare scalar without format flags")
+	})
+}
+
+// TestConfigWrite_FormatFlags pins the bodyless-write contract (#519, Codex
+// P2): config set/env with --json render {"success": true} on stdout and no
+// stderr message; a bare --csv is rejected BEFORE the mutation.
+func TestConfigWrite_FormatFlags(t *testing.T) {
+	t.Run("set --json", func(t *testing.T) {
+		stdout, stderr, err := cmdtest.Run(t, "", newCmd, nil, "config", "set", "zuora_version", "2026-01-01", "--json")
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"success": true}`, stdout)
+		assert.NotContains(t, stderr, "Set zuora_version", "--json suppresses the human message")
+	})
+	t.Run("env --json", func(t *testing.T) {
+		stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "config", "env", "us-production", "--json")
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"success": true}`, stdout)
+	})
+	t.Run("set bare --csv rejected before mutation", func(t *testing.T) {
+		ios, _, _, _ := iostreams.Test()
+		cfg := config.NewMockConfig()
+		f := factory.NewTestFactory(ios, cfg, "", "")
+		root := newTestRoot(f)
+		globalflags.Register(root)
+		root.SetArgs([]string{"config", "set", "zuora_version", "2099-12-31", "--csv"})
+		err := root.Execute()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, output.ErrCSVUnsupportedJSONOnly)
+		assert.Equal(t, 0, cfg.SaveCallCount, "the rejected write must not persist")
 	})
 }
 
@@ -146,7 +210,7 @@ func TestConfigList_JSON(t *testing.T) {
 }
 
 func TestConfigEnv(t *testing.T) {
-	ios, _, out, _ := iostreams.Test()
+	ios, _, out, errOut := iostreams.Test()
 	cfg := config.NewMockConfig()
 	f := factory.NewTestFactory(ios, cfg, "", "")
 
@@ -156,7 +220,8 @@ func TestConfigEnv(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "us-production", cfg.ActiveEnvironment())
-	assert.Contains(t, out.String(), "Switched to environment us-production")
+	assert.Contains(t, errOut.String(), "Switched to environment us-production")
+	assert.Empty(t, out.String(), "stdout is reserved for data (#453/#519)")
 }
 
 func TestConfigEnv_Invalid(t *testing.T) {

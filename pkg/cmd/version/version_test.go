@@ -33,3 +33,13 @@ func TestVersionJQ(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "dev")
 }
+
+// TestVersionCSV pins the --csv branch added with the #519 funnel fix
+// (version shared config get's gap: --csv fell through to human text).
+func TestVersionCSV(t *testing.T) {
+	stdout, _, err := cmdtest.Run(t, "", newCmd, nil, "version", "--csv")
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Field,Value")
+	assert.Contains(t, stdout, "Version,")
+}

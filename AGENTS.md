@@ -183,4 +183,5 @@ When adding/maintaining a command that calls the API:
 
 - Releases are cut by pushing a `vX.Y.Z` git tag → `.github/workflows/release.yml` runs GoReleaser (`release --clean`, pinned `~> v2`) → publishes a GitHub release (darwin/linux × amd64/arm64 + checksums) and updates the Homebrew tap.
 - The tap ships a **formula** (`brews:`), NOT a cask — keeping macOS **and** Linux `brew install matsuzj/tap/zr` working. (A cask is macOS-only; do not migrate.)
-- Releasing is an irreversible outward action — get explicit human sign-off first, and run the E2E gate on the exact release commit.
+- Releasing is an irreversible outward action — get explicit human sign-off first, and run the E2E gate on the exact release commit. `make release-check` now asserts a clean, full-run E2E **receipt** (`tests/logs/summary-<sha>-*.json`, written by every `run-all.sh` run) for the exact HEAD (#527) — an honest-mistake guard, not a fraud gate.
+- The structural sign-off is the tag push itself: `git push` of a `v*` tag is NOT in any permission allowlist, so the harness prompt is the human gate (the standing goreleaser allowance covers `check`/`--snapshot` only).

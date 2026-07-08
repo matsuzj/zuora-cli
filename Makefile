@@ -213,7 +213,25 @@ ci: modverify fmtcheck lint vuln cover build
 # CI mirror, the live E2E suites, and goreleaser config validity. Run this on
 # the exact commit you intend to tag. goreleaser's known `brews:` deprecation
 # is tolerated (the formula deliberately stays for Linux Homebrew, cf. #46).
+# The E2E-receipt assertion (#527) requires a clean, full-run receipt for the
+# exact HEAD — an honest-mistake guard (wrong commit, partial run, dirty tree),
+# NOT a fraud gate: the receipt shares the writer's trust root.
 release-check: ci e2e
+	@sha="$$(git rev-parse HEAD)"; \
+	latest="$$(ls -t tests/logs/summary-$$sha-*.json 2>/dev/null | head -1)"; \
+	if [ -z "$$latest" ]; then \
+		echo "release-check: no E2E receipt for HEAD ($$sha) — the e2e step must produce one"; exit 1; \
+	fi; \
+	if grep -q '"dirty": true' "$$latest"; then \
+		echo "release-check: E2E receipt $$latest was produced from a DIRTY tree — commit first, then re-run"; exit 1; \
+	fi; \
+	if grep -q '"partial": true' "$$latest"; then \
+		echo "release-check: E2E receipt $$latest is a partial run — the release gate needs the full suite"; exit 1; \
+	fi; \
+	if ! grep -q '"failed": \[\]' "$$latest"; then \
+		echo "release-check: E2E receipt $$latest records failed suites"; exit 1; \
+	fi; \
+	echo "release-check: E2E receipt OK ($$latest)"
 	@if command -v goreleaser >/dev/null 2>&1; then \
 		out="$$(goreleaser check 2>&1)"; rc=$$?; \
 		if [ $$rc -ne 0 ]; then \

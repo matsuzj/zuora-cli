@@ -173,7 +173,7 @@ When adding/maintaining a command that calls the API:
 ## Reviewing a branch with sub-agents / tools
 
 - Inspect a pushed branch READ-ONLY via `git diff main...origin/<branch>` and `git show origin/<branch>:<path>`. **Do NOT `git checkout` the branch in a shared worktree from a sub-agent/tool** — a stray `git checkout main` silently switches the whole tree and discards in-flight work. (Commit + push before any review tooling so a clobber is one `git checkout <branch>` away from recovery, and verify the branch/HEAD afterward — `git status` clean does not prove the tree is intact.)
-- Second-opinion review with Codex: `codex exec review --base main` (the dedicated subcommand). Do NOT use freeform `codex exec "<prompt>"` (it hangs). Codex is non-deterministic — run a couple of passes for important changes.
+- Second-opinion review with Codex: `scripts/codex-review.sh diff [base]` for branch diffs, `scripts/codex-review.sh doc <file> [lens]` for plans/documents. The invocation flags live ONLY in that script (#529 — it resolved the old "freeform hangs" claim: the 2026-06-06 hang no longer reproduces, and doc mode uses the read-only sandbox form). Codex is non-deterministic — follow the multi-pass convergence protocol in `docs/plans/README.md` (vary the lens each pass; two consecutive clean passes).
 
 ## Architecture
 

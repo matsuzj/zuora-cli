@@ -1,0 +1,71 @@
+# closes-check (#530): machine-checks the PR-body contract that the template
+# (.github/PULL_REQUEST_TEMPLATE.md) and AGENTS.md's pipeline section define.
+# With 0 required reviews, the body is the merge-decision surface — and its
+# correctness-critical part has already misfired once (#444's comma-joined
+# "Closes #A, #B" silently failed to auto-close #438).
+#
+# DELIBERATELY NOT a required check (watch-and-decide, tracking #514):
+# GitHub's closingIssuesReferences resolution can lag body edits, and a false
+# red on required status trains agents to ignore checks. Promote only after
+# 2-3 issue waves with zero false positives.
+name: closes-check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  closes-check:
+    name: PR body contract
+    # Dependabot bodies are machine-generated and exempt from the template.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Body/number via env, never inline interpolation into the script —
+      # a PR body is attacker-controlled input on a public repo.
+      PR_BODY: ${{ github.event.pull_request.body }}
+      PR_NUM: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Check PR body contract
+        run: |
+          set -uo pipefail
+          errors=0
+          err() { echo "::error::$1"; errors=1; }
+          body="${PR_BODY:-}"
+
+          # 1. On any line carrying a closing keyword, EVERY issue ref must
+          #    have its own keyword — "Closes #A, #B" / "Closes #A and #B"
+          #    only auto-close #A (the #444 form silently skipped #438).
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            total=$(grep -oE '#[0-9]+' <<< "$line" | wc -l | tr -d ' ')
+            keyed=$(grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' <<< "$line" | wc -l | tr -d ' ')
+            if [ "$total" -gt "$keyed" ]; then
+              err "closing line carries issue refs without their own closing keyword (only keyword-attached refs auto-close): $line"
+            fi
+          done <<< "$(grep -iE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' <<< "$body" || true)"
+
+          # 2. Required template headings (AGENTS.md PR-body skeleton).
+          for h in '## Summary' '## Deviations' '## Review gates'; do
+            grep -qF "$h" <<< "$body" || err "missing required heading: $h (see .github/PULL_REQUEST_TEMPLATE.md)"
+          done
+
+          # 3. Every "Closes #N" must have resolved into a GitHub closing
+          #    reference — otherwise auto-close will NOT fire on merge.
+          nums=$(grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' <<< "$body" | grep -oE '[0-9]+' | sort -u || true)
+          if [ -n "$nums" ]; then
+            resolved=$(gh api graphql \
+              -f query='query($owner:String!,$repo:String!,$num:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$num){closingIssuesReferences(first:50){nodes{number}}}}}' \
+              -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F num="$PR_NUM" \
+              --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' || echo "")
+            for n in $nums; do
+              echo "$resolved" | grep -qx "$n" || err "Closes #$n did not resolve to a linked closing reference — auto-close will not fire (check the issue number / sentence form)"
+            done
+          fi
+
+          exit $errors

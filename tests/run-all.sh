@@ -25,6 +25,9 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ZR="$SCRIPT_DIR/../bin/zr"
+RUN_START=$(date +%s)
+PARTIAL=false
+[ "$#" -gt 0 ] && PARTIAL=true
 
 green() { printf "\033[32m%s\033[0m\n" "$1"; }
 red()   { printf "\033[31m%s\033[0m\n" "$1"; }
@@ -124,6 +127,48 @@ for suite in "${SUITES[@]}"; do
   echo
 done
 
+# Machine receipt (#527): every run writes tests/logs/summary-<sha>-<ts>.json
+# as a side effect, so an "11/11 green" claim in a PR/release is one file away
+# from its machine source. make release-check asserts a clean, non-partial
+# receipt exists for the exact HEAD being tagged. HONEST-MISTAKE GUARD ONLY:
+# the receipt shares the agent's trust root (any writer can forge a file) —
+# it catches partial runs and wrong commits, not fabrication.
+# json_str_array <elems...> — emits "a","b" (no trailing comma); nothing for
+# an empty list, so an empty bash array renders as [] and not [""].
+json_str_array() {
+  [ "$#" -eq 0 ] && return 0
+  printf '"%s",' "$@" | sed 's/,$//'
+}
+
+write_receipt() {
+  local repo sha dirty ts dur envname burl auth_out receipt
+  repo="$SCRIPT_DIR/.."
+  sha=$(git -C "$repo" rev-parse HEAD 2>/dev/null || echo unknown)
+  dirty=false
+  [ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ] && dirty=true
+  ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  dur=$(( $(date +%s) - RUN_START ))
+  auth_out=$("$ZR" auth status 2>&1 || true)
+  envname=$(echo "$auth_out" | awk '/^Environment:/ {print $2}')
+  burl=$(echo "$auth_out" | awk '/^Base URL:/ {print $NF}')
+  receipt="$SCRIPT_DIR/logs/summary-$sha-$(date +%Y%m%d-%H%M%S).json"
+  mkdir -p "$SCRIPT_DIR/logs"
+  {
+    printf '{\n'
+    printf '  "git_sha": "%s",\n' "$sha"
+    printf '  "dirty": %s,\n' "$dirty"
+    printf '  "partial": %s,\n' "$PARTIAL"
+    printf '  "timestamp": "%s",\n' "$ts"
+    printf '  "duration_seconds": %s,\n' "$dur"
+    printf '  "environment": "%s",\n' "$envname"
+    printf '  "base_url": "%s",\n' "$burl"
+    printf '  "passed": [%s],\n' "$(json_str_array ${OK_SUITES[@]+"${OK_SUITES[@]}"})"
+    printf '  "failed": [%s]\n' "$(json_str_array ${FAILED_SUITES[@]+"${FAILED_SUITES[@]}"})"
+    printf '}\n'
+  } > "$receipt"
+  echo "  Receipt: $receipt"
+}
+
 bold "════════ E2E roll-up ════════"
 green "  Passed suites: ${#OK_SUITES[@]}"
 # Guard the expansion: bash 3.2 (macOS /bin/bash) treats an empty array as
@@ -131,6 +176,7 @@ green "  Passed suites: ${#OK_SUITES[@]}"
 if [ "${#OK_SUITES[@]}" -gt 0 ]; then
   for s in "${OK_SUITES[@]}"; do green "    ✓ $s"; done
 fi
+write_receipt
 if [ "${#FAILED_SUITES[@]}" -gt 0 ]; then
   red "  Failed suites: ${#FAILED_SUITES[@]}"
   for s in "${FAILED_SUITES[@]}"; do red "    ✗ $s"; done

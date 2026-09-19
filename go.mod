@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/itchyny/gojq v0.12.19
-	github.com/olekukonko/tablewriter v1.1.4
+	github.com/olekukonko/tablewriter v1.1.5
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
